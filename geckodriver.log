@@ -1,0 +1,105 @@
+1705723117719	geckodriver	INFO	Listening on 127.0.0.1:57299
+1705723118743	mozrunner::runner	INFO	Running command: MOZ_CRASHREPORTER="1" MOZ_CRASHREPORTER_NO_REPORT="1" MOZ_CRASHREPORTER_SHUTDOWN="1" MOZ_NO_REMOTE="1" "/App ... "--marionette" "-foreground" "-no-remote" "-profile" "/var/folders/6s/lm31l14107dbsym2vtdn97hr0000gn/T/rust_mozprofile6vv8zw"
+2024-01-20 11:58:40.507 plugin-container[43937:706015] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 11:58:40.507 plugin-container[43937:706015] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 11:58:40.511 plugin-container[43937:706015] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 11:58:40.511 plugin-container[43937:706015] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 11:58:40.511 plugin-container[43937:706017] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 11:58:40.511 plugin-container[43937:706017] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 03:58:42.890 plugin-container[43941:706255] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 03:58:42.890 plugin-container[43941:706255] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 03:58:42.895 plugin-container[43941:706255] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 03:58:42.895 plugin-container[43941:706255] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 03:58:42.896 plugin-container[43941:706238] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 03:58:42.896 plugin-container[43941:706238] nil host used in call to allowsAnyHTTPSCertificateForHost:
+1705723151170	geckodriver	INFO	Listening on 127.0.0.1:57349
+1705723152193	mozrunner::runner	INFO	Running command: MOZ_CRASHREPORTER="1" MOZ_CRASHREPORTER_NO_REPORT="1" MOZ_CRASHREPORTER_SHUTDOWN="1" MOZ_NO_REMOTE="1" "/App ... "--marionette" "-foreground" "-no-remote" "-profile" "/var/folders/6s/lm31l14107dbsym2vtdn97hr0000gn/T/rust_mozprofileuakb1w"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1705723152630	Marionette	INFO	Marionette enabled
+2024-01-20 11:59:12.905 plugin-container[43967:706948] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 11:59:12.905 plugin-container[43967:706948] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 11:59:12.935 plugin-container[43967:706948] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 11:59:12.935 plugin-container[43967:706948] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 11:59:12.936 plugin-container[43967:706963] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 11:59:12.936 plugin-container[43967:706963] nil host used in call to allowsAnyHTTPSCertificateForHost:
+1705723152951	Marionette	INFO	Listening on port 57360
+1705723153153	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+2024-01-20 03:59:14.914 plugin-container[43970:707127] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 03:59:14.914 plugin-container[43970:707127] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 03:59:14.919 plugin-container[43970:707127] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 03:59:14.919 plugin-container[43970:707127] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 03:59:14.919 plugin-container[43970:707146] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 03:59:14.919 plugin-container[43970:707146] nil host used in call to allowsAnyHTTPSCertificateForHost:
+1705723184777	addons.xpi	ERROR	System addon update list error SyntaxError: XMLHttpRequest.open: 'http://%(server)s/dummy-system-addons.xml' is not a valid URL.
+1705723218211	geckodriver	INFO	Listening on 127.0.0.1:57408
+1705723219221	mozrunner::runner	INFO	Running command: MOZ_CRASHREPORTER="1" MOZ_CRASHREPORTER_NO_REPORT="1" MOZ_CRASHREPORTER_SHUTDOWN="1" MOZ_NO_REMOTE="1" "/App ... "--marionette" "-foreground" "-no-remote" "-profile" "/var/folders/6s/lm31l14107dbsym2vtdn97hr0000gn/T/rust_mozprofileDVh1oh"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1705723220082	Marionette	INFO	Marionette enabled
+2024-01-20 12:00:20.378 plugin-container[44003:708742] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 12:00:20.379 plugin-container[44003:708742] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 12:00:20.384 plugin-container[44003:708742] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 12:00:20.384 plugin-container[44003:708742] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 12:00:20.384 plugin-container[44003:708752] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 12:00:20.384 plugin-container[44003:708752] nil host used in call to allowsAnyHTTPSCertificateForHost:
+1705723220412	Marionette	INFO	Listening on port 57419
+1705723220618	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+1705723220694	Marionette	INFO	Stopped listening on port 57360
+2024-01-20 04:00:23.773 plugin-container[44010:709085] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:00:23.775 plugin-container[44010:709085] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:00:23.819 plugin-container[44010:709085] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:00:23.819 plugin-container[44010:709085] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:00:23.820 plugin-container[44010:709117] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:00:23.821 plugin-container[44010:709117] nil host used in call to allowsAnyHTTPSCertificateForHost:
+JavaScript warning: https://fe-video-qc.xhscdn.com/fe-platform/7a700537086390bf42ed95a3c3b675820f791299.js, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://fe-video-qc.xhscdn.com/fe-platform/7a700537086390bf42ed95a3c3b675820f791299.js, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+2024-01-20 04:00:28.606 plugin-container[44018:709308] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:00:28.606 plugin-container[44018:709308] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:00:28.622 plugin-container[44018:709308] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:00:28.623 plugin-container[44018:709308] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:00:28.625 plugin-container[44018:709322] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:00:28.625 plugin-container[44018:709322] nil host used in call to allowsAnyHTTPSCertificateForHost:
+1705723253396	addons.xpi	ERROR	System addon update list error SyntaxError: XMLHttpRequest.open: 'http://%(server)s/dummy-system-addons.xml' is not a valid URL.
+console.warn: LoginRecipes: "Falling back to a synchronous message for: https://creator.xiaohongshu.com."
+JavaScript warning: https://fe-static.xhscdn.com/formula-static/ugc/public/js/vendor-main.39fb466.js line 2 > eval, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://fe-static.xhscdn.com/formula-static/ugc/public/js/vendor-main.39fb466.js line 2 > eval, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+1705723404823	geckodriver	INFO	Listening on 127.0.0.1:57544
+1705723405837	mozrunner::runner	INFO	Running command: MOZ_CRASHREPORTER="1" MOZ_CRASHREPORTER_NO_REPORT="1" MOZ_CRASHREPORTER_SHUTDOWN="1" MOZ_NO_REMOTE="1" "/App ... "--marionette" "-foreground" "-no-remote" "-profile" "/var/folders/6s/lm31l14107dbsym2vtdn97hr0000gn/T/rust_mozprofilegJrLeZ"
+console.warn: services.settings: Ignoring preference override of remote settings server
+console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
+1705723406651	Marionette	INFO	Marionette enabled
+2024-01-20 12:03:27.042 plugin-container[45416:719382] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 12:03:27.042 plugin-container[45416:719382] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 12:03:27.049 plugin-container[45416:719382] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 12:03:27.050 plugin-container[45416:719382] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 12:03:27.050 plugin-container[45416:719401] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 12:03:27.050 plugin-container[45416:719401] nil host used in call to allowsAnyHTTPSCertificateForHost:
+1705723407091	Marionette	INFO	Listening on port 57555
+1705723407335	RemoteAgent	WARN	TLS certificate errors will be ignored for this session
+2024-01-20 04:03:29.565 plugin-container[45464:719866] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:03:29.570 plugin-container[45464:719866] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:03:29.624 plugin-container[45464:719866] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:03:29.624 plugin-container[45464:719866] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:03:29.625 plugin-container[45464:719934] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:03:29.625 plugin-container[45464:719934] nil host used in call to allowsAnyHTTPSCertificateForHost:
+JavaScript warning: https://fe-video-qc.xhscdn.com/fe-platform/7a700537086390bf42ed95a3c3b675820f791299.js, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+JavaScript warning: https://fe-video-qc.xhscdn.com/fe-platform/7a700537086390bf42ed95a3c3b675820f791299.js, line 1: WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.
+2024-01-20 04:03:34.649 plugin-container[45549:720560] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:03:34.649 plugin-container[45549:720560] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:03:34.666 plugin-container[45549:720560] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:03:34.666 plugin-container[45549:720560] nil host used in call to allowsAnyHTTPSCertificateForHost:
+2024-01-20 04:03:34.666 plugin-container[45549:720580] nil host used in call to allowsSpecificHTTPSCertificateForHost
+2024-01-20 04:03:34.667 plugin-container[45549:720580] nil host used in call to allowsAnyHTTPSCertificateForHost:
+console.warn: LoginRecipes: "Falling back to a synchronous message for: https://creator.xiaohongshu.com."
+JavaScript error: resource:///modules/sessionstore/SessionStore.sys.mjs, line 3784: TypeError: this._windows[aWindow.__SSi] is undefined
+1705723440053	addons.xpi	ERROR	System addon update list error SyntaxError: XMLHttpRequest.open: 'http://%(server)s/dummy-system-addons.xml' is not a valid URL.
+console.warn: LoginRecipes: "Falling back to a synchronous message for: https://creator.xiaohongshu.com."
+JavaScript error: resource:///modules/sessionstore/SessionStore.sys.mjs, line 3784: TypeError: this._windows[aWindow.__SSi] is undefined
+JavaScript warning: https://fe-static.xhscdn.com/formula-static/ugc/public/js/vendor-main.39fb466.js, line 2: Script terminated by timeout at:
+32641/m/<@https://fe-static.xhscdn.com/formula-static/ugc/public/js/vendor-main.39fb466.js:2:1198816
+t@https://fe-static.xhscdn.com/formula-static/ugc/public/js/vendor-main.39fb466.js:2:1198677
+
+1705723670185	Marionette	INFO	Stopped listening on port 57555
+1705723672594	Marionette	INFO	Stopped listening on port 57419
+1705723712473	geckodriver	INFO	Listening on 127.0.0.1:57764
