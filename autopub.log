@@ -1,1 +1,120 @@
-Success
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5338.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5338_metadata.json
+Publishing on XiaoHongShu...
+Starting the publishing process on XiaoHongShu...
+No alert present.
+Navigated to post creation page.
+Video upload field is present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5338_highlighted.mp4
+Video uploaded successfully!
+Entering title and description.
+Handling cover upload.
+Waiting 编辑默认封面...
+Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly interactable.
+Waiting 上传封面
+Element //*[text()="上传封面"] is truly interactable.
+Uploading cover from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5338_cover.jpg
+Waiting for the file input to be ready to receive the cover file path...
+Sending cover file path to input: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5338_cover.jpg
+Cover uploaded successfully! Proceeding to location selection.
+Location selected successfully!
+No alert present.
+Publishing...
+Process completed successfully!
+Publishing on Bilibili...
+Starting the publishing process on Bilibili...
+No alert present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5338_highlighted.mp4
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Handling cover upload.
+Clicked '完成' button.
+Cover upload finished.
+Entering title...
+Entering description...
+Selecting category...
+Adding tags...
+Publishing the video...
+No alert present.
+Video published successfully!
+Publishing on Douyin...
+Starting the publishing process on Douyin...
+No alert present.
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Adding cover...
+Entering the title...
+Entering video description...
+Entering location information...
+Handling '今日头条' switch...
+An error occurred: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//div[contains(@class, 'toutiao--1ujZn')]/following-sibling::div//input[@type='checkbox' and @role='switch']"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x0000000100dcacc8 chromedriver + 4844744
+1   chromedriver                        0x0000000100dc2243 chromedriver + 4809283
+2   chromedriver                        0x000000010099077d chromedriver + 411517
+3   chromedriver                        0x00000001009e0ee0 chromedriver + 741088
+4   chromedriver                        0x00000001009e1091 chromedriver + 741521
+5   chromedriver                        0x0000000100a2cab4 chromedriver + 1051316
+6   chromedriver                        0x0000000100a0aced chromedriver + 912621
+7   chromedriver                        0x0000000100a29d42 chromedriver + 1039682
+8   chromedriver                        0x0000000100a0aa63 chromedriver + 911971
+9   chromedriver                        0x00000001009d21b3 chromedriver + 680371
+10  chromedriver                        0x00000001009d37ce chromedriver + 686030
+11  chromedriver                        0x0000000100d8a642 chromedriver + 4580930
+12  chromedriver                        0x0000000100d8f9cc chromedriver + 4602316
+13  chromedriver                        0x0000000100d6fe11 chromedriver + 4472337
+14  chromedriver                        0x0000000100d90746 chromedriver + 4605766
+15  chromedriver                        0x0000000100d6139c chromedriver + 4412316
+16  chromedriver                        0x0000000100db0868 chromedriver + 4737128
+17  chromedriver                        0x0000000100db0a1e chromedriver + 4737566
+18  chromedriver                        0x0000000100dc1e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 110, in publish
+    toutiao_switch_element = driver.find_element(By.XPATH, toutiao_switch_xpath)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
+    return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 348, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//div[contains(@class, 'toutiao--1ujZn')]/following-sibling::div//input[@type='checkbox' and @role='switch']"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x0000000100dcacc8 chromedriver + 4844744
+1   chromedriver                        0x0000000100dc2243 chromedriver + 4809283
+2   chromedriver                        0x000000010099077d chromedriver + 411517
+3   chromedriver                        0x00000001009e0ee0 chromedriver + 741088
+4   chromedriver                        0x00000001009e1091 chromedriver + 741521
+5   chromedriver                        0x0000000100a2cab4 chromedriver + 1051316
+6   chromedriver                        0x0000000100a0aced chromedriver + 912621
+7   chromedriver                        0x0000000100a29d42 chromedriver + 1039682
+8   chromedriver                        0x0000000100a0aa63 chromedriver + 911971
+9   chromedriver                        0x00000001009d21b3 chromedriver + 680371
+10  chromedriver                        0x00000001009d37ce chromedriver + 686030
+11  chromedriver                        0x0000000100d8a642 chromedriver + 4580930
+12  chromedriver                        0x0000000100d8f9cc chromedriver + 4602316
+13  chromedriver                        0x0000000100d6fe11 chromedriver + 4472337
+14  chromedriver                        0x0000000100d90746 chromedriver + 4605766
+15  chromedriver                        0x0000000100d6139c chromedriver + 4412316
+16  chromedriver                        0x0000000100db0868 chromedriver + 4737128
+17  chromedriver                        0x0000000100db0a1e chromedriver + 4737566
+18  chromedriver                        0x0000000100dc1e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 233, in <module>
+    process_file(file_path, transcription_path, server_url)
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 178, in process_file
+    douyin_publisher.publish()
+  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 151, in publish
+    traceback.print_exc()
+NameError: name 'traceback' is not defined
