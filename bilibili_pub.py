@@ -7,10 +7,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, NoSuchWindowException, TimeoutException
 import time
 
-from utils import dismiss_alert
+from utils import dismiss_alert, crop_and_resize_cover_image
 
 import traceback
 
+import os
 class BilibiliPublisher:
     def __init__(self, driver, path_mp4, path_cover, metadata):
         self.driver = driver
@@ -52,12 +53,15 @@ class BilibiliPublisher:
             print("Video uploaded successfully!")
 
             print("Handling cover upload.")
+            path_cover = crop_and_resize_cover_image(path_cover)
             # Click on the '更改封面' button to start the cover upload process
             edit_cover_button_xpath = '//*[text()="更改封面"]'
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, edit_cover_button_xpath))).click()
+            time.sleep(1)
             # Wait for the '上传封面' option to become clickable and click it
             upload_cover_option_xpath = '//*[text()="上传封面"]'
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
+            time.sleep(1)
             file_input_xpath = "//input[@type='file' and @accept='image/png, image/jpeg']"
             file_input_element = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, file_input_xpath)))
             # Send the file path to the hidden file input element
@@ -86,6 +90,7 @@ class BilibiliPublisher:
             wait_for_element_to_be_clickable(title_input_xpath)
             driver.find_element(By.XPATH, title_input_xpath).clear()
             driver.find_element(By.XPATH, title_input_xpath).send_keys(metadata['title'])
+            time.sleep(1)
 
             # Enter Description
             print("Entering description...")
@@ -93,14 +98,18 @@ class BilibiliPublisher:
             desc_input_xpath = '//*[@editor_id="desc_at_editor"]//br'
             wait_for_element_to_be_clickable(desc_input_xpath)
             driver.find_element(By.XPATH, desc_input_xpath).send_keys(description_with_tags)
+            time.sleep(1)
 
             # Select Category
             print("Selecting category...")
             category_select_xpath = '//*[contains(@class,"select-item-cont")]'
             wait_for_element_to_be_clickable(category_select_xpath)
             driver.find_element(By.XPATH, category_select_xpath).click()
+            time.sleep(1)
             driver.find_element(By.XPATH, '//*[text()="推荐选择"]').click()
+            time.sleep(1)
             driver.find_element(By.XPATH, '//*[text()="日常"]').click()
+            time.sleep(1)
 
             # Add Tags
             print("Adding tags...")
@@ -108,8 +117,9 @@ class BilibiliPublisher:
             for tag in metadata['tags']:
                 wait_for_element_to_be_clickable(tag_input_xpath)
                 driver.find_element(By.XPATH, tag_input_xpath).send_keys(tag)
+                time.sleep(1)
                 driver.find_element(By.XPATH, tag_input_xpath).send_keys(Keys.ENTER)
-                time.sleep(0.1)
+                time.sleep(1)
 
             # Prompt for Publishing
             # user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
@@ -117,8 +127,10 @@ class BilibiliPublisher:
             if user_input == 'yes':
                 # Click Publish
                 print("Publishing the video...")
-                publish_button_xpath = '//*[text()="立即投稿"]'
+                # publish_button_xpath = '//*[text()="立即投稿"]'
+                publish_button_xpath = '//*[text()="存草稿"]'
                 wait_for_element_to_be_clickable(publish_button_xpath)
+                time.sleep(10)
                 driver.find_element(By.XPATH, publish_button_xpath).click()
                 
                 time.sleep(10)

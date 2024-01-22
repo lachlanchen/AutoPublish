@@ -152,17 +152,7 @@ def process_file(file_path, transcription_path, server_url, driver=None):
                 xhs_publisher.publish()
 
 
-                # Create an instance of the BilibiliPublisher
-                bilibili_publisher = BilibiliPublisher(
-                    driver=bilibili_driver,
-                    path_mp4=path_mp4,
-                    path_cover=path_cover,
-                    metadata=metadata
-                )
-
-                # Start publishing process
-                print("Publishing on Bilibili...")
-                bilibili_publisher.publish()
+                
 
 
                 # Create an instance of the DouYinPublisher
@@ -176,6 +166,18 @@ def process_file(file_path, transcription_path, server_url, driver=None):
                 # Start publishing process
                 print("Publishing on Douyin...")
                 douyin_publisher.publish()
+
+                # Create an instance of the BilibiliPublisher
+                bilibili_publisher = BilibiliPublisher(
+                    driver=bilibili_driver,
+                    path_mp4=path_mp4,
+                    path_cover=path_cover,
+                    metadata=metadata
+                )
+
+                # Start publishing process
+                print("Publishing on Bilibili...")
+                bilibili_publisher.publish()
 
 
 
