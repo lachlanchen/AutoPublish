@@ -12,11 +12,12 @@ from utils import dismiss_alert
 import traceback
 
 class DouyinPublisher:
-    def __init__(self, driver, path_mp4, path_cover, metadata):
+    def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
         self.driver = driver
         self.path_mp4 = path_mp4
         self.path_cover = path_cover
         self.metadata = metadata
+        self.test = test
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)
@@ -37,30 +38,40 @@ class DouyinPublisher:
             metadata = self.metadata
             wait_for_element_to_be_clickable = self.wait_for_element_to_be_clickable
             # dismiss_alert = self.dismiss_alert
+            test = self.test
 
             print("Starting the publishing process on Douyin...")
             driver.get("https://creator.douyin.com/creator-micro/home")
+            # driver.get("https://creator.douyin.com/creator-micro/content/publish")
             time.sleep(1)
             dismiss_alert(driver)
             time.sleep(30)
 
-            wait_for_element_to_be_clickable(driver, '//*[text()="发布作品"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[text()="发布作品"]')
             driver.find_element(By.XPATH, '//*[text()="发布作品"]').click()
-            wait_for_element_to_be_clickable(driver, '//*[text()="发布视频"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[text()="发布视频"]')
             driver.find_element(By.XPATH, '//*[text()="发布视频"]').click()
-            wait_for_element_to_be_clickable(driver, '//input[@type="file"]')
+
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//input[@type="file"]')
             driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
 
             print("Waiting for the video to be uploaded...")
+            time.sleep(3)
             WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="重新上传"]')))
             print("Video uploaded successfully!")
 
             print("Adding cover...")
-            wait_for_element_to_be_clickable(driver, '//*[text()="选择封面"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[text()="选择封面"]')
             driver.find_element(By.XPATH, '//*[text()="选择封面"]').click()
-            wait_for_element_to_be_clickable(driver, '//div[text()="上传封面"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//div[text()="上传封面"]')
             driver.find_element(By.XPATH, '//div[text()="上传封面"]').click()
-            wait_for_element_to_be_clickable(driver, '//*[text()="点击上传 或直接将图片文件拖入此区域"]/../../../..//input[@type="file"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[text()="点击上传 或直接将图片文件拖入此区域"]/../../../..//input[@type="file"]')
             driver.find_element(By.XPATH, '//*[text()="点击上传 或直接将图片文件拖入此区域"]/../../../..//input[@type="file"]').send_keys(path_cover)
 
             # # Wait for the '完成' button to be clickable and ensure it's scrolled into view
@@ -110,28 +121,36 @@ class DouyinPublisher:
              # Entering the title
             print("Entering the title...")
             title_input_xpath = '//input[@placeholder="好的作品标题可获得更多浏览"]'
-            wait_for_element_to_be_clickable(driver, title_input_xpath)
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, title_input_xpath)
             title_input_element = driver.find_element(By.XPATH, title_input_xpath)
+            time.sleep(3)
             title_input_element.clear()  # Clearing any pre-filled text
             # title_input_element.send_keys(describe.split(" #")[0])  # Using the first part of the 'describe' variable as the title
+            time.sleep(3)
             title_input_element.send_keys(metadata["title"])  # Using the first part of the 'describe' variable as the title
 
 
 
             print("Entering video description...")
             description_input_xpath = '//div[@data-placeholder="添加作品简介"]'
-            wait_for_element_to_be_clickable(driver, description_input_xpath)
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, description_input_xpath)
             description_input_element = driver.find_element(By.XPATH, description_input_xpath)
             description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
+            time.sleep(3)
             driver.execute_script("arguments[0].innerText = arguments[1];", description_input_element,  description_with_tags + " #上热门 #dou上热门 #我要上热门")
 
 
             print("Entering location information...")
-            wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]')
             driver.find_element(By.XPATH, '//*[text()="输入地理位置"]').click()
-            wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]/..//input')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]/..//input')
             driver.find_element(By.XPATH, '//*[text()="输入地理位置"]/..//input').send_keys("香港大学")
-            wait_for_element_to_be_clickable(driver, '//*[@class="semi-popover-content"]//*[text()="香港大学"]')
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(driver, '//*[@class="semi-popover-content"]//*[text()="香港大学"]')
             driver.find_element(By.XPATH, '//*[@class="semi-popover-content"]//*[text()="香港大学"]').click()
 
 
@@ -212,22 +231,28 @@ class DouyinPublisher:
                     targetSwitch.click();
                 }
                 """
+                time.sleep(3)
                 driver.execute_script(toggle_script)
                 print("Toggled the '原创内容' switch.")
             else:
                 print("Could not find '原创内容' switch.")
                 
             # Prompt for manual check and publish
-            # user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
-            user_input = "yes"
+            if test:
+                user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
+            else:
+                user_input = "yes"
+
             if user_input == 'yes':
                 print("Publishing the video...")
-                wait_for_element_to_be_clickable(driver, '//button[text()="发布"]')
+                time.sleep(3)
+                # wait_for_element_to_be_clickable(driver, '//button[text()="发布"]')
                 driver.find_element(By.XPATH, '//button[text()="发布"]').click()
 
                 time.sleep(10)
-
                 dismiss_alert(driver)
+                time.sleep(3)
+
                 
                 print("Video published successfully!")
             else:

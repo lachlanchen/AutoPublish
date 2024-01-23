@@ -11,11 +11,12 @@ from utils import dismiss_alert
 import traceback
 
 class XiaoHongShuPublisher:
-    def __init__(self, driver, path_mp4, path_cover, metadata):
+    def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
         self.driver = driver
         self.path_mp4 = path_mp4
         self.path_cover = path_cover
         self.metadata = metadata
+        self.test = test
 
     # def wait_for_element_to_be_clickable(self, xpath, timeout=600):
     #     try:
@@ -56,34 +57,42 @@ class XiaoHongShuPublisher:
         path_mp4 = self.path_mp4
         path_cover = self.path_cover
         metadata = self.metadata
+        test = self.test
 
         try:
             print("Starting the publishing process on XiaoHongShu...")
             driver.get("https://creator.xiaohongshu.com/creator/post")
-            time.sleep(1)
-            dismiss_alert(driver)
-            time.sleep(10)
             print("Navigated to post creation page.")
 
+            time.sleep(1)
+            dismiss_alert(driver)
+            
+            time.sleep(10)
             WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//input[@type="file"]')))
             print("Video upload field is present.")
+
+            
             
             print(f"Uploading video from path: {path_mp4}")
+            time.sleep(3)
             driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
 
+            time.sleep(3)
             WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(),"重新上传")]')))
             print("Video uploaded successfully!")
 
             print("Entering title and description.")
+            time.sleep(3)
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class,"titleInput")]//input')))
             driver.find_element(By.XPATH, '//*[contains(@class,"titleInput")]//input').send_keys(metadata['title'])
+            
             description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
+            time.sleep(3)
             driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags)
 
             print("Handling cover upload.")
             # cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
             cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
-            time.sleep(10)
             print("Waiting 编辑默认封面...")
             wait_for_element_to_be_clickable(cover_button_xpath)
             driver.find_element(By.XPATH, cover_button_xpath).click()
@@ -95,28 +104,38 @@ class XiaoHongShuPublisher:
             print(f"Waiting for the file input to be ready to receive the cover file path...")
             file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
             print(f"Sending cover file path to input: {path_cover}")
+            time.sleep(3)
             driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
+            time.sleep(3)
             driver.find_element(By.XPATH, '//*[contains(text(),"上传封面")]/../../../../..//*[text()="确定"]').click()
             cover_uploaded_button_xpath = '//*[text()="修改默认封面"]'
+            time.sleep(3)
             WebDriverWait(driver, 600).until(EC.presence_of_element_located((By.XPATH, cover_uploaded_button_xpath)))
             print("Cover uploaded successfully! Proceeding to location selection.")
 
+            time.sleep(3)
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, "single-input"))).click()
+            time.sleep(3)
             WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, "dropdown")))
+            time.sleep(3)
             driver.find_element(By.XPATH, ".//span[contains(text(), '香港大学')]").click()
             print("Location selected successfully!")
 
             # Prompt the user to confirm publishing
-            # user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
-            user_input = "yes"
+            if test:
+                user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
+            else:
+                user_input = "yes"
             if user_input == 'yes':
                 # If user confirms, click the publish button
+                time.sleep(3)
                 publish_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[text()="发布"]')))
+                time.sleep(3)
                 publish_button.click()
                 
                 time.sleep(10)
-
                 dismiss_alert(driver)
+                time.sleep(3)
 
                 print("Publishing...")
             else:

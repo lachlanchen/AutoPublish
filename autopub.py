@@ -2,29 +2,15 @@ import os
 import csv
 import re
 from datetime import datetime
+import zipfile
+import json
+import argparse
+from pathlib import Path
+from selenium import webdriver
 from xhs_pub import XiaoHongShuPublisher
 from bilibili_pub import BilibiliPublisher
 from douyin_pub import DouyinPublisher
 from process_video import VideoProcessor
-
-import selenium
-from selenium import webdriver
-import pathlib
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchWindowException, TimeoutException
-import time
-
-import zipfile
-
-import os
-import requests
-from urllib.parse import urlparse
-from pathlib import Path
-
-import json
-import json5
 
 # Define video file pattern
 video_file_pattern = re.compile(r'.+\.(mp4|mov|avi|flv|wmv|mkv)$', re.IGNORECASE)
@@ -61,54 +47,19 @@ def update_csv_if_new(file_path, csv_path):
             writer = csv.writer(csvfile)
             writer.writerow([file_path])
 
-# Placeholder for your process function
-# def process_file(file_path):
-#     print(f"Processing {file_path}...")  # Placeholder
-#     # Add your actual file processing code here
-
-# # Function to update process_file
-# def process_file(file_path, transcription_path, server_url, driver):
-#     # Create an instance of VideoProcessor
-#     processor = VideoProcessor(server_url, file_path, transcription_path)
-#     zip_file_path = processor.process_video()
-    
-#     # Unzip the file
-#     if zip_file_path and os.path.exists(zip_file_path):
-#         with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-
-#             print("Extracting zipfile...")
-#             zip_ref.extractall(transcription_path)
-        
-#         # Read the metadata JSON file
-#         metadata_json_path = os.path.join(transcription_path, f"{Path(file_path).stem}_metadata.json")
-#         print("metadata_json_path: ", metadata_json_path)
-#         if os.path.exists(metadata_json_path):
-#             with open(metadata_json_path, 'r') as json_file:
-#                 metadata = json.load(json_file)
-#             # Extract paths for the processed video and cover
-#             # path_mp4, path_cover = get_media_paths(transcription_path)
-#             if not path_mp4 or not path_cover:
-#                 print("Processed video or cover file not found. Exiting...")
-#             else:
-#                 # Create an instance of the XiaoHongShuPublisher
-#                 xhs_publisher = XiaoHongShuPublisher(
-#                     driver=driver,
-#                     path_mp4=path_mp4,
-#                     path_cover=path_cover,
-#                     metadata=metadata
-#                 )
-#                 # Start publishing process
-#                 print("Publishing...")
-#                 xhs_publisher.publish()
-#         else:
-#             print(f"Metadata JSON file not found in {transcription_path}")
-#     else:
-#         print(f"Zip file not found at {zip_file_path}")
-
-def process_file(file_path, transcription_path, server_url, driver=None):
+# Function to process and publish the file based on given parameters
+def process_file(
+    file_path, transcription_path, server_url, 
+    publish_xhs, publish_bilibili, publish_douyin, 
+    test_mode, use_cache=False, driver=None):
+    success = 0
     # Create an instance of VideoProcessor
     processor = VideoProcessor(server_url, file_path, transcription_path)
-    zip_file_path = processor.process_video()
+    zip_file_path = processor.process_video(use_cache=use_cache)
+
+    zip_file_name = Path(zip_file_path).stem
+    transcription_path = os.path.join(transcription_path, zip_file_name)
+    os.makedirs(transcription_path, exist_ok=True)
     
     # Unzip the file
     if zip_file_path and os.path.exists(zip_file_path):
@@ -131,86 +82,96 @@ def process_file(file_path, transcription_path, server_url, driver=None):
             path_mp4 = os.path.join(transcription_path, video_filename) if video_filename else None
             path_cover = os.path.join(transcription_path, cover_filename) if cover_filename else None
 
-
             # Create a new driver for each publishing process
             xhs_driver = create_new_driver(5003) if driver is None else driver
-            bilibili_driver = create_new_driver(5003) if driver is None else driver
-            douyin_driver = create_new_driver(5003) if driver is None else driver
+            douyin_driver = create_new_driver(5004) if driver is None else driver
+            bilibili_driver = create_new_driver(5005) if driver is None else driver
+
             
             if not path_mp4 or not path_cover:
                 print("Processed video or cover file not found. Exiting...")
             else:
-                # Create an instance of the XiaoHongShuPublisher
-                xhs_publisher = XiaoHongShuPublisher(
-                    driver=xhs_driver,
-                    path_mp4=path_mp4,
-                    path_cover=path_cover,
-                    metadata=metadata
-                )
-                # Start publishing process
-                print("Publishing on XiaoHongShu...")
-                xhs_publisher.publish()
+                if publish_xhs:
+                    try:
+                        # Create an instance of the XiaoHongShuPublisher
+                        xhs_publisher = XiaoHongShuPublisher(
+                            driver=xhs_driver,
+                            path_mp4=path_mp4,
+                            path_cover=path_cover,
+                            metadata=metadata,
+                            test=test_mode
+                        )
+                        # Start publishing process
+                        print("Publishing on XiaoHongShu...")
+                        xhs_publisher.publish()
+                        success += 1
+                    except Exception as e:
+                        print(f"Failed to publish on XiaoHongShu: {e}")
 
+                if publish_douyin:
+                    try:
+                        # Create an instance of the DouYinPublisher
+                        douyin_publisher = DouyinPublisher(
+                            driver=douyin_driver,
+                            path_mp4=path_mp4,
+                            path_cover=path_cover,
+                            metadata=metadata,
+                            test=test_mode
+                        )
+                        # Start publishing process
+                        print("Publishing on Douyin...")
+                        douyin_publisher.publish()
+                        success += 1
+                    except Exception as e:
+                        print(f"Failed to publish on Douyin: {e}")
 
-                
-
-
-                # Create an instance of the DouYinPublisher
-                douyin_publisher = DouyinPublisher(
-                    driver=douyin_driver,
-                    path_mp4=path_mp4,
-                    path_cover=path_cover,
-                    metadata=metadata
-                )
-
-                # Start publishing process
-                print("Publishing on Douyin...")
-                douyin_publisher.publish()
-
-                # Create an instance of the BilibiliPublisher
-                bilibili_publisher = BilibiliPublisher(
-                    driver=bilibili_driver,
-                    path_mp4=path_mp4,
-                    path_cover=path_cover,
-                    metadata=metadata
-                )
-
-                # Start publishing process
-                print("Publishing on Bilibili...")
-                bilibili_publisher.publish()
-
-
-
-
-                
-
+                if publish_bilibili:
+                    try:
+                        # Create an instance of the BilibiliPublisher
+                        bilibili_publisher = BilibiliPublisher(
+                            driver=bilibili_driver,
+                            path_mp4=path_mp4,
+                            path_cover=path_cover,
+                            metadata=metadata,
+                            test=test_mode
+                        )
+                        # Start publishing process
+                        print("Publishing on Bilibili...")
+                        bilibili_publisher.publish()
+                        success += 1
+                    except Exception as e:
+                        print(f"Failed to publish on Bilibili: {e}")
 
         else:
             print(f"Metadata JSON file not found in {transcription_path}")
     else:
         print(f"Zip file not found at {zip_file_path}")
 
+    return success
+
 if __name__ == "__main__":
-    # Create a new log entry
+    # Parse command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pub-xhs', action='store_true', help="Publish on XiaoHongShu")
+    parser.add_argument('--pub-bilibili', action='store_true', help="Publish on Bilibili")
+    parser.add_argument('--pub-douyin', action='store_true', help="Publish on DouYin")
+    parser.add_argument('--test', action='store_true', help="Run in test mode")
+    parser.add_argument('--use-cache', action='store_true', help="Use cache")
+    args = parser.parse_args()
+
+    # Determine publishing platforms based on provided arguments
+    platforms_provided = args.pub_xhs or args.pub_bilibili or args.pub_douyin
+    publish_xhs = args.pub_xhs or not platforms_provided
+    publish_bilibili = args.pub_bilibili or not platforms_provided
+    publish_douyin = args.pub_douyin or not platforms_provided
+    test_mode = args.test
+    use_cache = args.use_cache
+
     current_datetime = datetime.now()
     log_filename = f"{current_datetime.strftime('%Y-%m-%d %H-%M-%S')}.txt"
     log_file_path = os.path.join(logs_folder_path, log_filename)
     server_url = 'http://lachlanserver:8080/video-processing'
     transcription_path = "/Users/lachlan/Nutstore Files/Vlog/transcription_data"
-
-    # # Chrome options
-    # options = webdriver.ChromeOptions()
-    # options.add_experimental_option("debuggerAddress", "127.0.0.1:5003")
-
-    # # Initialize the driver
-    # driver = webdriver.Chrome(options=options)
-
-    # # Check if there is an existing window to work with or if a new window should be opened
-    # try:
-    #     driver.current_window_handle
-    # except NoSuchWindowException:
-    #     driver = webdriver.Chrome(executable_path=chrome_driver_path, options=options)
-
 
     with open(log_file_path, 'a') as log_file:
         log_file.write(f"Log entry at {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -232,7 +193,16 @@ if __name__ == "__main__":
                     
                     # If not processed, process the file and update processed.csv
                     if filename not in processed_files:
-                        process_file(file_path, transcription_path, server_url)
-                        update_csv_if_new(filename, processed_path)
+                        success = process_file(
+                            file_path, 
+                            transcription_path, 
+                            server_url, 
+                            publish_xhs=publish_xhs,
+                            publish_bilibili=publish_bilibili,
+                            publish_douyin=publish_douyin,
+                            test_mode=test_mode,
+                            use_cache=use_cache
+                        )
+                        if success > 0:
+                            update_csv_if_new(filename, processed_path)
 
-    print("Success")

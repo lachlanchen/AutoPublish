@@ -55,11 +55,12 @@ def b64_api(username, password, img_path, ID):
 
 
 class BilibiliPublisher:
-    def __init__(self, driver, path_mp4, path_cover, metadata):
+    def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
         self.driver = driver
         self.path_mp4 = path_mp4
         self.path_cover = path_cover
         self.metadata = metadata
+        self.test = test
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)
@@ -72,6 +73,8 @@ class BilibiliPublisher:
         #     print(f"Timed out waiting for {xpath} to become clickable.")
 
     def solve_captcha(self):
+        time.sleep(3)
+
         # Execute JavaScript to check if the CAPTCHA popup is present
         is_captcha_present = self.driver.execute_script("""
             return document.querySelector('.geetest_panel_box') !== null;
@@ -146,20 +149,23 @@ class BilibiliPublisher:
         path_mp4 = self.path_mp4
         path_cover = self.path_cover
         metadata = self.metadata
+        test = self.test
 
         try:
             print("Starting the publishing process on Bilibili...")
             driver.get("https://member.bilibili.com/platform/upload/video/frame")
             time.sleep(1)
             dismiss_alert(driver)
-            time.sleep(10)
+            time.sleep(30)
             
             print(f"Uploading video from path: {path_mp4}")
             upload_input_xpath = '//input[@type="file" and contains(@accept,"mp4")]'
-            wait_for_element_to_be_clickable(upload_input_xpath)
+            time.sleep(3)        
+            # wait_for_element_to_be_clickable(upload_input_xpath)
             driver.find_element(By.XPATH, upload_input_xpath).send_keys(path_mp4)
 
             print("Waiting for the video to be uploaded...")
+            time.sleep(3)        
             WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="上传完成"]')))
             print("Video uploaded successfully!")
 
@@ -167,17 +173,18 @@ class BilibiliPublisher:
             path_cover = crop_and_resize_cover_image(path_cover)
             # Click on the '更改封面' button to start the cover upload process
             edit_cover_button_xpath = '//*[text()="更改封面"]'
+            time.sleep(3)
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, edit_cover_button_xpath))).click()
-            time.sleep(1)
             # Wait for the '上传封面' option to become clickable and click it
             upload_cover_option_xpath = '//*[text()="上传封面"]'
+            time.sleep(3)
             WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
-            time.sleep(1)
             file_input_xpath = "//input[@type='file' and @accept='image/png, image/jpeg']"
+            time.sleep(3)
             file_input_element = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, file_input_xpath)))
             # Send the file path to the hidden file input element
-            file_input_element.send_keys(path_cover)
             time.sleep(3)
+            file_input_element.send_keys(path_cover)
             # Define the JavaScript code
             js_code = """
             var finishButton = [...document.querySelectorAll('.bcc-button--primary')].find(el => el.innerText.includes('完成'));
@@ -189,68 +196,71 @@ class BilibiliPublisher:
             }
             """
             # Execute the JavaScript code
+            time.sleep(3)        
             result = driver.execute_script(js_code)
             # Print the result of the JavaScript execution
             print(result)
-            time.sleep(3)        
             print("Cover upload finished.")
 
             # Enter Title
             print("Entering title...")
             title_input_xpath = '//input[contains(@placeholder,"请输入稿件标题")]'
-            wait_for_element_to_be_clickable(title_input_xpath)
+            time.sleep(3)        
+            # wait_for_element_to_be_clickable(title_input_xpath)
             driver.find_element(By.XPATH, title_input_xpath).clear()
+            time.sleep(3)        
             driver.find_element(By.XPATH, title_input_xpath).send_keys(metadata['title'])
-            time.sleep(1)
 
             # Enter Description
             print("Entering description...")
             description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
             desc_input_xpath = '//*[@editor_id="desc_at_editor"]//br'
-            wait_for_element_to_be_clickable(desc_input_xpath)
+            time.sleep(3)
+            # wait_for_element_to_be_clickable(desc_input_xpath)
             driver.find_element(By.XPATH, desc_input_xpath).send_keys(description_with_tags)
-            time.sleep(1)
 
             # Select Category
             print("Selecting category...")
             category_select_xpath = '//*[contains(@class,"select-item-cont")]'
-            wait_for_element_to_be_clickable(category_select_xpath)
+            # wait_for_element_to_be_clickable(category_select_xpath)
             driver.find_element(By.XPATH, category_select_xpath).click()
             time.sleep(1)
             driver.find_element(By.XPATH, '//*[text()="推荐选择"]').click()
             time.sleep(1)
             driver.find_element(By.XPATH, '//*[text()="日常"]').click()
-            time.sleep(1)
+            # time.sleep(1)
 
             # Add Tags
             print("Adding tags...")
             tag_input_xpath = '//input[@placeholder="按回车键Enter创建标签"]'
             for tag in metadata['tags']:
-                wait_for_element_to_be_clickable(tag_input_xpath)
+                # wait_for_element_to_be_clickable(tag_input_xpath)
+                time.sleep(1)
                 driver.find_element(By.XPATH, tag_input_xpath).send_keys(tag)
                 time.sleep(1)
                 driver.find_element(By.XPATH, tag_input_xpath).send_keys(Keys.ENTER)
-                time.sleep(1)
 
             # Prompt for Publishing
-            # user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
-            user_input = "yes"
+            if test:
+                user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
+            else:
+                user_input = "yes"
             if user_input == 'yes':
                 # Click Publish
                 print("Publishing the video...")
                 publish_button_xpath = '//*[text()="立即投稿"]'
                 # publish_button_xpath = '//*[text()="存草稿"]'
-                wait_for_element_to_be_clickable(publish_button_xpath)
                 time.sleep(10)
+                # wait_for_element_to_be_clickable(publish_button_xpath)
                 driver.find_element(By.XPATH, publish_button_xpath).click()
 
-                time.sleep(5)
-
-                self.solve_captcha()
-                
                 time.sleep(10)
+                self.solve_captcha()
 
+                time.sleep(10)
                 dismiss_alert(driver)
+                time.sleep(3)
+
                 print("Video published successfully!")
             else:
                 print("Publishing cancelled by the user.")

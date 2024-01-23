@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 180, in <module>
+    process_file(
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 54, in process_file
+    zip_file_path = processor.process_video()
+  File "/Users/lachlan/Documents/iProjects/auto-publish/process_video.py", line 31, in process_video
+    with open(zip_file_path, 'wb') as f:
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5419/IMG_5419.zip'

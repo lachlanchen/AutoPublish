@@ -1,0 +1,27 @@
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5432/IMG_5432.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5432/IMG_5432_metadata.json
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/common/service.py", line 72, in start
+    self.process = subprocess.Popen(cmd, env=self.env,
+  File "/Users/lachlan/miniconda3/lib/python3.10/subprocess.py", line 971, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Users/lachlan/miniconda3/lib/python3.10/subprocess.py", line 1863, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'chromedriver'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 196, in <module>
+    success = process_file(
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 86, in process_file
+    xhs_driver = create_new_driver(5003) if driver is None else driver
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 33, in create_new_driver
+    driver = webdriver.Chrome(options=options)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/chrome/webdriver.py", line 73, in __init__
+    self.service.start()
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/common/service.py", line 81, in start
+    raise WebDriverException(
+selenium.common.exceptions.WebDriverException: Message: 'chromedriver' executable needs to be in PATH. Please see https://sites.google.com/a/chromium.org/chromedriver/home
+

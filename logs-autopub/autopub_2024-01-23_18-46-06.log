@@ -1,0 +1,7 @@
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5430/IMG_5430.zip.
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 196, in <module>
+    success = process_file(
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 62, in process_file
+    os.makedirs(exists_ok=True)
+TypeError: makedirs() got an unexpected keyword argument 'exists_ok'

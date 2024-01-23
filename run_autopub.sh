@@ -1,7 +1,8 @@
-# #!/bin/bash -l
+# #!/bin/zsh -l
 
 # Load the user's bash or zsh profile to ensure all environment variables are set
-source ~/.bash_profile  # or source ~/.zshrc if you're using zsh
+source ~/.zprofile  # or source ~/.zshrc if you're using zsh
+source ~/.zshrc  # or source ~/.zshrc if you're using zsh
 
 # Activate Conda environment
 source /Users/lachlan/miniconda3/bin/activate
@@ -27,7 +28,7 @@ touch "${lock_file}"
 trap 'rm -f "${lock_file}"; exit' INT TERM EXIT
 
 # Run your Python script and save its output to the log file
-/Users/lachlan/miniconda3/bin/python /Users/lachlan/Documents/iProjects/auto-publish/autopub.py > "${log_file}" 2>&1
+/Users/lachlan/miniconda3/bin/python /Users/lachlan/Documents/iProjects/auto-publish/autopub.py --use-cache > "${log_file}" 2>&1
 
 # Remove the lock file and clear the trap
 rm -f "${lock_file}"
