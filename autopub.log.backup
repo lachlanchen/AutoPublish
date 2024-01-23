@@ -1,0 +1,445 @@
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/xhs_pub.py", line 92, in publish
+    driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
+    return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 348, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//*[text()="上传封面"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x00000001078fccc8 chromedriver + 4844744
+1   chromedriver                        0x00000001078f4243 chromedriver + 4809283
+2   chromedriver                        0x00000001074c277d chromedriver + 411517
+3   chromedriver                        0x0000000107512ee0 chromedriver + 741088
+4   chromedriver                        0x0000000107513091 chromedriver + 741521
+5   chromedriver                        0x000000010755eab4 chromedriver + 1051316
+6   chromedriver                        0x000000010753cced chromedriver + 912621
+7   chromedriver                        0x000000010755bd42 chromedriver + 1039682
+8   chromedriver                        0x000000010753ca63 chromedriver + 911971
+9   chromedriver                        0x00000001075041b3 chromedriver + 680371
+10  chromedriver                        0x00000001075057ce chromedriver + 686030
+11  chromedriver                        0x00000001078bc642 chromedriver + 4580930
+12  chromedriver                        0x00000001078c19cc chromedriver + 4602316
+13  chromedriver                        0x00000001078a1e11 chromedriver + 4472337
+14  chromedriver                        0x00000001078c2746 chromedriver + 4605766
+15  chromedriver                        0x000000010789339c chromedriver + 4412316
+16  chromedriver                        0x00000001078e2868 chromedriver + 4737128
+17  chromedriver                        0x00000001078e2a1e chromedriver + 4737566
+18  chromedriver                        0x00000001078f3e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 52, in publish
+    driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
+    return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 348, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//input[@type="file"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x000000010dd7fcc8 chromedriver + 4844744
+1   chromedriver                        0x000000010dd77243 chromedriver + 4809283
+2   chromedriver                        0x000000010d94577d chromedriver + 411517
+3   chromedriver                        0x000000010d995ee0 chromedriver + 741088
+4   chromedriver                        0x000000010d996091 chromedriver + 741521
+5   chromedriver                        0x000000010d9e1ab4 chromedriver + 1051316
+6   chromedriver                        0x000000010d9bfced chromedriver + 912621
+7   chromedriver                        0x000000010d9ded42 chromedriver + 1039682
+8   chromedriver                        0x000000010d9bfa63 chromedriver + 911971
+9   chromedriver                        0x000000010d9871b3 chromedriver + 680371
+10  chromedriver                        0x000000010d9887ce chromedriver + 686030
+11  chromedriver                        0x000000010dd3f642 chromedriver + 4580930
+12  chromedriver                        0x000000010dd449cc chromedriver + 4602316
+13  chromedriver                        0x000000010dd24e11 chromedriver + 4472337
+14  chromedriver                        0x000000010dd45746 chromedriver + 4605766
+15  chromedriver                        0x000000010dd1639c chromedriver + 4412316
+16  chromedriver                        0x000000010dd65868 chromedriver + 4737128
+17  chromedriver                        0x000000010dd65a1e chromedriver + 4737566
+18  chromedriver                        0x000000010dd76e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+ffmpeg version 6.1.1 Copyright (c) 2000-2023 the FFmpeg developers
+  built with Apple clang version 14.0.0 (clang-1400.0.29.202)
+  configuration: --prefix=/usr/local/Cellar/ffmpeg/6.1.1_1 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gnutls --enable-gpl --enable-libaom --enable-libaribb24 --enable-libbluray --enable-libdav1d --enable-libharfbuzz --enable-libjxl --enable-libmp3lame --enable-libopus --enable-librav1e --enable-librist --enable-librubberband --enable-libsnappy --enable-libsrt --enable-libsvtav1 --enable-libtesseract --enable-libtheora --enable-libvidstab --enable-libvmaf --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-lzma --enable-libfontconfig --enable-libfreetype --enable-frei0r --enable-libass --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-libspeex --enable-libsoxr --enable-libzmq --enable-libzimg --disable-libjack --disable-indev=jack --enable-videotoolbox --enable-audiotoolbox
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, image2, from '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_cover.jpg':
+  Duration: 00:00:00.04, start: 0.000000, bitrate: 11893 kb/s
+  Stream #0:0: Video: mjpeg (Baseline), yuvj420p(pc, bt470bg/unknown/unknown), 1920x1080, 25 fps, 25 tbr, 25 tbn
+File '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_cover_resized.jpg' already exists. Overwrite? [y/N] Not overwriting - exiting
+Error opening output file /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_cover_resized.jpg.
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/bilibili_pub.py", line 158, in publish
+    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+0   chromedriver                        0x000000010c438cc8 chromedriver + 4844744
+1   chromedriver                        0x000000010c430243 chromedriver + 4809283
+2   chromedriver                        0x000000010bffe77d chromedriver + 411517
+3   chromedriver                        0x000000010c04eee0 chromedriver + 741088
+4   chromedriver                        0x000000010c04f091 chromedriver + 741521
+5   chromedriver                        0x000000010c09aab4 chromedriver + 1051316
+6   chromedriver                        0x000000010c078ced chromedriver + 912621
+7   chromedriver                        0x000000010c097d42 chromedriver + 1039682
+8   chromedriver                        0x000000010c078a63 chromedriver + 911971
+9   chromedriver                        0x000000010c0401b3 chromedriver + 680371
+10  chromedriver                        0x000000010c0417ce chromedriver + 686030
+11  chromedriver                        0x000000010c3f8642 chromedriver + 4580930
+12  chromedriver                        0x000000010c3fd9cc chromedriver + 4602316
+13  chromedriver                        0x000000010c3dde11 chromedriver + 4472337
+14  chromedriver                        0x000000010c3fe746 chromedriver + 4605766
+15  chromedriver                        0x000000010c3cf39c chromedriver + 4412316
+16  chromedriver                        0x000000010c41e868 chromedriver + 4737128
+17  chromedriver                        0x000000010c41ea1e chromedriver + 4737566
+18  chromedriver                        0x000000010c42fe83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_metadata.json
+Publishing on XiaoHongShu...
+Starting the publishing process on XiaoHongShu...
+No alert present.
+Navigated to post creation page.
+Video upload field is present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_highlighted.mp4
+Video uploaded successfully!
+Entering title and description.
+Handling cover upload.
+Waiting 编辑默认封面...
+Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly interactable.
+Waiting 上传封面
+Timed out waiting for //*[text()="上传封面"] to become interactable.
+An error occurred: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//*[text()="上传封面"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x00000001078fccc8 chromedriver + 4844744
+1   chromedriver                        0x00000001078f4243 chromedriver + 4809283
+2   chromedriver                        0x00000001074c277d chromedriver + 411517
+3   chromedriver                        0x0000000107512ee0 chromedriver + 741088
+4   chromedriver                        0x0000000107513091 chromedriver + 741521
+5   chromedriver                        0x000000010755eab4 chromedriver + 1051316
+6   chromedriver                        0x000000010753cced chromedriver + 912621
+7   chromedriver                        0x000000010755bd42 chromedriver + 1039682
+8   chromedriver                        0x000000010753ca63 chromedriver + 911971
+9   chromedriver                        0x00000001075041b3 chromedriver + 680371
+10  chromedriver                        0x00000001075057ce chromedriver + 686030
+11  chromedriver                        0x00000001078bc642 chromedriver + 4580930
+12  chromedriver                        0x00000001078c19cc chromedriver + 4602316
+13  chromedriver                        0x00000001078a1e11 chromedriver + 4472337
+14  chromedriver                        0x00000001078c2746 chromedriver + 4605766
+15  chromedriver                        0x000000010789339c chromedriver + 4412316
+16  chromedriver                        0x00000001078e2868 chromedriver + 4737128
+17  chromedriver                        0x00000001078e2a1e chromedriver + 4737566
+18  chromedriver                        0x00000001078f3e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Publishing on Douyin...
+Starting the publishing process on Douyin...
+No alert present.
+An error occurred: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//input[@type="file"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x000000010dd7fcc8 chromedriver + 4844744
+1   chromedriver                        0x000000010dd77243 chromedriver + 4809283
+2   chromedriver                        0x000000010d94577d chromedriver + 411517
+3   chromedriver                        0x000000010d995ee0 chromedriver + 741088
+4   chromedriver                        0x000000010d996091 chromedriver + 741521
+5   chromedriver                        0x000000010d9e1ab4 chromedriver + 1051316
+6   chromedriver                        0x000000010d9bfced chromedriver + 912621
+7   chromedriver                        0x000000010d9ded42 chromedriver + 1039682
+8   chromedriver                        0x000000010d9bfa63 chromedriver + 911971
+9   chromedriver                        0x000000010d9871b3 chromedriver + 680371
+10  chromedriver                        0x000000010d9887ce chromedriver + 686030
+11  chromedriver                        0x000000010dd3f642 chromedriver + 4580930
+12  chromedriver                        0x000000010dd449cc chromedriver + 4602316
+13  chromedriver                        0x000000010dd24e11 chromedriver + 4472337
+14  chromedriver                        0x000000010dd45746 chromedriver + 4605766
+15  chromedriver                        0x000000010dd1639c chromedriver + 4412316
+16  chromedriver                        0x000000010dd65868 chromedriver + 4737128
+17  chromedriver                        0x000000010dd65a1e chromedriver + 4737566
+18  chromedriver                        0x000000010dd76e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Publishing on Bilibili...
+Starting the publishing process on Bilibili...
+No alert present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_highlighted.mp4
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Handling cover upload.
+Resized image saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_cover_resized.jpg
+An error occurred: Message: 
+Stacktrace:
+0   chromedriver                        0x000000010c438cc8 chromedriver + 4844744
+1   chromedriver                        0x000000010c430243 chromedriver + 4809283
+2   chromedriver                        0x000000010bffe77d chromedriver + 411517
+3   chromedriver                        0x000000010c04eee0 chromedriver + 741088
+4   chromedriver                        0x000000010c04f091 chromedriver + 741521
+5   chromedriver                        0x000000010c09aab4 chromedriver + 1051316
+6   chromedriver                        0x000000010c078ced chromedriver + 912621
+7   chromedriver                        0x000000010c097d42 chromedriver + 1039682
+8   chromedriver                        0x000000010c078a63 chromedriver + 911971
+9   chromedriver                        0x000000010c0401b3 chromedriver + 680371
+10  chromedriver                        0x000000010c0417ce chromedriver + 686030
+11  chromedriver                        0x000000010c3f8642 chromedriver + 4580930
+12  chromedriver                        0x000000010c3fd9cc chromedriver + 4602316
+13  chromedriver                        0x000000010c3dde11 chromedriver + 4472337
+14  chromedriver                        0x000000010c3fe746 chromedriver + 4605766
+15  chromedriver                        0x000000010c3cf39c chromedriver + 4412316
+16  chromedriver                        0x000000010c41e868 chromedriver + 4737128
+17  chromedriver                        0x000000010c41ea1e chromedriver + 4737566
+18  chromedriver                        0x000000010c42fe83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_metadata.json
+Publishing on XiaoHongShu...
+Starting the publishing process on XiaoHongShu...
+No alert present.
+Navigated to post creation page.
+Video upload field is present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_highlighted.mp4
+Video uploaded successfully!
+Entering title and description.
+Handling cover upload.
+Waiting 编辑默认封面...
+Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly interactable.
+Waiting 上传封面
+Timed out waiting for //*[text()="上传封面"] to become interactable.
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/xhs_pub.py", line 92, in publish
+    driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
+    return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 348, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//*[text()="上传封面"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x000000010d504cc8 chromedriver + 4844744
+1   chromedriver                        0x000000010d4fc243 chromedriver + 4809283
+2   chromedriver                        0x000000010d0ca77d chromedriver + 411517
+3   chromedriver                        0x000000010d11aee0 chromedriver + 741088
+4   chromedriver                        0x000000010d11b091 chromedriver + 741521
+5   chromedriver                        0x000000010d166ab4 chromedriver + 1051316
+6   chromedriver                        0x000000010d144ced chromedriver + 912621
+7   chromedriver                        0x000000010d163d42 chromedriver + 1039682
+8   chromedriver                        0x000000010d144a63 chromedriver + 911971
+9   chromedriver                        0x000000010d10c1b3 chromedriver + 680371
+10  chromedriver                        0x000000010d10d7ce chromedriver + 686030
+11  chromedriver                        0x000000010d4c4642 chromedriver + 4580930
+12  chromedriver                        0x000000010d4c99cc chromedriver + 4602316
+13  chromedriver                        0x000000010d4a9e11 chromedriver + 4472337
+14  chromedriver                        0x000000010d4ca746 chromedriver + 4605766
+15  chromedriver                        0x000000010d49b39c chromedriver + 4412316
+16  chromedriver                        0x000000010d4ea868 chromedriver + 4737128
+17  chromedriver                        0x000000010d4eaa1e chromedriver + 4737566
+18  chromedriver                        0x000000010d4fbe83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 52, in publish
+    driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
+    return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 348, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//input[@type="file"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x000000010bd41cc8 chromedriver + 4844744
+1   chromedriver                        0x000000010bd39243 chromedriver + 4809283
+2   chromedriver                        0x000000010b90777d chromedriver + 411517
+3   chromedriver                        0x000000010b957ee0 chromedriver + 741088
+4   chromedriver                        0x000000010b958091 chromedriver + 741521
+5   chromedriver                        0x000000010b9a3ab4 chromedriver + 1051316
+6   chromedriver                        0x000000010b981ced chromedriver + 912621
+7   chromedriver                        0x000000010b9a0d42 chromedriver + 1039682
+8   chromedriver                        0x000000010b981a63 chromedriver + 911971
+9   chromedriver                        0x000000010b9491b3 chromedriver + 680371
+10  chromedriver                        0x000000010b94a7ce chromedriver + 686030
+11  chromedriver                        0x000000010bd01642 chromedriver + 4580930
+12  chromedriver                        0x000000010bd069cc chromedriver + 4602316
+13  chromedriver                        0x000000010bce6e11 chromedriver + 4472337
+14  chromedriver                        0x000000010bd07746 chromedriver + 4605766
+15  chromedriver                        0x000000010bcd839c chromedriver + 4412316
+16  chromedriver                        0x000000010bd27868 chromedriver + 4737128
+17  chromedriver                        0x000000010bd27a1e chromedriver + 4737566
+18  chromedriver                        0x000000010bd38e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+ffmpeg version 6.1.1 Copyright (c) 2000-2023 the FFmpeg developers
+  built with Apple clang version 14.0.0 (clang-1400.0.29.202)
+  configuration: --prefix=/usr/local/Cellar/ffmpeg/6.1.1_1 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gnutls --enable-gpl --enable-libaom --enable-libaribb24 --enable-libbluray --enable-libdav1d --enable-libharfbuzz --enable-libjxl --enable-libmp3lame --enable-libopus --enable-librav1e --enable-librist --enable-librubberband --enable-libsnappy --enable-libsrt --enable-libsvtav1 --enable-libtesseract --enable-libtheora --enable-libvidstab --enable-libvmaf --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-lzma --enable-libfontconfig --enable-libfreetype --enable-frei0r --enable-libass --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-libspeex --enable-libsoxr --enable-libzmq --enable-libzimg --disable-libjack --disable-indev=jack --enable-videotoolbox --enable-audiotoolbox
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, image2, from '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_cover.jpg':
+  Duration: 00:00:00.04, start: 0.000000, bitrate: 10234 kb/s
+  Stream #0:0: Video: mjpeg (Baseline), yuvj420p(pc, bt470bg/unknown/unknown), 1080x1920, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (mjpeg (native) -> mjpeg (native))
+Press [q] to stop, [?] for help
+[swscaler @ 0x7fcf1d1b1000] deprecated pixel format used, make sure you did set range correctly
+    Last message repeated 3 times
+Output #0, image2, to '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_cover_resized.jpg':
+  Metadata:
+    encoder         : Lavf60.16.100
+  Stream #0:0: Video: mjpeg, yuvj420p(pc, bt470bg/unknown/unknown, progressive), 1200x900, q=2-31, 200 kb/s, 25 fps, 25 tbn
+    Metadata:
+      encoder         : Lavc60.31.102 mjpeg
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/200000 buffer size: 0 vbv_delay: N/A
+frame=    0 fps=0.0 q=4.5 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A    
+[image2 @ 0x7fcf1d008d00] The specified filename '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_cover_resized.jpg' does not contain an image sequence pattern or a pattern is invalid.
+[image2 @ 0x7fcf1d008d00] Use a pattern such as %03d for an image sequence or use the -update option (with -frames:v 1 if needed) to write a single image.
+[out#0/image2 @ 0x7fcf1d008c40] video:31kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+frame=    1 fps=0.0 q=4.5 Lsize=N/A time=00:00:00.00 bitrate=N/A speed=   0x    
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/bilibili_pub.py", line 158, in publish
+    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+0   chromedriver                        0x000000010693bcc8 chromedriver + 4844744
+1   chromedriver                        0x0000000106933243 chromedriver + 4809283
+2   chromedriver                        0x000000010650177d chromedriver + 411517
+3   chromedriver                        0x0000000106551ee0 chromedriver + 741088
+4   chromedriver                        0x0000000106552091 chromedriver + 741521
+5   chromedriver                        0x000000010659dab4 chromedriver + 1051316
+6   chromedriver                        0x000000010657bced chromedriver + 912621
+7   chromedriver                        0x000000010659ad42 chromedriver + 1039682
+8   chromedriver                        0x000000010657ba63 chromedriver + 911971
+9   chromedriver                        0x00000001065431b3 chromedriver + 680371
+10  chromedriver                        0x00000001065447ce chromedriver + 686030
+11  chromedriver                        0x00000001068fb642 chromedriver + 4580930
+12  chromedriver                        0x00000001069009cc chromedriver + 4602316
+13  chromedriver                        0x00000001068e0e11 chromedriver + 4472337
+14  chromedriver                        0x0000000106901746 chromedriver + 4605766
+15  chromedriver                        0x00000001068d239c chromedriver + 4412316
+16  chromedriver                        0x0000000106921868 chromedriver + 4737128
+17  chromedriver                        0x0000000106921a1e chromedriver + 4737566
+18  chromedriver                        0x0000000106932e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+An error occurred: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//*[text()="上传封面"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x000000010d504cc8 chromedriver + 4844744
+1   chromedriver                        0x000000010d4fc243 chromedriver + 4809283
+2   chromedriver                        0x000000010d0ca77d chromedriver + 411517
+3   chromedriver                        0x000000010d11aee0 chromedriver + 741088
+4   chromedriver                        0x000000010d11b091 chromedriver + 741521
+5   chromedriver                        0x000000010d166ab4 chromedriver + 1051316
+6   chromedriver                        0x000000010d144ced chromedriver + 912621
+7   chromedriver                        0x000000010d163d42 chromedriver + 1039682
+8   chromedriver                        0x000000010d144a63 chromedriver + 911971
+9   chromedriver                        0x000000010d10c1b3 chromedriver + 680371
+10  chromedriver                        0x000000010d10d7ce chromedriver + 686030
+11  chromedriver                        0x000000010d4c4642 chromedriver + 4580930
+12  chromedriver                        0x000000010d4c99cc chromedriver + 4602316
+13  chromedriver                        0x000000010d4a9e11 chromedriver + 4472337
+14  chromedriver                        0x000000010d4ca746 chromedriver + 4605766
+15  chromedriver                        0x000000010d49b39c chromedriver + 4412316
+16  chromedriver                        0x000000010d4ea868 chromedriver + 4737128
+17  chromedriver                        0x000000010d4eaa1e chromedriver + 4737566
+18  chromedriver                        0x000000010d4fbe83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Publishing on Douyin...
+Starting the publishing process on Douyin...
+No alert present.
+An error occurred: Message: no such element: Unable to locate element: {"method":"xpath","selector":"//input[@type="file"]"}
+  (Session info: chrome=120.0.6099.234); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
+Stacktrace:
+0   chromedriver                        0x000000010bd41cc8 chromedriver + 4844744
+1   chromedriver                        0x000000010bd39243 chromedriver + 4809283
+2   chromedriver                        0x000000010b90777d chromedriver + 411517
+3   chromedriver                        0x000000010b957ee0 chromedriver + 741088
+4   chromedriver                        0x000000010b958091 chromedriver + 741521
+5   chromedriver                        0x000000010b9a3ab4 chromedriver + 1051316
+6   chromedriver                        0x000000010b981ced chromedriver + 912621
+7   chromedriver                        0x000000010b9a0d42 chromedriver + 1039682
+8   chromedriver                        0x000000010b981a63 chromedriver + 911971
+9   chromedriver                        0x000000010b9491b3 chromedriver + 680371
+10  chromedriver                        0x000000010b94a7ce chromedriver + 686030
+11  chromedriver                        0x000000010bd01642 chromedriver + 4580930
+12  chromedriver                        0x000000010bd069cc chromedriver + 4602316
+13  chromedriver                        0x000000010bce6e11 chromedriver + 4472337
+14  chromedriver                        0x000000010bd07746 chromedriver + 4605766
+15  chromedriver                        0x000000010bcd839c chromedriver + 4412316
+16  chromedriver                        0x000000010bd27868 chromedriver + 4737128
+17  chromedriver                        0x000000010bd27a1e chromedriver + 4737566
+18  chromedriver                        0x000000010bd38e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Publishing on Bilibili...
+Starting the publishing process on Bilibili...
+No alert present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_highlighted.mp4
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Handling cover upload.
+Resized image saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5375_cover_resized.jpg
+An error occurred: Message: 
+Stacktrace:
+0   chromedriver                        0x000000010693bcc8 chromedriver + 4844744
+1   chromedriver                        0x0000000106933243 chromedriver + 4809283
+2   chromedriver                        0x000000010650177d chromedriver + 411517
+3   chromedriver                        0x0000000106551ee0 chromedriver + 741088
+4   chromedriver                        0x0000000106552091 chromedriver + 741521
+5   chromedriver                        0x000000010659dab4 chromedriver + 1051316
+6   chromedriver                        0x000000010657bced chromedriver + 912621
+7   chromedriver                        0x000000010659ad42 chromedriver + 1039682
+8   chromedriver                        0x000000010657ba63 chromedriver + 911971
+9   chromedriver                        0x00000001065431b3 chromedriver + 680371
+10  chromedriver                        0x00000001065447ce chromedriver + 686030
+11  chromedriver                        0x00000001068fb642 chromedriver + 4580930
+12  chromedriver                        0x00000001069009cc chromedriver + 4602316
+13  chromedriver                        0x00000001068e0e11 chromedriver + 4472337
+14  chromedriver                        0x0000000106901746 chromedriver + 4605766
+15  chromedriver                        0x00000001068d239c chromedriver + 4412316
+16  chromedriver                        0x0000000106921868 chromedriver + 4737128
+17  chromedriver                        0x0000000106921a1e chromedriver + 4737566
+18  chromedriver                        0x0000000106932e83 chromedriver + 4808323
+19  libsystem_pthread.dylib             0x00007ff8116654e1 _pthread_start + 125
+20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
+
+Success

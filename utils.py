@@ -23,7 +23,8 @@ def crop_and_resize_cover_image(path_cover):
     
     # FFmpeg command to crop and resize the image
     ffmpeg_command = [
-        'ffmpeg',
+        '/usr/local/bin/ffmpeg',
+        '-y',
         '-i', path_cover,  # Input file
         '-vf', 'crop=in_w:in_h*3/4,scale=1200:900',  # Crop and scale filter
         path_cover_resized  # Output file

@@ -1,0 +1,66 @@
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 715, in urlopen
+    httplib_response = self._make_request(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 467, in _make_request
+    six.raise_from(e, None)
+  File "<string>", line 3, in raise_from
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 462, in _make_request
+    httplib_response = conn.getresponse()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 1375, in getresponse
+    response.begin()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 318, in begin
+    version, status, reason = self._read_status()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 279, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/Users/lachlan/miniconda3/lib/python3.10/socket.py", line 705, in readinto
+    return self._sock.recv_into(b)
+ConnectionResetError: [Errno 54] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 799, in urlopen
+    retries = retries.increment(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/util/retry.py", line 550, in increment
+    raise six.reraise(type(error), error, _stacktrace)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/packages/six.py", line 769, in reraise
+    raise value.with_traceback(tb)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 715, in urlopen
+    httplib_response = self._make_request(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 467, in _make_request
+    six.raise_from(e, None)
+  File "<string>", line 3, in raise_from
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 462, in _make_request
+    httplib_response = conn.getresponse()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 1375, in getresponse
+    response.begin()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 318, in begin
+    version, status, reason = self._read_status()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 279, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/Users/lachlan/miniconda3/lib/python3.10/socket.py", line 705, in readinto
+    return self._sock.recv_into(b)
+urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 235, in <module>
+    process_file(file_path, transcription_path, server_url)
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 111, in process_file
+    zip_file_path = processor.process_video()
+  File "/Users/lachlan/Documents/iProjects/auto-publish/process_video.py", line 26, in process_video
+    response = requests.post(self.server_url, files=files)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/adapters.py", line 501, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))

@@ -1,0 +1,61 @@
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/bilibili_pub.py", line 167, in publish
+    path_cover = crop_and_resize_cover_image(path_cover)
+  File "/Users/lachlan/Documents/iProjects/auto-publish/utils.py", line 35, in crop_and_resize_cover_image
+    subprocess.run(ffmpeg_command, check=True)
+  File "/Users/lachlan/miniconda3/lib/python3.10/subprocess.py", line 503, in run
+    with Popen(*popenargs, **kwargs) as process:
+  File "/Users/lachlan/miniconda3/lib/python3.10/subprocess.py", line 971, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "/Users/lachlan/miniconda3/lib/python3.10/subprocess.py", line 1863, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'ffmpeg'
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5399.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5399_metadata.json
+Publishing on XiaoHongShu...
+Starting the publishing process on XiaoHongShu...
+No alert present.
+Navigated to post creation page.
+Video upload field is present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5399_highlighted.mp4
+Video uploaded successfully!
+Entering title and description.
+Handling cover upload.
+Waiting 编辑默认封面...
+Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly interactable.
+Waiting 上传封面
+Element //*[text()="上传封面"] is truly interactable.
+Uploading cover from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5399_cover.jpg
+Waiting for the file input to be ready to receive the cover file path...
+Sending cover file path to input: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5399_cover.jpg
+Cover uploaded successfully! Proceeding to location selection.
+Location selected successfully!
+No alert present.
+Publishing...
+Process completed successfully!
+Publishing on Douyin...
+Starting the publishing process on Douyin...
+No alert present.
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Adding cover...
+Clicked the '完成' button successfully.
+Entering the title...
+Entering video description...
+Entering location information...
+Found '原创内容' switch.
+Current state of '原创内容' switch: OFF
+Toggled the '原创内容' switch.
+Publishing the video...
+No alert present.
+Video published successfully!
+Publishing on Bilibili...
+Starting the publishing process on Bilibili...
+No alert present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5399_highlighted.mp4
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Handling cover upload.
+An error occurred: [Errno 2] No such file or directory: 'ffmpeg'
+Success

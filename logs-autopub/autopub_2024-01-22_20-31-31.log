@@ -1,0 +1,102 @@
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/haitao-without-cloths.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/haitao-without-cloths_metadata.json
+Publishing on XiaoHongShu...
+Starting the publishing process on XiaoHongShu...
+No alert present.
+Navigated to post creation page.
+Video upload field is present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/haitao-without-cloths_highlighted.mp4
+Video uploaded successfully!
+Entering title and description.
+Handling cover upload.
+Waiting 编辑默认封面...
+Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly interactable.
+Waiting 上传封面
+Element //*[text()="上传封面"] is truly interactable.
+Uploading cover from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/haitao-without-cloths_cover.jpg
+Waiting for the file input to be ready to receive the cover file path...
+Sending cover file path to input: /Users/lachlan/Nutstore Files/Vlog/transcription_data/haitao-without-cloths_cover.jpg
+Cover uploaded successfully! Proceeding to location selection.
+Location selected successfully!
+No alert present.
+Publishing...
+Process completed successfully!
+Publishing on Douyin...
+Starting the publishing process on Douyin...
+No alert present.
+Waiting for the video to be uploaded...
+Video uploaded successfully!
+Adding cover...
+Clicked the '完成' button successfully.
+Entering the title...
+Entering video description...
+Entering location information...
+Found '原创内容' switch.
+Current state of '原创内容' switch: OFF
+Toggled the '原创内容' switch.
+Publishing the video...
+No alert present.
+Video published successfully!
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 715, in urlopen
+    httplib_response = self._make_request(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 467, in _make_request
+    six.raise_from(e, None)
+  File "<string>", line 3, in raise_from
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 462, in _make_request
+    httplib_response = conn.getresponse()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 1375, in getresponse
+    response.begin()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 318, in begin
+    version, status, reason = self._read_status()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 287, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 799, in urlopen
+    retries = retries.increment(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/util/retry.py", line 550, in increment
+    raise six.reraise(type(error), error, _stacktrace)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/packages/six.py", line 769, in reraise
+    raise value.with_traceback(tb)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 715, in urlopen
+    httplib_response = self._make_request(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 467, in _make_request
+    six.raise_from(e, None)
+  File "<string>", line 3, in raise_from
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/connectionpool.py", line 462, in _make_request
+    httplib_response = conn.getresponse()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 1375, in getresponse
+    response.begin()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 318, in begin
+    version, status, reason = self._read_status()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 287, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 235, in <module>
+    process_file(file_path, transcription_path, server_url)
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 111, in process_file
+    zip_file_path = processor.process_video()
+  File "/Users/lachlan/Documents/iProjects/auto-publish/process_video.py", line 26, in process_video
+    response = requests.post(self.server_url, files=files)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/adapters.py", line 501, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))

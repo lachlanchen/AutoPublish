@@ -143,7 +143,7 @@ if __name__ == "__main__":
     options.add_experimental_option("debuggerAddress", "127.0.0.1:5003")
 
     # Initialize the driver
-    # driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(options=options)
 
         # Check if there is an existing window to work with or if a new window should be opened
     try:

@@ -237,6 +237,11 @@ class DouyinPublisher:
             traceback.print_exc()
 
 # Rest of your code for initialization and running the publisher
+def get_media_paths(catalog):
+    path = pathlib.Path(catalog)
+    path_mp4 = next((str(p) for p in path.glob('*.mp4')), None)
+    path_cover = next((str(p) for p in path.glob('*') if p.suffix in ['.png', '.jpg']), None)
+    return path_mp4, path_cover
 
 if __name__ == "__main__":
     # Constants
@@ -259,7 +264,9 @@ if __name__ == "__main__":
         # Metadata for the post
         metadata = {
             "title": "品味经典美味：超赞的烤鸡",
-            "description": "跟随我们的味蕾之旅，发现为何这款烤鸡让人赞不绝口！",
+            "brief_description": "跟随我们的味蕾之旅，发现为何这款烤鸡让人赞不绝口！",
+            "middle_description": "跟随我们的味蕾之旅，发现为何这款烤鸡让人赞不绝口！",
+            "long_description": "跟随我们的味蕾之旅，发现为何这款烤鸡让人赞不绝口！",
             "tags": ["美食", "烤鸡", "推荐"]
         }
 

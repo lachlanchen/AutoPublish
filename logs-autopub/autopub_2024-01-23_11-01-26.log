@@ -1,0 +1,50 @@
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/response.py", line 444, in _error_catcher
+    yield
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/response.py", line 567, in read
+    data = self._fp_read(amt) if not fp_closed else b""
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/response.py", line 533, in _fp_read
+    return self._fp.read(amt) if amt is not None else self._fp.read()
+  File "/Users/lachlan/miniconda3/lib/python3.10/http/client.py", line 466, in read
+    s = self.fp.read(amt)
+  File "/Users/lachlan/miniconda3/lib/python3.10/socket.py", line 705, in readinto
+    return self._sock.recv_into(b)
+ConnectionResetError: [Errno 54] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/models.py", line 816, in generate
+    yield from self.raw.stream(chunk_size, decode_content=True)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/response.py", line 628, in stream
+    data = self.read(amt=amt, decode_content=decode_content)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/response.py", line 566, in read
+    with self._error_catcher():
+  File "/Users/lachlan/miniconda3/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/urllib3/response.py", line 461, in _error_catcher
+    raise ProtocolError("Connection broken: %r" % e, e)
+urllib3.exceptions.ProtocolError: ("Connection broken: ConnectionResetError(54, 'Connection reset by peer')", ConnectionResetError(54, 'Connection reset by peer'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 235, in <module>
+    process_file(file_path, transcription_path, server_url)
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 111, in process_file
+    zip_file_path = processor.process_video()
+  File "/Users/lachlan/Documents/iProjects/auto-publish/process_video.py", line 26, in process_video
+    response = requests.post(self.server_url, files=files)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/sessions.py", line 747, in send
+    r.content
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/models.py", line 899, in content
+    self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/requests/models.py", line 818, in generate
+    raise ChunkedEncodingError(e)
+requests.exceptions.ChunkedEncodingError: ("Connection broken: ConnectionResetError(54, 'Connection reset by peer')", ConnectionResetError(54, 'Connection reset by peer'))

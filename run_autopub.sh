@@ -1,13 +1,34 @@
-#!/bin/bash -l
-# Load the user's bash profile or zsh profile to ensure all environment variables are set
+# #!/bin/bash -l
+
+# Load the user's bash or zsh profile to ensure all environment variables are set
 source ~/.bash_profile  # or source ~/.zshrc if you're using zsh
 
 # Activate Conda environment
 source /Users/lachlan/miniconda3/bin/activate
 
+# Define the lock file and log file
+lock_file="/Users/lachlan/Documents/iProjects/auto-publish/autopub.lock"
+log_dir="/Users/lachlan/Documents/iProjects/auto-publish/logs-autopub"
+log_file="${log_dir}/autopub_$(date '+%Y-%m-%d_%H-%M-%S').log"
 
-touch /Users/lachlan/Documents/iProjects/auto-publish/automator.txt
+# Create log directory if it doesn't exist
+mkdir -p "${log_dir}"
 
-# Run your Python script
-# /Users/lachlan/miniconda3/bin/python /Users/lachlan/Documents/iProjects/auto-publish/autopub.py
-/Users/lachlan/miniconda3/bin/python /Users/lachlan/Documents/iProjects/auto-publish/autopub.py > /Users/lachlan/Documents/iProjects/auto-publish/autopub.log 2>&1
+# Wait for lock file to be released
+while [ -f "${lock_file}" ]; do
+    echo "Another instance of the script is running. Waiting..."
+    sleep 60  # Wait for 60 seconds before checking again
+done
+
+# Create a lock file
+touch "${lock_file}"
+
+# Ensure the lock file is removed when the script finishes
+trap 'rm -f "${lock_file}"; exit' INT TERM EXIT
+
+# Run your Python script and save its output to the log file
+/Users/lachlan/miniconda3/bin/python /Users/lachlan/Documents/iProjects/auto-publish/autopub.py > "${log_file}" 2>&1
+
+# Remove the lock file and clear the trap
+rm -f "${lock_file}"
+trap - INT TERM EXIT
