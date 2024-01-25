@@ -74,12 +74,12 @@ def clean_title(title):
 
 # Function to process and publish the file based on given parameters
 def process_file(
-    file_path, transcription_path, server_url, 
+    file_path, transcription_path, upload_url, process_url, 
     publish_xhs, publish_bilibili, publish_douyin, 
     test_mode, use_cache=False, driver=None):
     success = 0
     # Create an instance of VideoProcessor
-    processor = VideoProcessor(server_url, file_path, transcription_path)
+    processor = VideoProcessor(upload_url, process_url, file_path, transcription_path)
     zip_file_path = processor.process_video(use_cache=use_cache)
 
     zip_file_name = Path(zip_file_path).stem
@@ -185,7 +185,8 @@ if __name__ == "__main__":
     current_datetime = datetime.now()
     log_filename = f"{current_datetime.strftime('%Y-%m-%d %H-%M-%S')}.txt"
     log_file_path = os.path.join(logs_folder_path, log_filename)
-    server_url = 'http://lachlanserver:8081/video-processing'
+    upload_url = 'http://lachlanserver:8081/upload'
+    process_url = 'http://lachlanserver:8081/video-processing'
     transcription_path = "/Users/lachlan/Nutstore Files/Vlog/transcription_data"
 
     with open(log_file_path, 'a') as log_file:
@@ -211,7 +212,8 @@ if __name__ == "__main__":
                         success = process_file(
                             file_path, 
                             transcription_path, 
-                            server_url, 
+                            upload_url, 
+                            process_url, 
                             publish_xhs=publish_xhs,
                             publish_bilibili=publish_bilibili,
                             publish_douyin=publish_douyin,
