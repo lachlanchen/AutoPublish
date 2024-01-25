@@ -84,11 +84,11 @@ class XiaoHongShuPublisher:
             print("Entering title and description.")
             time.sleep(3)
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class,"titleInput")]//input')))
-            driver.find_element(By.XPATH, '//*[contains(@class,"titleInput")]//input').send_keys(metadata['title'])
+            driver.find_element(By.XPATH, '//*[contains(@class,"titleInput")]//input').send_keys(metadata['title'][:20])
             
             description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
             time.sleep(3)
-            driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags)
+            driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
 
             print("Handling cover upload.")
             # cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'

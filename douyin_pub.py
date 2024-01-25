@@ -128,7 +128,7 @@ class DouyinPublisher:
             title_input_element.clear()  # Clearing any pre-filled text
             # title_input_element.send_keys(describe.split(" #")[0])  # Using the first part of the 'describe' variable as the title
             time.sleep(3)
-            title_input_element.send_keys(metadata["title"])  # Using the first part of the 'describe' variable as the title
+            title_input_element.send_keys(metadata["title"][:30])  # Using the first part of the 'describe' variable as the title
 
 
 
@@ -137,21 +137,24 @@ class DouyinPublisher:
             time.sleep(3)
             # wait_for_element_to_be_clickable(driver, description_input_xpath)
             description_input_element = driver.find_element(By.XPATH, description_input_xpath)
-            description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
+            description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']]) + " #上热门 #dou上热门 #我要上热门"
             time.sleep(3)
-            driver.execute_script("arguments[0].innerText = arguments[1];", description_input_element,  description_with_tags + " #上热门 #dou上热门 #我要上热门")
+            driver.execute_script("arguments[0].innerText = arguments[1];", description_input_element,  description_with_tags[:1000])
 
 
-            print("Entering location information...")
-            time.sleep(3)
-            # wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]')
-            driver.find_element(By.XPATH, '//*[text()="输入地理位置"]').click()
-            time.sleep(3)
-            # wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]/..//input')
-            driver.find_element(By.XPATH, '//*[text()="输入地理位置"]/..//input').send_keys("香港大学")
-            time.sleep(3)
-            # wait_for_element_to_be_clickable(driver, '//*[@class="semi-popover-content"]//*[text()="香港大学"]')
-            driver.find_element(By.XPATH, '//*[@class="semi-popover-content"]//*[text()="香港大学"]').click()
+            try:
+                print("Entering location information...")
+                time.sleep(3)
+                # wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]')
+                driver.find_element(By.XPATH, '//*[text()="输入地理位置"]').click()
+                time.sleep(3)
+                # wait_for_element_to_be_clickable(driver, '//*[text()="输入地理位置"]/..//input')
+                driver.find_element(By.XPATH, '//*[text()="输入地理位置"]/..//input').send_keys("香港大学")
+                time.sleep(3)
+                # wait_for_element_to_be_clickable(driver, '//*[@class="semi-popover-content"]//*[text()="香港大学"]')
+                driver.find_element(By.XPATH, '//*[@class="semi-popover-content"]//*[text()="香港大学"]').click()
+            except:
+                pass
 
 
             # # Handling the "今日头条" switch

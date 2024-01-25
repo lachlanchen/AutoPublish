@@ -1,12 +1,14 @@
 import os
 import csv
 import re
-from datetime import datetime
+import argparse
+import traceback
 import zipfile
 import json
-import argparse
+from datetime import datetime
 from pathlib import Path
 from selenium import webdriver
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from xhs_pub import XiaoHongShuPublisher
 from bilibili_pub import BilibiliPublisher
 from douyin_pub import DouyinPublisher
@@ -46,6 +48,29 @@ def update_csv_if_new(file_path, csv_path):
         with open(csv_path, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([file_path])
+# Helper function to publish on a platform and handle exceptions
+def publish_platform(publisher, platform_name):
+    try:
+        print(f"Publishing on {platform_name}...")
+        publisher.publish()
+        print(f"Successfully published on {platform_name}.")
+        return 1
+    except Exception as e:
+        print(f"Failed to publish on {platform_name}: {e}")
+        traceback.print_exc()
+        return 0
+
+def clean_title(title):
+    # Define a regex pattern that matches Chinese characters, English letters, numbers, Japanese characters, and punctuation
+    pattern = r'[\u4e00-\u9fff\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3000-\u303f\uff00-\uffef]+'
+
+    # Find all substrings that match the pattern
+    matches = re.findall(pattern, title)
+
+    # Join the matches to get the cleaned title
+    cleaned_title = ''.join(matches)
+    
+    return cleaned_title
 
 # Function to process and publish the file based on given parameters
 def process_file(
@@ -73,6 +98,7 @@ def process_file(
         if os.path.exists(metadata_json_path):
             with open(metadata_json_path, 'r', encoding='utf-8') as json_file:
                 metadata = json.load(json_file)
+                metadata["title"] = clean_title(metadata["title"])
             
             # Construct paths for the processed video and cover using filenames from the metadata
             video_filename = metadata.get('video_filename', None)
@@ -91,56 +117,45 @@ def process_file(
             if not path_mp4 or not path_cover:
                 print("Processed video or cover file not found. Exiting...")
             else:
+                publishers = []
                 if publish_xhs:
-                    try:
-                        # Create an instance of the XiaoHongShuPublisher
-                        xhs_publisher = XiaoHongShuPublisher(
-                            driver=xhs_driver,
-                            path_mp4=path_mp4,
-                            path_cover=path_cover,
-                            metadata=metadata,
-                            test=test_mode
-                        )
-                        # Start publishing process
-                        print("Publishing on XiaoHongShu...")
-                        xhs_publisher.publish()
-                        success += 1
-                    except Exception as e:
-                        print(f"Failed to publish on XiaoHongShu: {e}")
+                    xhs_publisher = XiaoHongShuPublisher(
+                        driver=xhs_driver,
+                        path_mp4=path_mp4,
+                        path_cover=path_cover,
+                        metadata=metadata,
+                        test=test_mode
+                    )
+                    publishers.append((xhs_publisher, 'XiaoHongShu'))
 
                 if publish_douyin:
-                    try:
-                        # Create an instance of the DouYinPublisher
-                        douyin_publisher = DouyinPublisher(
-                            driver=douyin_driver,
-                            path_mp4=path_mp4,
-                            path_cover=path_cover,
-                            metadata=metadata,
-                            test=test_mode
-                        )
-                        # Start publishing process
-                        print("Publishing on Douyin...")
-                        douyin_publisher.publish()
-                        success += 1
-                    except Exception as e:
-                        print(f"Failed to publish on Douyin: {e}")
+                    douyin_publisher = DouyinPublisher(
+                        driver=douyin_driver,
+                        path_mp4=path_mp4,
+                        path_cover=path_cover,
+                        metadata=metadata,
+                        test=test_mode
+                    )
+                    publishers.append((douyin_publisher, 'Douyin'))
 
                 if publish_bilibili:
-                    try:
-                        # Create an instance of the BilibiliPublisher
-                        bilibili_publisher = BilibiliPublisher(
-                            driver=bilibili_driver,
-                            path_mp4=path_mp4,
-                            path_cover=path_cover,
-                            metadata=metadata,
-                            test=test_mode
-                        )
-                        # Start publishing process
-                        print("Publishing on Bilibili...")
-                        bilibili_publisher.publish()
-                        success += 1
-                    except Exception as e:
-                        print(f"Failed to publish on Bilibili: {e}")
+                    bilibili_publisher = BilibiliPublisher(
+                        driver=bilibili_driver,
+                        path_mp4=path_mp4,
+                        path_cover=path_cover,
+                        metadata=metadata,
+                        test=test_mode
+                    )
+                    publishers.append((bilibili_publisher, 'Bilibili'))
+
+                # Publishing in parallel using ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=len(publishers)) as executor:
+                    future_to_publisher = {executor.submit(publish_platform, publisher, name): name for publisher, name in publishers}
+                    for future in as_completed(future_to_publisher):
+                        success += future.result()
+
+                # for publisher, name in publishers:
+                #     publisher.publish()
 
         else:
             print(f"Metadata JSON file not found in {transcription_path}")
@@ -170,7 +185,7 @@ if __name__ == "__main__":
     current_datetime = datetime.now()
     log_filename = f"{current_datetime.strftime('%Y-%m-%d %H-%M-%S')}.txt"
     log_file_path = os.path.join(logs_folder_path, log_filename)
-    server_url = 'http://lachlanserver:8080/video-processing'
+    server_url = 'http://lachlanserver:8081/video-processing'
     transcription_path = "/Users/lachlan/Nutstore Files/Vlog/transcription_data"
 
     with open(log_file_path, 'a') as log_file:

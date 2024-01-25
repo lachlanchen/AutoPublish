@@ -1,0 +1,109 @@
+ffmpeg version 6.1.1 Copyright (c) 2000-2023 the FFmpeg developers
+  built with Apple clang version 14.0.0 (clang-1400.0.29.202)
+  configuration: --prefix=/usr/local/Cellar/ffmpeg/6.1.1_1 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gnutls --enable-gpl --enable-libaom --enable-libaribb24 --enable-libbluray --enable-libdav1d --enable-libharfbuzz --enable-libjxl --enable-libmp3lame --enable-libopus --enable-librav1e --enable-librist --enable-librubberband --enable-libsnappy --enable-libsrt --enable-libsvtav1 --enable-libtesseract --enable-libtheora --enable-libvidstab --enable-libvmaf --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-lzma --enable-libfontconfig --enable-libfreetype --enable-frei0r --enable-libass --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-libspeex --enable-libsoxr --enable-libzmq --enable-libzimg --disable-libjack --disable-indev=jack --enable-videotoolbox --enable-audiotoolbox
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, image2, from '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_cover.jpg':
+  Duration: 00:00:00.04, start: 0.000000, bitrate: 14665 kb/s
+  Stream #0:0: Video: mjpeg (Baseline), yuvj420p(pc, bt470bg/unknown/unknown), 1920x1080, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (mjpeg (native) -> mjpeg (native))
+Press [q] to stop, [?] for help
+[swscaler @ 0x7fd169fb4000] deprecated pixel format used, make sure you did set range correctly
+    Last message repeated 3 times
+Output #0, image2, to '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_cover_resized.jpg':
+  Metadata:
+    encoder         : Lavf60.16.100
+  Stream #0:0: Video: mjpeg, yuvj420p(pc, bt470bg/unknown/unknown, progressive), 1200x900, q=2-31, 200 kb/s, 25 fps, 25 tbn
+    Metadata:
+      encoder         : Lavc60.31.102 mjpeg
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/200000 buffer size: 0 vbv_delay: N/A
+frame=    0 fps=0.0 q=8.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A    [image2 @ 0x7fd16980f4c0] The specified filename '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_cover_resized.jpg' does not contain an image sequence pattern or a pattern is invalid.
+[image2 @ 0x7fd16980f4c0] Use a pattern such as %03d for an image sequence or use the -update option (with -frames:v 1 if needed) to write a single image.
+[out#0/image2 @ 0x7fd16980e480] video:45kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+frame=    1 fps=0.0 q=8.0 Lsize=N/A time=00:00:00.00 bitrate=N/A speed=   0x    
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 63, in publish
+    WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="重新上传"]')))
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/wait.py", line 71, in until
+    value = method(self._driver)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/expected_conditions.py", line 64, in __call__
+    return _find_element(driver, self.locator)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/expected_conditions.py", line 415, in _find_element
+    raise e
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/expected_conditions.py", line 411, in _find_element
+    return driver.find_element(*by)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 976, in find_element
+    return self.execute(Command.FIND_ELEMENT, {
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 241, in check_response
+    raise exception_class(message, screen, stacktrace, alert_text)
+selenium.common.exceptions.UnexpectedAlertPresentException: Alert Text: {Alert text : 
+Message: unexpected alert open: {Alert text : }
+  (Session info: chrome=120.0.6099.234)
+
+Cache miss. Proceeding with video processing.
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_metadata.json
+Publishing on XiaoHongShu...
+Starting the publishing process on XiaoHongShu...
+Publishing on Douyin...
+Starting the publishing process on Douyin...
+Publishing on Bilibili...
+Starting the publishing process on Bilibili...
+Navigated to post creation page.
+No alert present.
+No alert present.
+No alert present.
+Video upload field is present.
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_highlighted.mp4
+Video uploaded successfully!
+Entering title and description.
+Handling cover upload.
+Waiting 编辑默认封面...
+Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly interactable.
+Waiting 上传封面
+Element //*[text()="上传封面"] is truly interactable.
+Uploading cover from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_cover.jpg
+Waiting for the file input to be ready to receive the cover file path...
+Sending cover file path to input: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_cover.jpg
+Uploading video from path: /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_highlighted.mp4
+Waiting for the video to be uploaded...
+Cover uploaded successfully! Proceeding to location selection.
+Video uploaded successfully!
+Handling cover upload.
+Waiting for the video to be uploaded...
+Resized image saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5454/IMG_5454_cover_resized.jpg
+Location selected successfully!
+Clicked '完成' button.
+Cover upload finished.
+Entering title...
+No alert present.
+Entering description...
+Publishing...
+Process completed successfully!
+Successfully published on XiaoHongShu.
+Selecting category...
+Adding tags...
+Publishing the video...
+CAPTCHA detected. Solving...
+{'code': 1, 'message': '', 'data': {'顺序1': {'X坐标值': 259, 'Y坐标值': 206}, '顺序2': {'X坐标值': 96, 'Y坐标值': 225}, '顺序3': {'X坐标值': 192, 'Y坐标值': 65}}}
+CAPTCHA solved and confirmed.
+No CAPTCHA detected.
+No alert present.
+Video published successfully!
+Successfully published on Bilibili.
+An error occurred: Alert Text: {Alert text : 
+Message: unexpected alert open: {Alert text : }
+  (Session info: chrome=120.0.6099.234)
+
+Successfully published on Douyin.

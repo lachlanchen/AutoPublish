@@ -209,7 +209,7 @@ class BilibiliPublisher:
             # wait_for_element_to_be_clickable(title_input_xpath)
             driver.find_element(By.XPATH, title_input_xpath).clear()
             time.sleep(3)        
-            driver.find_element(By.XPATH, title_input_xpath).send_keys(metadata['title'])
+            driver.find_element(By.XPATH, title_input_xpath).send_keys(metadata['title'][:30])
 
             # Enter Description
             print("Entering description...")
@@ -217,7 +217,7 @@ class BilibiliPublisher:
             desc_input_xpath = '//*[@editor_id="desc_at_editor"]//br'
             time.sleep(3)
             # wait_for_element_to_be_clickable(desc_input_xpath)
-            driver.find_element(By.XPATH, desc_input_xpath).send_keys(description_with_tags)
+            driver.find_element(By.XPATH, desc_input_xpath).send_keys(description_with_tags[:250])
 
             # Select Category
             print("Selecting category...")

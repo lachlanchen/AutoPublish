@@ -2,6 +2,8 @@ import os
 import requests
 from urllib.parse import urlparse
 from pathlib import Path
+from requests_toolbelt import MultipartEncoder
+
 
 # class VideoProcessor:
 #     def __init__(self, server_url, video_path, transcription_path):
@@ -38,6 +40,8 @@ from pathlib import Path
 #         else:
 #             print(f'Failed. Status code: {response.status_code}, Message: {response.text}')
 
+
+
 class VideoProcessor:
     def __init__(self, server_url, video_path, transcription_path):
         self.server_url = server_url
@@ -63,6 +67,7 @@ class VideoProcessor:
             files = {'video': (os.path.basename(self.video_path), f)}
             response = requests.post(self.server_url, files=files)
 
+
         if response.ok:
             with open(zip_file_path, 'wb') as f:
                 f.write(response.content)
@@ -71,10 +76,13 @@ class VideoProcessor:
         else:
             print(f'Failed. Status code: {response.status_code}, Message: {response.text}')
 
+    
+
+
 if __name__ == "__main__":
     # Usage
     video_path = '/Users/lachlan/Nutstore Files/Vlog/AutoPublish/IMG_5304.MOV'
-    server_url = 'http://lachlanserver:8080/video-processing'
+    server_url = 'http://lachlanserver:8081/video-processing'
     transcription_path = "/Users/lachlan/Nutstore Files/Vlog/transcription_data"
 
     processor = VideoProcessor(server_url, video_path, transcription_path)

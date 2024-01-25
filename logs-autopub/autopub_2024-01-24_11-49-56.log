@@ -1,0 +1,24 @@
+Cache miss. Proceeding with video processing.
+Success! Processed files are downloaded and saved to /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5458/IMG_5458.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5458/IMG_5458_metadata.json
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 208, in <module>
+    success = process_file(
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 112, in process_file
+    xhs_driver = create_new_driver(5003) if driver is None else driver
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 35, in create_new_driver
+    driver = webdriver.Chrome(options=options)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/chrome/webdriver.py", line 76, in __init__
+    RemoteWebDriver.__init__(
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: unknown error: cannot connect to chrome at 127.0.0.1:5003
+from unknown error: unable to discover open pages
+

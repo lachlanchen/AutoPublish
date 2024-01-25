@@ -1,0 +1,9 @@
+Cache hit! Returning the processed file from /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5456/IMG_5456.zip.
+Extracting zipfile...
+metadata_json_path:  /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5456/IMG_5456_metadata.json
+Traceback (most recent call last):
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 208, in <module>
+    success = process_file(
+  File "/Users/lachlan/Documents/iProjects/auto-publish/autopub.py", line 101, in process_file
+    metadata["title"] = cleaned_title(metadata["title"])
+NameError: name 'cleaned_title' is not defined. Did you mean: 'clean_title'?
