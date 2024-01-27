@@ -7,8 +7,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, NoSuchWindowException, TimeoutException, NoAlertPresentException
+from selenium.common.exceptions import WebDriverException
 
-from utils import dismiss_alert
+
+from utils import dismiss_alert, bring_to_front
 import traceback
 
 class DouyinPublisher:
@@ -41,18 +43,21 @@ class DouyinPublisher:
             test = self.test
 
             print("Starting the publishing process on Douyin...")
-            driver.get("https://creator.douyin.com/creator-micro/home")
+            # driver.get("https://creator.douyin.com/creator-micro/home")
+            driver.get("https://creator.douyin.com/creator-micro/content/upload")
             # driver.get("https://creator.douyin.com/creator-micro/content/publish")
             time.sleep(1)
             dismiss_alert(driver)
-            time.sleep(30)
+            time.sleep(10)
 
-            time.sleep(3)
-            # wait_for_element_to_be_clickable(driver, '//*[text()="发布作品"]')
-            driver.find_element(By.XPATH, '//*[text()="发布作品"]').click()
-            time.sleep(3)
-            # wait_for_element_to_be_clickable(driver, '//*[text()="发布视频"]')
-            driver.find_element(By.XPATH, '//*[text()="发布视频"]').click()
+            bring_to_front(["抖音"])
+
+            # time.sleep(3)
+            # # wait_for_element_to_be_clickable(driver, '//*[text()="发布作品"]')
+            # driver.find_element(By.XPATH, '//*[text()="发布作品"]').click()
+            # time.sleep(3)
+            # # wait_for_element_to_be_clickable(driver, '//*[text()="发布视频"]')
+            # driver.find_element(By.XPATH, '//*[text()="发布视频"]').click()
 
             time.sleep(3)
             # wait_for_element_to_be_clickable(driver, '//input[@type="file"]')
@@ -118,6 +123,43 @@ class DouyinPublisher:
 
             time.sleep(5)
 
+
+            # JavaScript code to define and call the clickCloseButton function
+            click_close_button_js = """
+            function clickCloseButton() {
+                // Select the close button based on the class starting text
+                const closeButton = document.querySelector('svg[class^="close--"]');
+
+                // Check if the close button is found
+                if (closeButton) {
+                    // Create a new click event
+                    var clickEvent = new MouseEvent("click", {
+                        view: window,
+                        bubbles: true,
+                        cancelable: false
+                    });
+                    
+                    // Dispatch the event on the close button
+                    closeButton.dispatchEvent(clickEvent);
+                    return 'Close button clicked.';
+                } else {
+                    return 'Close button not found.';
+                }
+            }
+
+            // Call the function to click the close button
+            return clickCloseButton();
+            """
+
+            try:
+                # Execute the JavaScript code
+                result = driver.execute_script(click_close_button_js)
+                print(result)
+            except WebDriverException as e:
+                print(f"WebDriverException occurred: {e}")
+
+            time.sleep(3)
+
              # Entering the title
             print("Entering the title...")
             title_input_xpath = '//input[@placeholder="好的作品标题可获得更多浏览"]'
@@ -154,6 +196,7 @@ class DouyinPublisher:
                 # wait_for_element_to_be_clickable(driver, '//*[@class="semi-popover-content"]//*[text()="香港大学"]')
                 driver.find_element(By.XPATH, '//*[@class="semi-popover-content"]//*[text()="香港大学"]').click()
             except:
+                print("Cannot select location!")
                 pass
 
 

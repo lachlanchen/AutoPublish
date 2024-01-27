@@ -13,27 +13,32 @@ from xhs_pub import XiaoHongShuPublisher
 from bilibili_pub import BilibiliPublisher
 from douyin_pub import DouyinPublisher
 from process_video import VideoProcessor
+from webdriver_manager.chrome import ChromeDriverManager
+
+from selenium.webdriver.chrome.service import Service
+
+chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
+service = Service(executable_path=chromedriver_path)
 
 # Define video file pattern
 video_file_pattern = re.compile(r'.+\.(mp4|mov|avi|flv|wmv|mkv)$', re.IGNORECASE)
 
 # Paths for the folders and files
-logs_folder_path = '/Users/lachlan/Documents/iProjects/auto-publish/logs'
-autopublish_folder_path = '/Users/lachlan/Nutstore Files/Vlog/AutoPublish'
-videos_db_path = '/Users/lachlan/Documents/iProjects/auto-publish/videos_db.csv'
-processed_path = '/Users/lachlan/Documents/iProjects/auto-publish/processed.csv'
+# logs_folder_path = '/Users/lachlan/Documents/iProjects/auto-publish/logs'
+# autopublish_folder_path = '/Users/lachlan/Nutstore Files/Vlog/AutoPublish'
+# videos_db_path = '/Users/lachlan/Documents/iProjects/auto-publish/videos_db.csv'
+# processed_path = '/Users/lachlan/Documents/iProjects/auto-publish/processed.csv'
+logs_folder_path = '/home/lachlan/Projects/auto-publish/logs'
+autopublish_folder_path = '/home/lachlan/Projects/auto-publish/videos'
+videos_db_path = '/home/lachlan/Projects/auto-publish/videos_db.csv'
+processed_path = '/home/lachlan/Projects/auto-publish/processed.csv'
 
 # Ensure the logs and database files exist
 os.makedirs(logs_folder_path, exist_ok=True)
 open(videos_db_path, 'a').close()
 open(processed_path, 'a').close()
 
-# Function to create a new WebDriver instance
-def create_new_driver(port=5003):
-    options = webdriver.ChromeOptions()
-    options.add_experimental_option("debuggerAddress", f"127.0.0.1:{str(port)}")
-    driver = webdriver.Chrome(options=options)
-    return driver
+
 
 # Function to read CSV and get a list of filenames
 def read_csv(csv_path):
@@ -48,6 +53,16 @@ def update_csv_if_new(file_path, csv_path):
         with open(csv_path, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([file_path])
+
+# Function to create a new WebDriver instance
+def create_new_driver(port=5003):
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option("debuggerAddress", f"127.0.0.1:{str(port)}")
+    # driver = webdriver.Chrome(options=options)
+    
+    driver = webdriver.Chrome(service=service, options=options)
+    return driver
+    
 # Helper function to publish on a platform and handle exceptions
 def publish_platform(publisher, platform_name):
     try:
@@ -187,7 +202,7 @@ if __name__ == "__main__":
     log_file_path = os.path.join(logs_folder_path, log_filename)
     upload_url = 'http://lachlanserver:8081/upload'
     process_url = 'http://lachlanserver:8081/video-processing'
-    transcription_path = "/Users/lachlan/Nutstore Files/Vlog/transcription_data"
+    transcription_path = "/home/lachlan/Projects/auto-publish/transcription_data"
 
     with open(log_file_path, 'a') as log_file:
         log_file.write(f"Log entry at {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -197,6 +212,10 @@ if __name__ == "__main__":
         
         # Check each file in the autopublish folder
         for filename in os.listdir(autopublish_folder_path):
+            if filename.startswith("preprocessed"):
+                update_csv_if_new(filename, processed_path)
+                continue
+
             if video_file_pattern.match(filename):
                 file_path = os.path.join(autopublish_folder_path, filename)
                 if os.path.isfile(file_path):

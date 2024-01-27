@@ -2,12 +2,13 @@ import selenium
 from selenium import webdriver
 import pathlib
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException
 import time
 
-from utils import dismiss_alert
+from utils import dismiss_alert, bring_to_front
 import traceback
 
 class XiaoHongShuPublisher:
@@ -64,10 +65,13 @@ class XiaoHongShuPublisher:
             driver.get("https://creator.xiaohongshu.com/creator/post")
             print("Navigated to post creation page.")
 
+
             time.sleep(1)
             dismiss_alert(driver)
-            
             time.sleep(10)
+            
+            bring_to_front(["小红书", "你访问的页面不见了"])
+
             WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//input[@type="file"]')))
             print("Video upload field is present.")
 
@@ -113,13 +117,56 @@ class XiaoHongShuPublisher:
             WebDriverWait(driver, 600).until(EC.presence_of_element_located((By.XPATH, cover_uploaded_button_xpath)))
             print("Cover uploaded successfully! Proceeding to location selection.")
 
-            time.sleep(3)
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, "single-input"))).click()
-            time.sleep(3)
-            WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, "dropdown")))
-            time.sleep(3)
-            driver.find_element(By.XPATH, ".//span[contains(text(), '香港大学')]").click()
-            print("Location selected successfully!")
+            # try:
+            #     time.sleep(3)
+            #     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, "single-input"))).click()
+            #     time.sleep(3)
+            #     WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, "dropdown")))
+            #     time.sleep(3)
+            #     driver.find_element(By.XPATH, ".//span[contains(text(), '香港大学')]").click()
+            #     print("Location selected successfully!")
+            # except:
+            #     print("Cannot select location!")
+            #     pass
+
+            def select_location(driver, location_names, retry_count=2):
+                try:
+                    # Get the name to use for this attempt
+                    location_name = location_names[0]
+
+
+                    # Wait for the input box to be clickable, click it, and send the location name
+                    time.sleep(3)
+                    input_box = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "input.single-input[placeholder='请选择']"))
+                    )
+                    input_box.click()
+                    input_box.send_keys(location_name)
+                    input_box.send_keys(Keys.RETURN)  # You might or might not need this line, depending on how the dropdown is triggered
+
+                    # Wait for the dropdown to be visible
+                    time.sleep(3)
+                    WebDriverWait(driver, 10).until(
+                        EC.visibility_of_element_located((By.CLASS_NAME, "dropdown"))
+                    )
+                    
+                    # Wait for the specific location to be clickable and click it
+                    time.sleep(3)
+                    location_option = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, f".//span[contains(text(), '{location_name}')]"))
+                    )
+                    location_option.click()
+                    print(f"Location '{location_name}' selected successfully!")
+                except TimeoutException:
+                    if retry_count > 0 and len(location_names) > 1:
+                        print(f"Retrying to select location... Attempts left: {retry_count}")
+                        select_location(driver, location_names[1:], retry_count - 1)  # Remove the first name and retry with the next one
+                    else:
+                        print(f"Failed to select location after multiple attempts.")
+
+            # Try selecting the location with a list of names
+            select_location(driver, ['香港大学', 'The University of Hong Kong'])
+
 
             # Prompt the user to confirm publishing
             if test:

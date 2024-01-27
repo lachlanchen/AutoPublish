@@ -10,7 +10,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 # from webdriver_manager.chrome import ChromeDriverManager
 
-from utils import dismiss_alert, crop_and_resize_cover_image
+from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front
 
 import traceback
 
@@ -156,7 +156,9 @@ class BilibiliPublisher:
             driver.get("https://member.bilibili.com/platform/upload/video/frame")
             time.sleep(1)
             dismiss_alert(driver)
-            time.sleep(30)
+            time.sleep(10)
+
+            bring_to_front(["哔哩哔哩"])
             
             print(f"Uploading video from path: {path_mp4}")
             upload_input_xpath = '//input[@type="file" and contains(@accept,"mp4")]'
@@ -246,20 +248,24 @@ class BilibiliPublisher:
             else:
                 user_input = "yes"
             if user_input == 'yes':
-                # Click Publish
-                print("Publishing the video...")
-                publish_button_xpath = '//*[text()="立即投稿"]'
-                # publish_button_xpath = '//*[text()="存草稿"]'
-                time.sleep(10)
-                # wait_for_element_to_be_clickable(publish_button_xpath)
-                driver.find_element(By.XPATH, publish_button_xpath).click()
+                for _ in range(2):
+                    try:
+                        # Click Publish
+                        print("Publishing the video...")
+                        publish_button_xpath = '//*[text()="立即投稿"]'
+                        # publish_button_xpath = '//*[text()="存草稿"]'
+                        time.sleep(10)
+                        # wait_for_element_to_be_clickable(publish_button_xpath)
+                        driver.find_element(By.XPATH, publish_button_xpath).click()
 
-                time.sleep(10)
-                self.solve_captcha()
+                        time.sleep(10)
+                        self.solve_captcha()
 
-                time.sleep(10)
-                dismiss_alert(driver)
-                time.sleep(3)
+                        time.sleep(10)
+                        dismiss_alert(driver)
+                        time.sleep(3)
+                    except:
+                        pass
 
                 print("Video published successfully!")
             else:

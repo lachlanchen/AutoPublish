@@ -39,3 +39,21 @@ def crop_and_resize_cover_image(path_cover):
         return None
     
     return path_cover_resized
+
+def bring_to_front(window_name_pattern):
+    try:
+        # List all Chromium windows
+        window_list = subprocess.check_output(["xdotool", "search", "--name", "Chromium"]).decode().strip().split('\n')
+        # Iterate through the list of window IDs
+        for window_id in window_list:
+            # Get the name of each window using its ID
+            window_name = subprocess.check_output(["xdotool", "getwindowname", window_id]).decode().strip()
+            # Check if the window name matches any of the patterns provided
+            if any(text in window_name for text in window_name_pattern):
+                # If a match is found, activate the window
+                subprocess.run(["xdotool", "windowactivate", "--sync", window_id])
+                # Optionally, add a brief pause to ensure the window comes to the front
+                subprocess.run(["sleep", "1"])
+                break  # Exit the loop after the first match
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.output.decode()}")
