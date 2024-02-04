@@ -69,6 +69,13 @@ def clean_title(title):
     
     return cleaned_title
 
+# Define the clean_bmp function
+def clean_bmp(text):
+    # Replace non-BMP characters with spaces
+    cleaned_text = ''.join(char if ord(char) < 65536 else '' for char in text)
+    return cleaned_text
+
+
 # def bring_to_front(window_name_pattern):
 #     try:
 #         # List all Chromium windows
@@ -148,6 +155,10 @@ class PublishHandler(tornado.web.RequestHandler):
                 with open(metadata_json_path, 'r', encoding='utf-8') as json_file:
                     metadata = json.load(json_file)
                     metadata["title"] = clean_title(metadata["title"])
+                    # Clean the description fields
+                    fields_to_clean = ["brief_description", "middle_description", "long_description"]
+                    for field in fields_to_clean:
+                        metadata[field] = clean_bmp(metadata[field])
                 
                 video_filename = metadata.get('video_filename', None)
                 cover_filename = metadata.get('cover_filename', None)
@@ -197,6 +208,6 @@ def make_app():
 
 if __name__ == "__main__":
     app = make_app()
-    app.listen(8081, max_body_size=1024 * 1024 * 1024)
+    app.listen(8081, max_body_size=10*1024 * 1024 * 1024)
     tornado.autoreload.start()
     tornado.ioloop.IOLoop.current().start()
