@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from xhs_pub import XiaoHongShuPublisher
 from bilibili_pub import BilibiliPublisher
 from douyin_pub import DouyinPublisher
+from y2b_pub import YouTubePublisher
 from selenium.webdriver.chrome.service import Service
 
 import subprocess
@@ -142,7 +143,9 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_xhs = self.get_argument('publish_xhs', 'false').lower() == 'true'
         publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
         publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
+        publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
+
 
         # Unzip the file
         with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
@@ -159,6 +162,14 @@ class PublishHandler(tornado.web.RequestHandler):
                     fields_to_clean = ["brief_description", "middle_description", "long_description"]
                     for field in fields_to_clean:
                         metadata[field] = clean_bmp(metadata[field])
+
+                    metadata_en = metadata["english_version"]
+                    metadata_en["title"] = clean_title(metadata_en["title"])
+                    # Clean the description fields
+                    fields_to_clean = ["brief_description", "middle_description", "long_description"]
+                    for field in fields_to_clean:
+                        metadata_en[field] = clean_bmp(metadata_en[field])
+
                 
                 video_filename = metadata.get('video_filename', None)
                 cover_filename = metadata.get('cover_filename', None)
@@ -175,6 +186,9 @@ class PublishHandler(tornado.web.RequestHandler):
                 if publish_bilibili:
                     bilibili_publisher = BilibiliPublisher(self.create_new_driver(5005), path_mp4, path_cover, metadata, test_mode)
                     publishers.append((bilibili_publisher, 'Bilibili'))
+                if publish_y2b:
+                    y2b_publisher = YouTubePublisher(self.create_new_driver(9222), path_mp4, path_cover, metadata_en, test_mode)
+                    publishers.append((y2b_publisher, 'YouTube'))
 
                 # with ThreadPoolExecutor(max_workers=len(publishers)) as executor:
                 #     future_to_publisher = {executor.submit(publish_platform, publisher, name): name for publisher, name in publishers}
@@ -189,6 +203,8 @@ class PublishHandler(tornado.web.RequestHandler):
                         bring_to_front(["抖音"])
                     elif name == 'Bilibili':
                         bring_to_front(["哔哩哔哩"])
+                    elif name == 'YouTube':
+                        bring_to_front(["YouTube"])
 
                     publisher.publish()
 
