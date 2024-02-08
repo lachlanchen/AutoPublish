@@ -219,9 +219,16 @@ class YouTubePublisher:
                     print("Publishing cancelled by user.")
                     return
 
+
+
             publish_button = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.ID, "done-button")))
             publish_button.click()
             print('Clicked on the Publish button.')
+            time.sleep(3)
+
+            # Retrieve video ID (This assumes you are on the video's page after uploading)
+            video_id = self.driver.current_url.split('/')[-1]
+            print(f'Video ID: {video_id}')
         except TimeoutException:
             raise Exception("Failed to set visibility or click on the Publish button.")
     

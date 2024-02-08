@@ -16,6 +16,7 @@ from xhs_pub import XiaoHongShuPublisher
 from bilibili_pub import BilibiliPublisher
 from douyin_pub import DouyinPublisher
 from y2b_pub import YouTubePublisher
+from shipinhao_pub import ShiPinHaoPublisher
 from selenium.webdriver.chrome.service import Service
 
 import subprocess
@@ -58,15 +59,32 @@ def publish_platform(publisher, platform_name):
         traceback.print_exc()
         return 0
 
+# def clean_title(title):
+#     print("Original title: ", title)
+#     # Define a regex pattern that matches Chinese characters, English letters, numbers, Japanese characters, and punctuation
+#     pattern = r'[\u4e00-\u9fff\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3000-\u303f\uff00-\uffef]+'
+
+#     # Find all substrings that match the pattern
+#     matches = re.findall(pattern, title)
+
+#     # Join the matches to get the cleaned title
+#     cleaned_title = ''.join(matches)
+#     print("Cleaned title: ", cleaned_title)
+    
+#     return cleaned_title
+
 def clean_title(title):
-    # Define a regex pattern that matches Chinese characters, English letters, numbers, Japanese characters, and punctuation
-    pattern = r'[\u4e00-\u9fff\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3000-\u303f\uff00-\uffef]+'
+    print("Original title: ", title)
+    # Define a regex pattern that matches Chinese characters, English letters, numbers, Japanese characters,
+    # full-width and half-width punctuation, blank space, and specific punctuation like colon
+    pattern = r'[\u4e00-\u9fff\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3000-\u303f\uff00-\uffef ,.!?:]'
 
     # Find all substrings that match the pattern
     matches = re.findall(pattern, title)
 
     # Join the matches to get the cleaned title
     cleaned_title = ''.join(matches)
+    print("Cleaned title: ", cleaned_title)
     
     return cleaned_title
 
@@ -143,6 +161,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_xhs = self.get_argument('publish_xhs', 'false').lower() == 'true'
         publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
         publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
+        publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
 
@@ -164,7 +183,8 @@ class PublishHandler(tornado.web.RequestHandler):
                         metadata[field] = clean_bmp(metadata[field])
 
                     metadata_en = metadata["english_version"]
-                    metadata_en["title"] = clean_title(metadata_en["title"])
+                    # metadata_en["title"] = clean_title(metadata_en["title"])
+                    metadata_en["title"] = metadata_en["title"]
                     # Clean the description fields
                     fields_to_clean = ["brief_description", "middle_description", "long_description"]
                     for field in fields_to_clean:
@@ -186,6 +206,9 @@ class PublishHandler(tornado.web.RequestHandler):
                 if publish_bilibili:
                     bilibili_publisher = BilibiliPublisher(self.create_new_driver(5005), path_mp4, path_cover, metadata, test_mode)
                     publishers.append((bilibili_publisher, 'Bilibili'))
+                if publish_shipinhao:
+                    shipinhao_publisher = ShiPinHaoPublisher(self.create_new_driver(5006), path_mp4, path_cover, metadata, test_mode)
+                    publishers.append((shipinhao_publisher, 'ShiPinHao'))
                 if publish_y2b:
                     y2b_publisher = YouTubePublisher(self.create_new_driver(9222), path_mp4, path_cover, metadata_en, test_mode)
                     publishers.append((y2b_publisher, 'YouTube'))
@@ -203,6 +226,8 @@ class PublishHandler(tornado.web.RequestHandler):
                         bring_to_front(["抖音"])
                     elif name == 'Bilibili':
                         bring_to_front(["哔哩哔哩"])
+                    elif name == 'ShiPinHao':
+                        bring_to_front(["视频号助手"])
                     elif name == 'YouTube':
                         bring_to_front(["YouTube"])
 
