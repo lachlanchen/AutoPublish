@@ -23,6 +23,23 @@ import subprocess
 
 from utils import bring_to_front
 
+import argparse
+import threading
+import time
+import random
+
+import time
+
+
+
+is_publishing = False
+# Argument parsing for configurable refresh time
+parser = argparse.ArgumentParser(description="Auto-publish application with browser refresh feature.")
+parser.add_argument('--refresh-time', type=int, default=1800, help="Time in seconds between each browser refresh.")
+args = parser.parse_args()
+refresh_time = args.refresh_time
+
+
 # Global variables for paths and publishers
 logs_folder_root = '/home/lachlan/Projects/auto-publish/logs'
 autopublish_folder_root = '/home/lachlan/Projects/auto-publish/videos'
@@ -46,7 +63,32 @@ def create_new_driver(port=5003):
     driver = webdriver.Chrome(service=service, options=options)
     return driver
 
-    
+
+
+def refresh_browsers(ports_patterns):
+    global is_publishing
+    while True:
+        if not is_publishing:
+            for port, patterns in ports_patterns.items():
+                bring_to_front(patterns)
+                try:
+                    driver = create_new_driver(port)
+                    driver.refresh()
+                    print(f"Refreshed and brought to front browser on port {port}.")
+                except Exception as e:
+                    print(f"Failed to refresh browser on port {port}: {e}")
+
+                # time.sleep(3)
+                # Short sleep between refreshing each browser, if needed
+                time.sleep(random.normalvariate(mu=3, sigma=1))
+
+        # time.sleep(refresh_time)
+        # Calculate sleep time as the mean plus an absolute value of a normal distribution centered at 0
+        sleep_time = args.refresh_time + abs(random.normalvariate(mu=0, sigma=args.refresh_time / 4))
+        print(f"Sleeping for {sleep_time:.2f} seconds before next refresh cycle.")
+        time.sleep(sleep_time)
+
+
 # Helper function to publish on a platform and handle exceptions
 def publish_platform(publisher, platform_name):
     try:
@@ -130,6 +172,35 @@ class PublishHandler(tornado.web.RequestHandler):
         driver = webdriver.Chrome(service=service, options=options)
         return driver
 
+    def stop_and_start_chromium_sessions(self):
+        password = "1"  # This should be secured
+        try:
+            # Commands to stop existing Chromium and ChromeDriver processes
+            try:
+                subprocess.run(f"echo {password} | sudo -S pkill chromium-browse", shell=True, check=True)
+                subprocess.run(f"echo {password} | sudo -S pkill chromedriver", shell=True, check=True)
+            except:
+                pass
+            
+            # Start new Chromium sessions, replicating what the aliases would do
+            # Note: The use of shell=True and passing commands as a single string due to the complexity of commands
+            start_commands = [
+                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir=\"$HOME/chromium_dev_session_5003\" https://creator.xiaohongshu.com/creator/post > \"$HOME/chromium_dev_session_logs/chromium_xhs.log\" 2>&1 &",
+                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir=\"$HOME/chromium_dev_session_5004\" https://creator.douyin.com/creator-micro/content/upload > \"$HOME/chromium_dev_session_logs/chromium_douyin.log\" 2>&1 &",
+                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir=\"$HOME/chromium_dev_session_5005\" https://member.bilibili.com/platform/upload/video/frame > \"$HOME/chromium_dev_session_logs/chromium_bilibili.log\" 2>&1 &",
+                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir=\"$HOME/chromium_dev_session_5006\" https://channels.weixin.qq.com/post/create > \"$HOME/chromium_dev_session_logs/chromium_shipinhao.log\" 2>&1 &",
+                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir=\"$HOME/chromium_dev_session_9222\" https://youtube.com/upload > \"$HOME/chromium_dev_session_logs/chromium_youtube.log\" 2>&1 &"
+            ]
+
+            for command in start_commands:
+                print("Executing: ", command)
+                subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                time.sleep(3)
+            time.sleep(10)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to execute Chromium sessions management commands: {e}")
+
+
 
     def get(self):
 
@@ -139,9 +210,16 @@ class PublishHandler(tornado.web.RequestHandler):
 
     # @tornado.web.stream_request_body
     def post(self):
+        global is_publishing
+        is_publishing = True
+
+        self.stop_and_start_chromium_sessions()
+
         # Extract filename from form fields or use current datetime as default
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = self.get_argument('filename')
+
+        print("Received publish request: ", filename)
         # basename = Path(filename_provided).stem
         # Use provided filename with timestamp if it's not the default timestamp
         # filename = f"{basename}_{timestamp}.zip" if basename != timestamp else filename_provided
@@ -240,6 +318,9 @@ class PublishHandler(tornado.web.RequestHandler):
             self.write(json.dumps({"error": f"An error occurred: {str(e)}"}))
             traceback.print_exc()
 
+        finally:
+            is_publishing = False
+
 def make_app():
     # transcription_path = "/home/lachlan/Projects/auto-publish/transcription_data"
     # chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
@@ -248,7 +329,20 @@ def make_app():
     ])
 
 if __name__ == "__main__":
+
+    ports_patterns = {
+        5003: ["小红书", "你访问的页面不见了"],
+        5004: ["抖音"],
+        5005: ["哔哩哔哩"],
+        5006: ["视频号助手"],
+        9222: ["YouTube"]
+    }
+
+    # refresh_thread = threading.Thread(target=refresh_browsers, args=(ports_patterns,), daemon=True)
+    # refresh_thread.start()
+
     app = make_app()
     app.listen(8081, max_body_size=10*1024 * 1024 * 1024)
+    print("Listen on: ", f"http://lazyingart:8081")
     tornado.autoreload.start()
     tornado.ioloop.IOLoop.current().start()

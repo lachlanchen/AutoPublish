@@ -94,6 +94,71 @@ class ShiPinHaoPublisher:
         clean_title = ''.join(re.findall(allowed_chars_regex, title))
         
         return clean_title
+
+    # def set_location(self, driver):
+    #     try:
+    #         # Click on the position display wrapper
+    #         position_display_wrap = wait_for_element(driver, '//*[@class="position-display-wrap"]', 30)
+    #         position_display_wrap.click()
+    #         time.sleep(3)
+
+    #         # Enter location in the search box
+    #         location_input = wait_for_element(driver, '//input[@placeholder="搜索附近位置"]', 30)
+    #         self.clear_and_type(location_input, "香港特别行政区香港大学")
+    #         time.sleep(3)
+
+    #         # Click the search button
+    #         search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-icon-btn weui-desktop-search__btn")]', 30)
+    #         search_button.click()
+    #         time.sleep(3)
+
+    #         # Try clicking on "香港大学" if available
+    #         hku_option = wait_for_element_clickable(driver, "//div[contains(@class, 'location-item-info')]//div[text()='香港大学']", 30)
+    #         hku_option.click()
+    #     except:
+    #         # If "香港大学" not found, click "不显示位置"
+    #         no_location_option = wait_for_element_clickable(driver, "//div[contains(@class, 'location-item-info')]//div[text()='不显示位置']", 30)
+    #         no_location_option.click()
+    #     finally:
+    #         time.sleep(3)
+
+    def set_location(self, driver):
+        location_options = [
+            ("香港特别行政区香港大学", "香港大学"),
+            ("香港特别行政区", "香港特别行政区"),
+            (None, "不显示位置")  # Use None to indicate no typing is required
+        ]
+        
+        for location_input_text, location_click_text in location_options:
+            try:
+                if location_input_text:
+                    # Click on the position display wrapper
+                    position_display_wrap = wait_for_element(driver, '//*[@class="position-display-wrap"]', 30)
+                    position_display_wrap.click()
+                    time.sleep(3)
+
+                    # Enter location in the search box
+                    location_input = wait_for_element(driver, '//input[@placeholder="搜索附近位置"]', 30)
+                    self.clear_and_type(location_input, location_input_text)
+                    time.sleep(3)
+
+                    # Click the search button if needed
+                    search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-icon-btn weui-desktop-search__btn")]', 30)
+                    search_button.click()
+                    time.sleep(3)
+
+                # Try clicking on the specified location
+                location_option = wait_for_element_clickable(driver, f"//div[contains(@class, 'location-item-info')]//div[text()='{location_click_text}']", 30)
+                location_option.click()
+                time.sleep(3)
+                print(f"Clicked on location: {location_click_text}")
+                break  # Break the loop if click was successful
+            except Exception as e:
+                print(f"Could not click on location: {location_click_text}. Error: {e}")
+                if location_click_text == "不显示位置":
+                    print("Failed to set any location. Please check the availability of the location options.")
+                    break  # Exit loop if "不显示位置" also fails
+
     
     def publish(self):
         if self.retry_count < 3:  # maximum 3 tries (initial + 2 retries)
@@ -142,22 +207,24 @@ class ShiPinHaoPublisher:
                 self.clear_and_type(description_input, video_description_with_tags)
                 time.sleep(3)
 
-                # Set location
-                position_display_wrap = wait_for_element(driver, '//*[@class="position-display-wrap"]', 30)
-                position_display_wrap.click()
-                time.sleep(3)
+                # # Set location
+                # position_display_wrap = wait_for_element(driver, '//*[@class="position-display-wrap"]', 30)
+                # position_display_wrap.click()
+                # time.sleep(3)
 
-                location_input = wait_for_element(driver, '//input[@placeholder="搜索附近位置"]', 30)
-                self.clear_and_type(location_input, "香港特别行政区香港大学")
-                time.sleep(3)
+                # location_input = wait_for_element(driver, '//input[@placeholder="搜索附近位置"]', 30)
+                # self.clear_and_type(location_input, "香港特别行政区香港大学")
+                # time.sleep(3)
 
-                search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-icon-btn weui-desktop-search__btn")]', 30)
-                search_button.click()
-                time.sleep(3)
+                # search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-icon-btn weui-desktop-search__btn")]', 30)
+                # search_button.click()
+                # time.sleep(3)
 
-                hku_option = wait_for_element_clickable(driver, "//div[contains(@class, 'location-item-info')]//div[text()='香港大学']", 30)
-                hku_option.click()
-                time.sleep(3)
+                # hku_option = wait_for_element_clickable(driver, "//div[contains(@class, 'location-item-info')]//div[text()='香港大学']", 30)
+                # hku_option.click()
+                # time.sleep(3)
+
+                self.set_location(driver)
 
                 # Set playlist
                 collection_dropdown = wait_for_element_clickable(driver, "//div[@class='post-album-display-wrap']//div[@class='display-text' and contains(text(), '选择合集')]", 30)

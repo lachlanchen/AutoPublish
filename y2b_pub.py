@@ -112,9 +112,40 @@ class YouTubePublisher:
             raise ProcessingTimeoutException()
 
     
+    def create_video_title_with_limited_tags(self, metadata):
+        max_length = 100  # Maximum length of the title with tags
+        title = metadata["title"]
+        tags = metadata["tags"]
+        
+        # Start with the full title, then truncate if necessary
+        if len(title) > max_length:
+            # If the title itself exceeds the max length, truncate it
+            optimized_title = title[:max_length]
+        else:
+            optimized_title = title
+            remaining_length = max_length - len(optimized_title) - 1  # Space for separator
+        
+            # Try to add as many tags as possible
+            tags_str = ""
+            for tag in tags:
+                tag_with_prefix = " #" + tag
+                if len(tag_with_prefix) <= remaining_length:
+                    tags_str += tag_with_prefix
+                    remaining_length -= len(tag_with_prefix)
+                else:
+                    # No more tags can be added without exceeding the max length
+                    break
+            
+            # Append tags to the title if there's any space left
+            if tags_str:
+                optimized_title += " " + tags_str.strip()
+        
+        return optimized_title
+
     def set_video_details(self):
         try:
-            video_title_with_tags = self.metadata["title"] # + " " + " ".join("#" + tag for tag in self.metadata["tags"])
+            # video_title_with_tags = self.metadata["title"] + " " + " ".join("#" + tag for tag in self.metadata["tags"])
+            video_title_with_tags = self.create_video_title_with_limited_tags(self.metadata)
             title_input_xpath = "//div[@id='textbox'][@contenteditable='true']"
             title_input = WebDriverWait(self.driver, 20).until(EC.element_to_be_clickable((By.XPATH, title_input_xpath)))
             title_input.clear()
