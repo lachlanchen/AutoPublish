@@ -9,6 +9,7 @@ from sendgrid.helpers.mail import FileContent, FileName, FileType, Disposition
 import time
 import os
 import base64
+import traceback
 
 class SendMail:
     # Set defaults within the class, but allow them to be overridden
@@ -94,3 +95,4 @@ def bring_to_front(window_name_pattern):
                 break  # Exit the loop after the first match
     except subprocess.CalledProcessError as e:
         print(f"Error: {e.output.decode()}")
+        traceback.print_exc()

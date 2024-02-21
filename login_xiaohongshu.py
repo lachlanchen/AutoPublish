@@ -3,7 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 
 # from sendgrid import SendGridAPIClient
@@ -51,6 +51,7 @@ class XiaoHongShuLogin:
         self.mailer = SendMail()  # Using default parameters
         self.port = port
         self.driver = driver if driver else self.create_new_driver()
+        self.refresh_count = 0
 
     def create_new_driver(self):
         print("Creating new WebDriver instance...")
@@ -91,6 +92,17 @@ class XiaoHongShuLogin:
         except Exception as e:
             print(f"Failed to reveal QR code using JavaScript: {e}")
 
+    def find_lazying_art(self):
+        try:
+            # Search for the span element containing the specific text
+            user_info_element = self.driver.find_element(By.XPATH, "//span[contains(text(), '陈苗LazyingArt懒人艺术')]")
+            if user_info_element:
+                print("Found '陈苗LazyingArt懒人艺术'.")
+                return True
+        except NoSuchElementException:
+            # If the element is not found, NoSuchElementException is caught
+            print("Did not find '陈苗LazyingArt懒人艺术'.")
+        return False
 
 
     def check_and_act(self):
@@ -110,6 +122,9 @@ class XiaoHongShuLogin:
         time.sleep(3)
 
         bring_to_front(["小红书", "你访问的页面不见了"])
+
+        if self.find_lazying_art():
+            return
 
 
         try:
@@ -141,10 +156,13 @@ class XiaoHongShuLogin:
                 # self.refresh_qr_code()
                 # self.driver.refresh()
                 self.refresh_qr_code()
+                time.sleep(3)
+                self.take_screenshot_and_send_email()
                 last_refresh_time = time.time()
 
             if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
                 print("Taking screenshot and sending email...")
+                time.sleep(3)
                 self.take_screenshot_and_send_email()
                 last_email_time = time.time()
 
@@ -160,6 +178,37 @@ class XiaoHongShuLogin:
 
     def refresh_qr_code(self):
         try:
+            if self.refresh_count % 2:
+                raise Exception("Default method failed in last attempt. ")
+
+            # Locate the refresh button by its text and click it using JavaScript
+            refresh_button_script = """
+            var buttons = document.querySelectorAll('button');
+            var buttonClicked = false;
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].querySelector('span.btn-content') && buttons[i].querySelector('span.btn-content').textContent.trim() === '刷新') {
+                    buttons[i].click();
+                    buttonClicked = true;
+                    break;
+                }
+            }
+            return buttonClicked;
+            """
+
+            # Execute the script
+            buttonClicked = self.driver.execute_script(refresh_button_script)
+
+            # Check if the button was clicked successfully
+            if buttonClicked:
+                print("QR code refreshed successfully.")
+                self.refresh_count += 1
+            else:
+                print("Refresh button not found.")
+                raise Exception("Refresh button not found. ")
+
+            
+
+        except Exception as e:
             print(f"Direct refresh failed, attempting alternative method: {e}")
             # If clicking the refresh button fails, refresh the page
             self.driver.refresh()
@@ -168,24 +217,11 @@ class XiaoHongShuLogin:
             
             self.show_qr()
 
-            # # Locate the refresh button by its text and click it using JavaScript
-            # refresh_button_script = """
-            # var buttons = document.querySelectorAll('button');
-            # for (var i = 0; i < buttons.length; i++) {
-            #     if (buttons[i].textContent == '刷新') {
-            #         buttons[i].click();
-            #         break;
-            #     }
-            # }
-            # """
-            # self.driver.execute_script(refresh_button_script)
-            # print("QR code refreshed successfully.")
-        except Exception as e:
-            print("Refresh failed with error: ", e)
+            self.refresh_count = 0
             
     def needs_login(self):
         try:
-            WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.login-box-container')))
+            WebDriverWait(self.driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.login-box-container')))
             print("SMS login box detected, login is required.")
             return True
         except TimeoutException:
