@@ -60,6 +60,20 @@ class ShiPinHaoLogin:
         driver = webdriver.Chrome(options=options)
         return driver
 
+    def find_lazying_art(self):
+        try:
+            # Search for the span element containing the specific text
+            # Adjusted the XPath to target the class and text more accurately based on the provided structure
+            user_info_element = self.driver.find_element(By.XPATH, "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt懒人艺术')]")
+            if user_info_element:
+                print("Found '陈苗LazyingArt懒人艺术'.")
+                return True
+        except NoSuchElementException:
+            # If the element is not found, NoSuchElementException is caught
+            print("Did not find '陈苗LazyingArt懒人艺术'.")
+        return False
+
+
     def check_and_act(self):
         print("Navigating to the URL...")
         bring_to_front(["视频号"])
@@ -74,6 +88,10 @@ class ShiPinHaoLogin:
         time.sleep(3)
 
         bring_to_front(["视频号"])
+
+        if self.find_lazying_art():
+            print("Already logged in. ")
+            return
 
 
         try:

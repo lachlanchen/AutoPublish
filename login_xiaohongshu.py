@@ -124,6 +124,7 @@ class XiaoHongShuLogin:
         bring_to_front(["小红书", "你访问的页面不见了"])
 
         if self.find_lazying_art():
+            print("Already logged in. ")
             return
 
 
