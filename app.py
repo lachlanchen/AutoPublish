@@ -12,11 +12,13 @@ from datetime import datetime
 from pathlib import Path
 from selenium import webdriver
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from xhs_pub import XiaoHongShuPublisher
-from bilibili_pub import BilibiliPublisher
-from douyin_pub import DouyinPublisher
-from y2b_pub import YouTubePublisher
-from shipinhao_pub import ShiPinHaoPublisher
+from pub_xhs import XiaoHongShuPublisher
+from pub_bilibili import BilibiliPublisher
+from pub_douyin import DouyinPublisher
+from pub_y2b import YouTubePublisher
+from pub_shipinhao import ShiPinHaoPublisher
+from login_shipinhao import ShiPinHaoLogin
+from login_xiaohongshu import XiaoHongShuLogin
 from selenium.webdriver.chrome.service import Service
 
 import subprocess
@@ -63,20 +65,102 @@ def create_new_driver(port=5003):
     driver = webdriver.Chrome(service=service, options=options)
     return driver
 
+def run_command(command):
+    try:
+        print(f"Executing: {command}")
+        subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(3)  # Short delay to ensure the command initiates properly
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to execute command: {e}")
+
+def stop_and_start_chromium_sessions(
+            publish_xhs=False,
+            publish_bilibili=False,
+            publish_douyin=False,
+            publish_shipinhao=False,
+            publish_y2b=False
+        ):
+        password = "1"  # This should be secured
+        try:
+            # Commands to stop existing Chromium and ChromeDriver processes
+            try:
+                subprocess.run(f"echo {password} | sudo -S pkill chromium-browse", shell=True, check=True)
+                subprocess.run(f"echo {password} | sudo -S pkill chromedriver", shell=True, check=True)
+            except:
+                pass
+            
+            # Start new Chromium sessions, replicating what the aliases would do
+            # Note: The use of shell=True and passing commands as a single string due to the complexity of commands
+            start_commands = {
+                "xhs": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir=\"$HOME/chromium_dev_session_5003\" https://creator.xiaohongshu.com/creator/post > \"$HOME/chromium_dev_session_logs/chromium_xhs.log\" 2>&1 &",
+                "douyin": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir=\"$HOME/chromium_dev_session_5004\" https://creator.douyin.com/creator-micro/content/upload > \"$HOME/chromium_dev_session_logs/chromium_douyin.log\" 2>&1 &",
+                "bilibili": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir=\"$HOME/chromium_dev_session_5005\" https://member.bilibili.com/platform/upload/video/frame > \"$HOME/chromium_dev_session_logs/chromium_bilibili.log\" 2>&1 &",
+                "shipinhao": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir=\"$HOME/chromium_dev_session_5006\" https://channels.weixin.qq.com/post/create > \"$HOME/chromium_dev_session_logs/chromium_shipinhao.log\" 2>&1 &",
+                "y2b": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir=\"$HOME/chromium_dev_session_9222\" https://youtube.com/upload > \"$HOME/chromium_dev_session_logs/chromium_youtube.log\" 2>&1 &"
+            }
+
+            # for platform, command in start_commands.items():
+            #     print(f"Starting browser for {platform}: ", command)
+
+
+            #     subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                
+            #     time.sleep(3)
+            
+
+            # Check each platform flag and run the corresponding start command if True
+            if publish_xhs:
+                run_command(start_commands["xhs"])
+            if publish_douyin:
+                run_command(start_commands["douyin"])
+            if publish_bilibili:
+                run_command(start_commands["bilibili"])
+            if publish_shipinhao:
+                run_command(start_commands["shipinhao"])
+            if publish_y2b:
+                run_command(start_commands["y2b"])
+
+            time.sleep(10)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to execute Chromium sessions management commands: {e}")
+
+
 
 
 def refresh_browsers(ports_patterns):
     global is_publishing
     while True:
         if not is_publishing:
+
+            stop_and_start_chromium_sessions(
+                publish_shipinhao=True,
+                publish_xhs=True
+            )
+
             for port, patterns in ports_patterns.items():
-                bring_to_front(patterns)
+                
                 try:
-                    driver = create_new_driver(port)
-                    driver.refresh()
+                    bring_to_front(patterns)
+
+                    # driver = create_new_driver(port)
+                    # driver.refresh()
+
+                    if port == 5003:
+                        xhs_login = XiaoHongShuLogin(create_new_driver(port=port))
+                        xhs_login.check_and_act()
+
+                    elif port == 5006:
+                        shi_pin_hao_login = ShiPinHaoLogin(create_new_driver(port=5006))
+                        shi_pin_hao_login.check_and_act()
+
+                    else:
+                        print("Not implemented. ")
+
                     print(f"Refreshed and brought to front browser on port {port}.")
                 except Exception as e:
                     print(f"Failed to refresh browser on port {port}: {e}")
+                    traceback.print_exc()
 
                 # time.sleep(3)
                 # Short sleep between refreshing each browser, if needed
@@ -172,35 +256,21 @@ class PublishHandler(tornado.web.RequestHandler):
         driver = webdriver.Chrome(service=service, options=options)
         return driver
 
-    def stop_and_start_chromium_sessions(self):
-        password = "1"  # This should be secured
-        try:
-            # Commands to stop existing Chromium and ChromeDriver processes
-            try:
-                subprocess.run(f"echo {password} | sudo -S pkill chromium-browse", shell=True, check=True)
-                subprocess.run(f"echo {password} | sudo -S pkill chromedriver", shell=True, check=True)
-            except:
-                pass
-            
-            # Start new Chromium sessions, replicating what the aliases would do
-            # Note: The use of shell=True and passing commands as a single string due to the complexity of commands
-            start_commands = [
-                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir=\"$HOME/chromium_dev_session_5003\" https://creator.xiaohongshu.com/creator/post > \"$HOME/chromium_dev_session_logs/chromium_xhs.log\" 2>&1 &",
-                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir=\"$HOME/chromium_dev_session_5004\" https://creator.douyin.com/creator-micro/content/upload > \"$HOME/chromium_dev_session_logs/chromium_douyin.log\" 2>&1 &",
-                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir=\"$HOME/chromium_dev_session_5005\" https://member.bilibili.com/platform/upload/video/frame > \"$HOME/chromium_dev_session_logs/chromium_bilibili.log\" 2>&1 &",
-                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir=\"$HOME/chromium_dev_session_5006\" https://channels.weixin.qq.com/post/create > \"$HOME/chromium_dev_session_logs/chromium_shipinhao.log\" 2>&1 &",
-                "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir=\"$HOME/chromium_dev_session_9222\" https://youtube.com/upload > \"$HOME/chromium_dev_session_logs/chromium_youtube.log\" 2>&1 &"
-            ]
+    def stop_and_start_chromium_sessions(self,
+            publish_xhs=False,
+            publish_bilibili=False,
+            publish_douyin=False,
+            publish_shipinhao=False,
+            publish_y2b=False
+        ):
 
-            for command in start_commands:
-                print("Executing: ", command)
-                subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                time.sleep(3)
-            time.sleep(10)
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to execute Chromium sessions management commands: {e}")
-
-
+        stop_and_start_chromium_sessions(
+            publish_xhs=publish_xhs,
+            publish_bilibili=publish_bilibili,
+            publish_douyin=publish_douyin,
+            publish_shipinhao=publish_shipinhao,
+            publish_y2b=publish_y2b
+        )
 
     def get(self):
 
@@ -213,7 +283,21 @@ class PublishHandler(tornado.web.RequestHandler):
         global is_publishing
         is_publishing = True
 
-        self.stop_and_start_chromium_sessions()
+        # Read publishing options from request
+        publish_xhs = self.get_argument('publish_xhs', 'false').lower() == 'true'
+        publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
+        publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
+        publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
+        publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
+        test_mode = self.get_argument('test', 'false').lower() == 'true'
+
+        self.stop_and_start_chromium_sessions(
+            publish_xhs=publish_xhs,
+            publish_bilibili=publish_bilibili,
+            publish_douyin=publish_douyin,
+            publish_shipinhao=publish_shipinhao,
+            publish_y2b=publish_y2b
+        )
 
         # Extract filename from form fields or use current datetime as default
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -235,13 +319,7 @@ class PublishHandler(tornado.web.RequestHandler):
         with open(transcription_path, 'wb') as f:
             f.write(self.request.body)
 
-        # Read publishing options from request
-        publish_xhs = self.get_argument('publish_xhs', 'false').lower() == 'true'
-        publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
-        publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
-        publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
-        publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
-        test_mode = self.get_argument('test', 'false').lower() == 'true'
+        
 
 
         # Unzip the file
@@ -276,20 +354,20 @@ class PublishHandler(tornado.web.RequestHandler):
 
                 publishers = []
                 if publish_xhs:
-                    xhs_publisher = XiaoHongShuPublisher(self.create_new_driver(5003), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((xhs_publisher, 'XiaoHongShu'))
+                    pub_xhslisher = XiaoHongShuPublisher(self.create_new_driver(5003), path_mp4, path_cover, metadata, test_mode)
+                    publishers.append((pub_xhslisher, 'XiaoHongShu'))
                 if publish_douyin:
-                    douyin_publisher = DouyinPublisher(self.create_new_driver(5004), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((douyin_publisher, 'Douyin'))
+                    pub_douyinlisher = DouyinPublisher(self.create_new_driver(5004), path_mp4, path_cover, metadata, test_mode)
+                    publishers.append((pub_douyinlisher, 'Douyin'))
                 if publish_bilibili:
-                    bilibili_publisher = BilibiliPublisher(self.create_new_driver(5005), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((bilibili_publisher, 'Bilibili'))
+                    pub_bilibililisher = BilibiliPublisher(self.create_new_driver(5005), path_mp4, path_cover, metadata, test_mode)
+                    publishers.append((pub_bilibililisher, 'Bilibili'))
                 if publish_shipinhao:
-                    shipinhao_publisher = ShiPinHaoPublisher(self.create_new_driver(5006), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((shipinhao_publisher, 'ShiPinHao'))
+                    pub_shipinhaolisher = ShiPinHaoPublisher(self.create_new_driver(5006), path_mp4, path_cover, metadata, test_mode)
+                    publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
                 if publish_y2b:
-                    y2b_publisher = YouTubePublisher(self.create_new_driver(9222), path_mp4, path_cover, metadata_en, test_mode)
-                    publishers.append((y2b_publisher, 'YouTube'))
+                    pub_y2blisher = YouTubePublisher(self.create_new_driver(9222), path_mp4, path_cover, metadata_en, test_mode)
+                    publishers.append((pub_y2blisher, 'YouTube'))
 
                 # with ThreadPoolExecutor(max_workers=len(publishers)) as executor:
                 #     future_to_publisher = {executor.submit(publish_platform, publisher, name): name for publisher, name in publishers}
@@ -332,14 +410,14 @@ if __name__ == "__main__":
 
     ports_patterns = {
         5003: ["小红书", "你访问的页面不见了"],
-        5004: ["抖音"],
-        5005: ["哔哩哔哩"],
+        # 5004: ["抖音"],
+        # 5005: ["哔哩哔哩"],
         5006: ["视频号助手"],
         9222: ["YouTube"]
     }
 
-    # refresh_thread = threading.Thread(target=refresh_browsers, args=(ports_patterns,), daemon=True)
-    # refresh_thread.start()
+    refresh_thread = threading.Thread(target=refresh_browsers, args=(ports_patterns,), daemon=True)
+    refresh_thread.start()
 
     app = make_app()
     app.listen(8081, max_body_size=10*1024 * 1024 * 1024)

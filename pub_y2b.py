@@ -128,7 +128,7 @@ class YouTubePublisher:
             # Try to add as many tags as possible
             tags_str = ""
             for tag in tags:
-                tag_with_prefix = " #" + tag
+                tag_with_prefix = " #" + tag.replace(" ", "")
                 if len(tag_with_prefix) <= remaining_length:
                     tags_str += tag_with_prefix
                     remaining_length -= len(tag_with_prefix)

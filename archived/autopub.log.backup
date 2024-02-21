@@ -1,5 +1,5 @@
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/xhs_pub.py", line 92, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_xhs.py", line 92, in publish
     driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
   File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
     return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
@@ -33,7 +33,7 @@ Stacktrace:
 20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
 
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 52, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_douyin.py", line 52, in publish
     driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
   File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
     return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
@@ -83,7 +83,7 @@ Input #0, image2, from '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IM
 File '/Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_cover_resized.jpg' already exists. Overwrite? [y/N] Not overwriting - exiting
 Error opening output file /Users/lachlan/Nutstore Files/Vlog/transcription_data/IMG_5365_cover_resized.jpg.
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/bilibili_pub.py", line 158, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_bilibili.py", line 158, in publish
     WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
   File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/wait.py", line 105, in until
     raise TimeoutException(message, screen, stacktrace)
@@ -229,7 +229,7 @@ Element //*[text()="编辑默认封面" or text()="修改默认封面"] is truly
 Waiting 上传封面
 Timed out waiting for //*[text()="上传封面"] to become interactable.
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/xhs_pub.py", line 92, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_xhs.py", line 92, in publish
     driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
   File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
     return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
@@ -263,7 +263,7 @@ Stacktrace:
 20  libsystem_pthread.dylib             0x00007ff811660f6b thread_start + 15
 
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/douyin_pub.py", line 52, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_douyin.py", line 52, in publish
     driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
   File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/remote/webdriver.py", line 742, in find_element
     return self.execute(Command.FIND_ELEMENT, {"using": by, "value": value})["value"]
@@ -329,7 +329,7 @@ frame=    0 fps=0.0 q=4.5 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A
 [out#0/image2 @ 0x7fcf1d008c40] video:31kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
 frame=    1 fps=0.0 q=4.5 Lsize=N/A time=00:00:00.00 bitrate=N/A speed=   0x    
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/bilibili_pub.py", line 158, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_bilibili.py", line 158, in publish
     WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
   File "/Users/lachlan/miniconda3/lib/python3.10/site-packages/selenium/webdriver/support/wait.py", line 105, in until
     raise TimeoutException(message, screen, stacktrace)

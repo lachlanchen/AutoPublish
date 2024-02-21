@@ -9,6 +9,8 @@ from selenium.common.exceptions import NoSuchWindowException, TimeoutException
 import time
 
 from utils import dismiss_alert, bring_to_front
+from login_xiaohongshu import XiaoHongShuLogin
+
 import traceback
 
 
@@ -20,6 +22,10 @@ class XiaoHongShuPublisher:
         self.metadata = metadata
         self.test = test
         self.retry_count = 0  # initialize retry count
+
+
+        xhs_login = XiaoHongShuLogin(driver)
+        xhs_login.check_and_act()
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         driver = self.driver
@@ -238,7 +244,7 @@ if __name__ == "__main__":
         }
 
         # Create an instance of the XiaoHongShuPublisher
-        xhs_publisher = XiaoHongShuPublisher(
+        pub_xhslisher = XiaoHongShuPublisher(
             driver=driver,
             path_mp4=path_mp4,
             path_cover=path_cover,
@@ -246,4 +252,4 @@ if __name__ == "__main__":
         )
 
         # Start publishing process
-        xhs_publisher.publish()
+        pub_xhslisher.publish()

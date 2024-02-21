@@ -1,5 +1,5 @@
 Traceback (most recent call last):
-  File "/Users/lachlan/Documents/iProjects/auto-publish/bilibili_pub.py", line 167, in publish
+  File "/Users/lachlan/Documents/iProjects/auto-publish/pub_bilibili.py", line 167, in publish
     path_cover = crop_and_resize_cover_image(path_cover)
   File "/Users/lachlan/Documents/iProjects/auto-publish/utils.py", line 35, in crop_and_resize_cover_image
     subprocess.run(ffmpeg_command, check=True)

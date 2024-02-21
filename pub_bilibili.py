@@ -334,7 +334,7 @@ if __name__ == "__main__":
         }
 
         # Create an instance of the BilibiliPublisher
-        bilibili_publisher = BilibiliPublisher(
+        pub_bilibililisher = BilibiliPublisher(
             driver=driver,
             path_mp4=path_mp4,
             path_cover=path_cover,
@@ -342,4 +342,4 @@ if __name__ == "__main__":
         )
 
         # Start publishing process
-        bilibili_publisher.publish()
+        pub_bilibililisher.publish()

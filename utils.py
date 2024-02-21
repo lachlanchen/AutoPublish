@@ -3,6 +3,43 @@ from selenium.common.exceptions import NoAlertPresentException
 import os
 import subprocess
 
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content, Attachment
+from sendgrid.helpers.mail import FileContent, FileName, FileType, Disposition
+import time
+import os
+import base64
+
+class SendMail:
+    # Set defaults within the class, but allow them to be overridden
+    def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email='lachlan.miao.chen@gmail.com', to_email='lachlan.mia.chan@gmail.com'):
+        self.sendgrid_api_key = sendgrid_api_key
+        self.from_email = from_email
+        self.to_email = to_email
+
+    def send_email(self, subject, content, attachment_path, attachment_name):
+        sg = SendGridAPIClient(self.sendgrid_api_key)
+        mail = Mail(
+            from_email=Email(self.from_email),
+            to_emails=To(self.to_email),
+            subject=subject,
+            plain_text_content=content
+        )
+
+        with open(attachment_path, 'rb') as f:
+            data = f.read()
+            encoded_file = base64.b64encode(data).decode()
+
+        attachment = Attachment()
+        attachment.file_content = FileContent(encoded_file)
+        attachment.file_type = FileType('image/png')
+        attachment.file_name = FileName(attachment_name)
+        attachment.disposition = Disposition('attachment')
+        mail.add_attachment(attachment)
+
+        response = sg.send(mail)
+        print(f"Email sent, status code: {response.status_code}")
+
 def dismiss_alert(driver, dismiss=False):
     try:
         alert = driver.switch_to.alert

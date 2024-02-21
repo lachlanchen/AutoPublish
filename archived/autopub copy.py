@@ -9,9 +9,9 @@ from datetime import datetime
 from pathlib import Path
 from selenium import webdriver
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from xhs_pub import XiaoHongShuPublisher
-from bilibili_pub import BilibiliPublisher
-from douyin_pub import DouyinPublisher
+from pub_xhs import XiaoHongShuPublisher
+from pub_bilibili import BilibiliPublisher
+from pub_douyin import DouyinPublisher
 from process_video import VideoProcessor
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -131,34 +131,34 @@ def process_file(
             else:
                 publishers = []
                 if publish_xhs:
-                    xhs_publisher = XiaoHongShuPublisher(
+                    pub_xhslisher = XiaoHongShuPublisher(
                         driver=xhs_driver,
                         path_mp4=path_mp4,
                         path_cover=path_cover,
                         metadata=metadata,
                         test=test_mode
                     )
-                    publishers.append((xhs_publisher, 'XiaoHongShu'))
+                    publishers.append((pub_xhslisher, 'XiaoHongShu'))
 
                 if publish_douyin:
-                    douyin_publisher = DouyinPublisher(
+                    pub_douyinlisher = DouyinPublisher(
                         driver=douyin_driver,
                         path_mp4=path_mp4,
                         path_cover=path_cover,
                         metadata=metadata,
                         test=test_mode
                     )
-                    publishers.append((douyin_publisher, 'Douyin'))
+                    publishers.append((pub_douyinlisher, 'Douyin'))
 
                 if publish_bilibili:
-                    bilibili_publisher = BilibiliPublisher(
+                    pub_bilibililisher = BilibiliPublisher(
                         driver=bilibili_driver,
                         path_mp4=path_mp4,
                         path_cover=path_cover,
                         metadata=metadata,
                         test=test_mode
                     )
-                    publishers.append((bilibili_publisher, 'Bilibili'))
+                    publishers.append((pub_bilibililisher, 'Bilibili'))
 
                 # Publishing in parallel using ThreadPoolExecutor
                 with ThreadPoolExecutor(max_workers=len(publishers)) as executor:

@@ -52,10 +52,10 @@ class DouyinPublisher:
 
                 # Monitor upload status
                 print("Waiting for the video to be uploaded...")
-                # reupload_xpath = '//*[contains(text(),"重新上传")]'
-                # failure_xpath = '//*[contains(text(),"上传失败")]'
                 reupload_xpath = '//*[text()="重新上传"]'
-                failure_xpath = '//*[text()="上传失败"]'
+                # reupload_xpath = '//*[contains(text(),"重新上传")]'
+                failure_xpath = '//*[text()="上传失败，重新上传"]'
+                # failure_xpath = '//*[contains(text(),"上传失败")]'
                 time.sleep(3)
                 # WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="重新上传"]')))
                 start_time = time.time()
@@ -322,7 +322,7 @@ if __name__ == "__main__":
         }
 
         # Create an instance of the DouyinPublisher
-        douyin_publisher = DouyinPublisher(
+        pub_douyinlisher = DouyinPublisher(
             driver=driver,
             path_mp4=path_mp4,
             path_cover=path_cover,
@@ -330,4 +330,4 @@ if __name__ == "__main__":
         )
 
         # Start publishing process
-        douyin_publisher.publish()
+        pub_douyinlisher.publish()

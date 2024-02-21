@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from utils import dismiss_alert, bring_to_front
+from login_shipinhao import ShiPinHaoLogin
 import traceback
 
 import re
@@ -43,6 +44,10 @@ class ShiPinHaoPublisher:
         self.metadata = metadata
         self.test = test
         self.retry_count = 0  # initialize retry count
+
+        shi_pin_hao_login = ShiPinHaoLogin(driver)
+        shi_pin_hao_login.check_and_act()
+
 
     def clear_and_type(self, element, text):
         element.clear()

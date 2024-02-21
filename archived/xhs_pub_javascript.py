@@ -239,7 +239,7 @@ if __name__ == "__main__":
         print(f"Loaded metadata: {metadata}")
 
         # Create an instance of the XiaoHongShuPublisher
-        xhs_publisher = XiaoHongShuPublisher(
+        pub_xhslisher = XiaoHongShuPublisher(
             driver=driver,
             path_mp4=path_mp4,
             path_cover=path_cover,
@@ -248,5 +248,5 @@ if __name__ == "__main__":
         )
 
         # Start publishing process
-        xhs_publisher.publish()
+        pub_xhslisher.publish()
 
