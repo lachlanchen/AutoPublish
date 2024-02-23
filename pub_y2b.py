@@ -147,7 +147,7 @@ class YouTubePublisher:
             # video_title_with_tags = self.metadata["title"] + " " + " ".join("#" + tag for tag in self.metadata["tags"])
             video_title_with_tags = self.create_video_title_with_limited_tags(self.metadata)
             title_input_xpath = "//div[@id='textbox'][@contenteditable='true']"
-            title_input = WebDriverWait(self.driver, 20).until(EC.element_to_be_clickable((By.XPATH, title_input_xpath)))
+            title_input = WebDriverWait(self.driver, 600).until(EC.element_to_be_clickable((By.XPATH, title_input_xpath)))
             title_input.clear()
             title_input.send_keys(video_title_with_tags)
             print(f'The video title was set to "{video_title_with_tags}"')
@@ -268,8 +268,8 @@ class YouTubePublisher:
             for attempt in range(max_attempts):
                 try:
                     self.upload_video()
-                    # time.sleep(5)
-                    self.wait_for_processing()
+                    time.sleep(10)
+                    # self.wait_for_processing()
                     self.set_video_details()
                     time.sleep(3)
                     self.set_thumbnail()
