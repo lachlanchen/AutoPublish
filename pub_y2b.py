@@ -90,7 +90,9 @@ class YouTubePublisher:
     #     except TimeoutException:
     #         raise Exception("Processing time exceeded the limit.")
 
-    def wait_for_processing(self, mode=""):
+    
+
+    def wait_for_processing(self, mode="", interval=5, duration=600):
         try:
             if mode == "check":
                 expected_text = "Checks complete. No issues found."
@@ -113,7 +115,7 @@ class YouTubePublisher:
                 elif self.driver.find_elements(By.XPATH, error_xpath):
                     raise DailyUploadLimitReachedException("Daily upload limit reached.")
                 else:
-                    time.sleep(5)  # Wait for a while before checking again
+                    time.sleep(interval)  # Wait for a while before checking again
         except TimeoutException:
             raise ProcessingTimeoutException()
 
@@ -275,9 +277,9 @@ class YouTubePublisher:
                 try:
                     self.upload_video()
                     
-                    time.sleep(10)
+                    # time.sleep(10)
 
-                    # self.wait_for_processing(upload)
+                    self.wait_for_processing(mode="upload", interval=0.5, duration=300)
 
                     self.set_video_details()
                     time.sleep(3)
