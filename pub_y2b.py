@@ -92,25 +92,64 @@ class YouTubePublisher:
 
     
 
+    # def wait_for_processing(self, mode="", interval=5, duration=600):
+    #     try:
+    #         if mode == "check":
+    #             expected_text = "Checks complete. No issues found."
+    #         elif mode == "upload":
+    #             expected_text = "Upload complete"
+    #             expected_text_spare = "Processing up to"
+    #         else:
+    #             expected_text = "complete"
+
+    #         error_text = "Daily upload limit reached"
+    #         wait = WebDriverWait(self.driver, 600)  # Adjust timeout as needed
+
+    #         # Check for the presence of either the expected text or the error message
+    #         span_xpath = f"//span[contains(@class, 'progress-label') and contains(@class, 'style-scope') and contains(@class, 'ytcp-video-upload-progress') and contains(text(), '{expected_text}')]"
+    #         error_xpath = f"//div[contains(@class, 'error-short') and contains(@class, 'style-scope') and contains(text(), '{error_text}')]"
+
+    #         while True:
+    #             if self.driver.find_elements(By.XPATH, span_xpath):
+    #                 print('The expected text is present in the span element.')
+    #                 break
+    #             elif self.driver.find_elements(By.XPATH, error_xpath):
+    #                 raise DailyUploadLimitReachedException("Daily upload limit reached.")
+    #             else:
+    #                 time.sleep(interval)  # Wait for a while before checking again
+    #     except TimeoutException:
+    #         raise ProcessingTimeoutException()
+
     def wait_for_processing(self, mode="", interval=5, duration=600):
         try:
+            expected_texts = []
             if mode == "check":
-                expected_text = "Checks complete. No issues found."
+                expected_texts.append("Checks complete. No issues found.")
             elif mode == "upload":
-                expected_text = "Upload complete"
+                expected_texts.extend(["Upload complete", "Processing up to"])
             else:
-                expected_text = "complete"
+                expected_texts.extend(["complete", "Complete"])
 
             error_text = "Daily upload limit reached"
-            wait = WebDriverWait(self.driver, 600)  # Adjust timeout as needed
+            wait = WebDriverWait(self.driver, duration)  # Adjust timeout as needed
 
-            # Check for the presence of either the expected text or the error message
-            span_xpath = f"//span[contains(@class, 'progress-label') and contains(@class, 'style-scope') and contains(@class, 'ytcp-video-upload-progress') and contains(text(), '{expected_text}')]"
-            error_xpath = f"//div[contains(@class, 'error-short') and contains(@class, 'style-scope') and contains(text(), '{error_text}')]"
+            error_xpath = "//div[contains(@class, 'error-short') and contains(@class, 'style-scope') and contains(text(), '{}')]".format(error_text)
 
+            start_time = time.time()
             while True:
-                if self.driver.find_elements(By.XPATH, span_xpath):
-                    print('The expected text is present in the span element.')
+                current_time = time.time()
+                if current_time - start_time > duration:
+                    raise TimeoutException()
+
+                found = False
+                for expected_text in expected_texts:
+                    span_xpath = "//span[contains(@class, 'progress-label') and contains(@class, 'style-scope') and contains(@class, 'ytcp-video-upload-progress') and contains(text(), '{}')]".format(expected_text)
+                    if self.driver.find_elements(By.XPATH, span_xpath):
+                        print('The expected text "{}" is present in the span element.'.format(expected_text))
+                        found = True
+                        break
+
+                if found:
                     break
                 elif self.driver.find_elements(By.XPATH, error_xpath):
                     raise DailyUploadLimitReachedException("Daily upload limit reached.")
