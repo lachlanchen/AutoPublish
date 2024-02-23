@@ -318,7 +318,7 @@ class YouTubePublisher:
                     
                     # time.sleep(10)
 
-                    self.wait_for_processing(mode="upload", interval=0.5, duration=300)
+                    self.wait_for_processing(mode="upload", interval=0.5, duration=1800)
 
                     self.set_video_details()
                     time.sleep(3)
