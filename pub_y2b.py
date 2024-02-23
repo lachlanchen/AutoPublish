@@ -126,9 +126,9 @@ class YouTubePublisher:
             if mode == "check":
                 expected_texts.append("Checks complete. No issues found.")
             elif mode == "upload":
-                expected_texts.extend(["Upload complete", "Processing up to"])
+                expected_texts.extend(["Upload complete", "Processing up to", "Checks complete. No issues found."])
             else:
-                expected_texts.extend(["complete", "Complete"])
+                expected_texts.extend(["complete", "Complete", "Processing up to", "Checks complete. No issues found."])
 
             error_text = "Daily upload limit reached"
             wait = WebDriverWait(self.driver, duration)  # Adjust timeout as needed
