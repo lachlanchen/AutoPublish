@@ -90,10 +90,15 @@ class YouTubePublisher:
     #     except TimeoutException:
     #         raise Exception("Processing time exceeded the limit.")
 
-    def wait_for_processing(self, expected_text="Upload complete"):
+    def wait_for_processing(self, mode=""):
         try:
-            # expected_text = "Checks complete. No issues found."
-            expected_text = expected_text
+            if mode == "check":
+                expected_text = "Checks complete. No issues found."
+            elif mode == "upload":
+                expected_text = "Upload complete"
+            else:
+                expected_text = "complete"
+
             error_text = "Daily upload limit reached"
             wait = WebDriverWait(self.driver, 600)  # Adjust timeout as needed
 
@@ -269,9 +274,10 @@ class YouTubePublisher:
             for attempt in range(max_attempts):
                 try:
                     self.upload_video()
+                    
                     time.sleep(10)
 
-                    # self.wait_for_processing()
+                    # self.wait_for_processing(upload)
 
                     self.set_video_details()
                     time.sleep(3)
