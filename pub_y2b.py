@@ -90,11 +90,12 @@ class YouTubePublisher:
     #     except TimeoutException:
     #         raise Exception("Processing time exceeded the limit.")
 
-    def wait_for_processing(self):
+    def wait_for_processing(self, expected_text="Upload complete"):
         try:
-            expected_text = "Checks complete. No issues found."
+            # expected_text = "Checks complete. No issues found."
+            expected_text = expected_text
             error_text = "Daily upload limit reached"
-            wait = WebDriverWait(self.driver, 1200)  # Adjust timeout as needed
+            wait = WebDriverWait(self.driver, 600)  # Adjust timeout as needed
 
             # Check for the presence of either the expected text or the error message
             span_xpath = f"//span[contains(@class, 'progress-label') and contains(@class, 'style-scope') and contains(@class, 'ytcp-video-upload-progress') and contains(text(), '{expected_text}')]"
@@ -269,7 +270,9 @@ class YouTubePublisher:
                 try:
                     self.upload_video()
                     time.sleep(10)
+
                     # self.wait_for_processing()
+
                     self.set_video_details()
                     time.sleep(3)
                     self.set_thumbnail()
@@ -281,6 +284,8 @@ class YouTubePublisher:
                     self.set_tags_and_more()
                     time.sleep(3)
                     
+                    self.wait_for_processing()
+
                     self.set_visibility_and_publish()
 
                     time.sleep(10)
