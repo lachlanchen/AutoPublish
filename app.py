@@ -164,7 +164,7 @@ def refresh_browsers(ports_patterns):
 
                 # time.sleep(3)
                 # Short sleep between refreshing each browser, if needed
-                time.sleep(random.normalvariate(mu=3, sigma=1))
+                time.sleep(max(3, random.normalvariate(mu=3, sigma=1)))
 
         # time.sleep(refresh_time)
         # Calculate sleep time as the mean plus an absolute value of a normal distribution centered at 0
