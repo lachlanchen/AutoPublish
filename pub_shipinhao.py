@@ -152,6 +152,7 @@ class ShiPinHaoPublisher:
                     search_button.click()
                     time.sleep(3)
 
+                click_successful = False
                 for _, location_click_text in location_options:
                     try:
                         # Try clicking on the specified location
@@ -159,9 +160,14 @@ class ShiPinHaoPublisher:
                         location_option.click()
                         time.sleep(3)
                         print(f"Clicked on location: {location_click_text}")
+                        click_successful = True
                         break  # Break the loop if click was successful
                     except Exception as e:
                         print(f"Could not click on location: {location_click_text}. Error: {e}")
+                
+                if click_successful:
+                    break
+
             except Exception as e:
                 print(f"Could not click with input: {location_input_text}. Error: {e}")
                 if location_input_text is None:
