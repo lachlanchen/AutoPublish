@@ -129,12 +129,12 @@ class ShiPinHaoPublisher:
 
     def set_location(self, driver):
         location_options = [
-            ("香港特别行政区香港大学", "香港大学"),
+            ("香港大学", "香港大学"),
             ("香港特别行政区", "香港特别行政区"),
             (None, "不显示位置")  # Use None to indicate no typing is required
         ]
         
-        for location_input_text, location_click_text in location_options:
+        for location_input_text, _ in location_options:
             try:
                 if location_input_text:
                     # Click on the position display wrapper
@@ -152,15 +152,19 @@ class ShiPinHaoPublisher:
                     search_button.click()
                     time.sleep(3)
 
-                # Try clicking on the specified location
-                location_option = wait_for_element_clickable(driver, f"//div[contains(@class, 'location-item-info')]//div[text()='{location_click_text}']", 30)
-                location_option.click()
-                time.sleep(3)
-                print(f"Clicked on location: {location_click_text}")
-                break  # Break the loop if click was successful
+                for _, location_click_text in location_options:
+                    try:
+                        # Try clicking on the specified location
+                        location_option = wait_for_element_clickable(driver, f"//div[contains(@class, 'location-item-info')]//div[text()='{location_click_text}']", 30)
+                        location_option.click()
+                        time.sleep(3)
+                        print(f"Clicked on location: {location_click_text}")
+                        break  # Break the loop if click was successful
+                    except Exception as e:
+                        print(f"Could not click on location: {location_click_text}. Error: {e}")
             except Exception as e:
-                print(f"Could not click on location: {location_click_text}. Error: {e}")
-                if location_click_text == "不显示位置":
+                print(f"Could not click with input: {location_input_text}. Error: {e}")
+                if location_input_text is None:
                     print("Failed to set any location. Please check the availability of the location options.")
                     break  # Exit loop if "不显示位置" also fails
 
