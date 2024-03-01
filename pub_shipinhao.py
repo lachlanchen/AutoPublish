@@ -129,7 +129,7 @@ class ShiPinHaoPublisher:
 
     def set_location(self, driver):
         location_options = [
-            ("香港大学", "香港大学"),
+            ("香港特别行政区香港大学", "香港大学"),
             ("香港特别行政区", "香港特别行政区"),
             (None, "不显示位置")  # Use None to indicate no typing is required
         ]
