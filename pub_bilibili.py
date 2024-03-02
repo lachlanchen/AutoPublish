@@ -76,7 +76,7 @@ class BilibiliPublisher:
             return document.querySelector('.geetest_panel_box') !== null;
         """)
         
-        max_retries = 5
+        max_retries = 99
         retry = 0
         while is_captcha_present and retry < max_retries:
             print("CAPTCHA detected. Solving...")
