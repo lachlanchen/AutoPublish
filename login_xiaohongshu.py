@@ -147,7 +147,7 @@ class XiaoHongShuLogin:
             print("Already logged in or the page did not load as expected.")
             return
 
-        end_time = time.time() + 3600  # 30 minutes from now
+        end_time = time.time() + 600  # 30 minutes from now
         last_refresh_time = time.time()
         last_email_time = time.time() - 30  # Initialize to send email immediately
 
@@ -161,11 +161,11 @@ class XiaoHongShuLogin:
                 self.take_screenshot_and_send_email()
                 last_refresh_time = time.time()
 
-            if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
-                print("Taking screenshot and sending email...")
-                time.sleep(3)
-                self.take_screenshot_and_send_email()
-                last_email_time = time.time()
+            # if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
+            #     print("Taking screenshot and sending email...")
+            #     time.sleep(3)
+            #     self.take_screenshot_and_send_email()
+            #     last_email_time = time.time()
 
             if not self.needs_login():
                 print("Logged in successfully, stopping checks.")

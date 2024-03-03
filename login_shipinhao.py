@@ -102,7 +102,7 @@ class ShiPinHaoLogin:
 
 
 
-        end_time = time.time() + 3600  # 30 minutes from now
+        end_time = time.time() + 600  # 30 minutes from now
         last_refresh_time = time.time()
         last_email_time = time.time() - 30  # Initialize to send email immediately
 
@@ -110,13 +110,14 @@ class ShiPinHaoLogin:
             if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
                 self.driver.refresh()
+                self.take_screenshot_and_send_email()
                 WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
                 last_refresh_time = time.time()
 
-            if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
-                print("Taking screenshot and sending email...")
-                self.take_screenshot_and_send_email()
-                last_email_time = time.time()
+            # if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
+            #     print("Taking screenshot and sending email...")
+            #     self.take_screenshot_and_send_email()
+            #     last_email_time = time.time()
 
             if self.needs_login():
                 print("Login required, will check again in 5 seconds...")
