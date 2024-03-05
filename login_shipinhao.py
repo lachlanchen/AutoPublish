@@ -110,6 +110,7 @@ class ShiPinHaoLogin:
             if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
                 self.driver.refresh()
+                time.sleep(3)
                 self.take_screenshot_and_send_email()
                 WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
                 last_refresh_time = time.time()

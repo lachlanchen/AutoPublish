@@ -139,7 +139,7 @@ class XiaoHongShuLogin:
             self.show_qr()
 
             # Wait a few seconds for the QR code to be fully loaded and visible
-            time.sleep(1)  # Adjust timing based on actual page behavior
+            time.sleep(3)  # Adjust timing based on actual page behavior
 
             self.take_screenshot_and_send_email()
             
