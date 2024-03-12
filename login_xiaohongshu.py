@@ -139,7 +139,7 @@ class XiaoHongShuLogin:
             self.show_qr()
 
             # Wait a few seconds for the QR code to be fully loaded and visible
-            time.sleep(3)  # Adjust timing based on actual page behavior
+            time.sleep(5)  # Adjust timing based on actual page behavior
 
             self.take_screenshot_and_send_email()
             
@@ -157,7 +157,7 @@ class XiaoHongShuLogin:
                 # self.refresh_qr_code()
                 # self.driver.refresh()
                 self.refresh_qr_code()
-                time.sleep(3)
+                time.sleep(5)
                 self.take_screenshot_and_send_email()
                 last_refresh_time = time.time()
 
