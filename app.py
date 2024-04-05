@@ -17,8 +17,9 @@ from pub_bilibili import BilibiliPublisher
 from pub_douyin import DouyinPublisher
 from pub_y2b import YouTubePublisher
 from pub_shipinhao import ShiPinHaoPublisher
-from login_shipinhao import ShiPinHaoLogin
 from login_xiaohongshu import XiaoHongShuLogin
+from login_douyin import DouyinLogin
+from login_shipinhao import ShiPinHaoLogin
 from selenium.webdriver.chrome.service import Service
 
 import subprocess
