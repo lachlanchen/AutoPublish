@@ -134,8 +134,9 @@ def refresh_browsers(ports_patterns):
         if not is_publishing:
 
             stop_and_start_chromium_sessions(
+                publish_xhs=True,
+                publish_douyin=True,
                 publish_shipinhao=True,
-                publish_xhs=True
             )
 
             for port, patterns in ports_patterns.items():
@@ -150,8 +151,12 @@ def refresh_browsers(ports_patterns):
                         xhs_login = XiaoHongShuLogin(create_new_driver(port=port))
                         xhs_login.check_and_act()
 
+                    elif port == 5004:
+                        douyin_login = DouyinLogin(create_new_driver(port=port))
+                        douyin_login.check_and_act()
+
                     elif port == 5006:
-                        shi_pin_hao_login = ShiPinHaoLogin(create_new_driver(port=5006))
+                        shi_pin_hao_login = ShiPinHaoLogin(create_new_driver(port=port))
                         shi_pin_hao_login.check_and_act()
 
                     else:
