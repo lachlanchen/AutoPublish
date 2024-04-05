@@ -69,6 +69,11 @@ class DouyinLogin:
                 self.refresh_qr_code()
                 time.sleep(5)  # Wait for the QR code to refresh
                 self.take_screenshot_and_send_email()
+
+            if self.is_already_logged_in():
+                print("Logged in successfully, stopping checks.")
+                break
+
             time.sleep(5)
 
     def is_already_logged_in(self):
