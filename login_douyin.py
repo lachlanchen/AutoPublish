@@ -23,10 +23,7 @@ class DouyinLogin:
 
     def check_and_act(self):
 
-        print("Checking login status...")
-        if self.is_already_logged_in():
-            print("Already logged in.")
-            return
+        
         
         print("Navigating to the Douyin URL...")
         url = 'https://creator.douyin.com/creator-micro/home'
@@ -39,6 +36,11 @@ class DouyinLogin:
         time.sleep(3)
 
         bring_to_front(["抖音"])
+
+        print("Checking login status...")
+        if self.is_already_logged_in():
+            print("Already logged in.")
+            return
 
         try:
             login_button = WebDriverWait(self.driver, 20).until(
