@@ -11,6 +11,8 @@ from selenium.common.exceptions import WebDriverException
 
 
 from utils import dismiss_alert, bring_to_front
+from login_douyin import DouyinLogin
+
 import traceback
 
 
@@ -23,6 +25,9 @@ class DouyinPublisher:
         self.metadata = metadata
         self.test = test
         self.retry_count = 0  # initialize retry count
+
+        douyin_login = DouyinLogin(driver)
+        douyin_login.check_and_act()
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)  # your actual implementation
