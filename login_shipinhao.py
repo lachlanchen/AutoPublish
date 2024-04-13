@@ -96,6 +96,7 @@ class ShiPinHaoLogin:
 
         try:
             WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
+            self.take_screenshot_and_send_email()
         except TimeoutException:
             print("Already logged in or the page did not load as expected.")
             return  # Exiting the method early if we're already logged in or if the iframe is not present.
