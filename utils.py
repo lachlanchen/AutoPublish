@@ -16,7 +16,7 @@ import numpy as np
 from qreader import QReader
 
 # import os
-# import cv2
+import cv2
 import base64
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content, HtmlContent, Attachment
