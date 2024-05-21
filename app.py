@@ -315,6 +315,8 @@ class PublishHandler(tornado.web.RequestHandler):
             'y2b': 'ignore_y2b'
         }
 
+        check_ignore_file = self.check_ignore_file
+
         # Check ignore files and adjust flags
         publish_xhs = check_ignore_file(publish_xhs, ignore_files['xhs'])
         publish_bilibili = check_ignore_file(publish_bilibili, ignore_files['bilibili'])
