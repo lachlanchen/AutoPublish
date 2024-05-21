@@ -284,6 +284,15 @@ class PublishHandler(tornado.web.RequestHandler):
 
         self.write("test")
 
+
+    @staticmethod
+    def check_ignore_file(flag_name, ignore_filename):
+        """
+        Check if the publishing flag should be true based on the presence of the ignore file.
+        If the ignore file does not exist and the flag is set to true, return True.
+        """
+        return not os.path.exists(ignore_filename) and flag_name
+
     # @tornado.web.stream_request_body
     def post(self):
         global is_publishing
@@ -296,6 +305,22 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
+
+        # Define ignore files
+        ignore_files = {
+            'xhs': 'ignore_xhs',
+            'bilibili': 'ignore_bilibili',
+            'douyin': 'ignore_douyin',
+            'shipinhao': 'ignore_shipinhao',
+            'y2b': 'ignore_y2b'
+        }
+
+        # Check ignore files and adjust flags
+        publish_xhs = check_ignore_file(publish_xhs, ignore_files['xhs'])
+        publish_bilibili = check_ignore_file(publish_bilibili, ignore_files['bilibili'])
+        publish_douyin = check_ignore_file(publish_douyin, ignore_files['douyin'])
+        publish_shipinhao = check_ignore_file(publish_shipinhao, ignore_files['shipinhao'])
+        publish_y2b = check_ignore_file(publish_y2b, ignore_files['y2b'])
 
         self.stop_and_start_chromium_sessions(
             publish_xhs=publish_xhs,
