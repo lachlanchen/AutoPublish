@@ -15,7 +15,11 @@ from login_douyin import DouyinLogin
 
 import traceback
 
-
+class UploadFailedException(Exception):
+    """Exception raised when the video upload fails."""
+    def __init__(self, message="Video upload failed"):
+        self.message = message
+        super().__init__(self.message)
 
 class DouyinPublisher:
     def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
@@ -78,14 +82,29 @@ class DouyinPublisher:
                     except:
                         pass  # Ignore TimeoutException here
 
+                    # try:
+                    #     # Wait until the "上传失败" element is present
+                    #     WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, failure_xpath)))
+                    #     print("Upload failed! Raising an error to initiate retry...")
+                    #     raise Exception("Video upload failed.")
+                    # except:
+                    #     pass  # Ignore TimeoutException here
+
                     try:
                         # Wait until the "上传失败" element is present
                         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, failure_xpath)))
                         print("Upload failed! Raising an error to initiate retry...")
-                        
-                    except:
-                        # pass  # Ignore TimeoutException here
-                        raise Exception("Video upload failed.")
+                        raise UploadFailedException("Upload failed due to presence of failure indicator.")
+                    except TimeoutException:
+                        # Ignore TimeoutException
+                        pass
+                    except UploadFailedException as e:
+                        # Re-raise the specific UploadFailedException
+                        raise e
+                    except Exception:
+                        # Ignore all other exceptions
+                        pass
+
 
                     time.sleep(5)  # Wait a bit before checking again
 
