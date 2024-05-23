@@ -82,9 +82,10 @@ class DouyinPublisher:
                         # Wait until the "上传失败" element is present
                         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, failure_xpath)))
                         print("Upload failed! Raising an error to initiate retry...")
-                        raise Exception("Video upload failed.")
+                        
                     except:
-                        pass  # Ignore TimeoutException here
+                        # pass  # Ignore TimeoutException here
+                        raise Exception("Video upload failed.")
 
                     time.sleep(5)  # Wait a bit before checking again
 
