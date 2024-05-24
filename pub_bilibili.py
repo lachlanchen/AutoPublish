@@ -117,7 +117,7 @@ class BilibiliPublisher:
             else:
                 print("No valid crop height calculated; screenshot not cropped.")
             
-            os.remove(temp_filename)  # Clean up the temporary file
+            # os.remove(temp_filename)  # Clean up the temporary file
         else:
             print('Element not found')
 
@@ -156,7 +156,8 @@ class BilibiliPublisher:
             """)
 
             if captcha_image_url:
-                img_path = download_image(captcha_image_url)
+                # img_path = download_image(captcha_image_url)
+                img_path = self.take_screenshot(captcha_image_url)
                 result = b64_api(username="lachlanchen", password="eG8h.YfnWMyd9QR", img_path=img_path, ID="08272733")
                 print(result)
 
