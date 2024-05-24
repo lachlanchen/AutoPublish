@@ -22,6 +22,10 @@ import os
 import json
 
 
+from selenium.common.exceptions import NoAlertPresentException
+from PIL import Image
+from datetime import datetime
+
 
 def download_image(url, local_path='./temp/'):
     response = requests.get(url)
@@ -67,6 +71,71 @@ class BilibiliPublisher:
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)  # your actual implementation
+
+    def download_image(self, url, local_path='./temp/'):
+        response = requests.get(url)
+        if response.status_code == 200:
+            os.makedirs(local_path, exist_ok=True)
+            filename = url.split('/')[-1].split('?')[0]
+            file_path = os.path.join(local_path, filename)
+            with open(file_path, 'wb') as f:
+                f.write(response.content)
+            return file_path
+        else:
+            raise Exception(f"Error downloading image: Status code {response.status_code}")
+
+
+    def capture_and_crop_screenshot(self, outer_element_selector, inner_element_selector, output_filename):
+        try:
+            alert = self.driver.switch_to.alert
+            alert.dismiss()  # Dismiss any alerts that might be open
+            print("Alert dismissed")
+        except NoAlertPresentException:
+            print("No alert present")
+
+        outer_element = self.driver.find_element(By.CSS_SELECTOR, outer_element_selector)
+        inner_element = self.driver.find_element(By.CSS_SELECTOR, inner_element_selector)
+        if outer_element and inner_element:
+            # Take screenshot of the whole element
+            # Generate a unique timestamp for the temp filename
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+            temp_filename = f'/tmp/bilibili_captha_temp_screenshot_{timestamp}.png'
+            # temp_filename = '/tmp/temp_screenshot.png'
+            outer_element.screenshot(temp_filename)
+            # Open the temporary screenshot and crop it
+            img = Image.open(temp_filename)
+            outer_element_rect = outer_element.rect
+            inner_element_rect = inner_element.rect
+
+            # Calculate the height to crop based on the relative top of the inner element
+            new_height = img.height - (outer_element_rect['y'] - inner_element_rect['y'])
+            
+            if new_height > 0:
+                img_cropped = img.crop((0, 0, img.width, new_height))
+                img_cropped.save(output_filename)
+                print(f'Screenshot saved as {output_filename}')
+            else:
+                print("No valid crop height calculated; screenshot not cropped.")
+            
+            os.remove(temp_filename)  # Clean up the temporary file
+        else:
+            print('Element not found')
+
+    def take_screenshot(self, url, outer_element_selector=".geetest_holder.geetest_silver", inner_element_selector=".geetest_panel", local_path='./temp_screenshot/'):
+        # Extract the filename from the URL
+        filename = url.split('/')[-1].split('?')[0] + '_screenshot.png'
+        file_path = os.path.join(local_path, filename)
+        os.makedirs(local_path, exist_ok=True)
+
+        # Navigate to the URL
+        # self.driver.get(url)  # Assume the URL navigates directly to a page where elements are present
+        # time.sleep(2)  # Wait for the page to load completely
+
+        # Use the capture_and_crop_screenshot to take and save the screenshot
+        self.capture_and_crop_screenshot(outer_element_selector, inner_element_selector, file_path)
+
+        print(f"Screenshot saved as {file_path}")
+        return file_path
 
     def solve_captcha(self):
         time.sleep(3)
