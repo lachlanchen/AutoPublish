@@ -244,6 +244,45 @@ class BilibiliPublisher:
             print(f"Tag '{tag_text}' not found or not clickable.")
             return False
 
+    def search_and_select_topic(self, topic_name):
+        try:
+            print(f"Attempting to open the search dialog to search for '{topic_name}'.")
+            search_dialog_button = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//div[contains(text(), '搜索更多话题')]")))
+            self.driver.execute_script("arguments[0].click();", search_dialog_button)
+            print("Search dialog opened via JavaScript click.")
+
+            time.sleep(2)  # Ensure UI has time to respond
+
+            search_input = WebDriverWait(self.driver, 10).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "input.bcc-search-input")))
+            search_input.clear()
+            print("Input cleared.")
+            search_input.send_keys(topic_name)
+            print(f"Entered '{topic_name}' in the search box.")
+            search_input.send_keys(Keys.ENTER)
+            print("Search executed.")
+
+            time.sleep(2)  # Wait for search results
+
+            topic_xpath = f"//div[contains(@class, 'topic-tag-name') and contains(text(), '{topic_name}')]"
+            topic_element = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, topic_xpath)))
+            self.driver.execute_script("arguments[0].click();", topic_element)
+            print(f"Topic '{topic_name}' selected via JavaScript click.")
+
+            time.sleep(2)  # Wait for the selection to process
+
+            confirm_button = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//button[.//span[contains(text(), '确定')]]")))
+            self.driver.execute_script("arguments[0].click();", confirm_button)
+            print("Confirmation button clicked via JavaScript and topic added.")
+            return True
+
+        except Exception as e:
+            print(f"Topic failed in selection: ", str(e))
+            return False
+
     def publish(self):
         if self.retry_count < 3:  # maximum 3 tries (initial + 2 retries)
             try:
@@ -365,6 +404,8 @@ class BilibiliPublisher:
 
                 # Click on the specific tag before adding other tags
                 success = self.click_specific_tag_if_exists("随手记录我的生活碎片")
+                if not success:
+                    self.search_and_select_topic("随手记录我的生活碎片")
 
 
                 # Add Tags
