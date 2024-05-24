@@ -231,7 +231,7 @@ class BilibiliPublisher:
         else:
             print("No CAPTCHA detected.")
 
-    def click_specific_tag_if_exists(self, driver, tag_text):
+    def click_specific_tag_if_exists(self, tag_text):
         try:
             # Construct XPath to find the tag based on its visible text
             tag_xpath = f"//span[contains(text(), '{tag_text}')]"
