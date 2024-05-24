@@ -35,7 +35,7 @@ def download_image(url, local_path='./temp/'):
         file_path = os.path.join(local_path, filename)
         with open(file_path, 'wb') as f:
             f.write(response.content)
-        return file_path
+        return file_path, 0
     else:
         raise Exception(f"Error downloading image: Status code {response.status_code}")
 
@@ -80,12 +80,12 @@ class BilibiliPublisher:
             file_path = os.path.join(local_path, filename)
             with open(file_path, 'wb') as f:
                 f.write(response.content)
-            return file_path
+            return file_path, 0
         else:
             raise Exception(f"Error downloading image: Status code {response.status_code}")
 
 
-    def capture_and_crop_screenshot(self, outer_element_selector, inner_element_selector, output_filename):
+    def capture_and_crop_screenshot(self, outer_element_selector, inner_element_selector, image_element_selector, output_filename):
         try:
             alert = self.driver.switch_to.alert
             alert.dismiss()  # Dismiss any alerts that might be open
@@ -95,6 +95,11 @@ class BilibiliPublisher:
 
         outer_element = self.driver.find_element(By.CSS_SELECTOR, outer_element_selector)
         inner_element = self.driver.find_element(By.CSS_SELECTOR, inner_element_selector)
+        # img_selector = self.driver.find_element(By.CSS_SELECTOR, image_element_selector)
+
+
+
+
         if outer_element and inner_element:
             # Take screenshot of the whole element
             # Generate a unique timestamp for the temp filename
@@ -121,7 +126,7 @@ class BilibiliPublisher:
         else:
             print('Element not found')
 
-    def take_screenshot(self, url, outer_element_selector=".geetest_holder.geetest_silver", inner_element_selector=".geetest_panel", local_path='./temp_screenshot/'):
+    def take_screenshot(self, url, outer_element_selector=".geetest_holder.geetest_silver", inner_element_selector=".geetest_panel", image_element_selector=".geetest_item_img", local_path='./temp_screenshot/'):
         # Extract the filename from the URL
         filename = url.split('/')[-1].split('?')[0] + '_screenshot.png'
         file_path = os.path.join(local_path, filename)
@@ -131,11 +136,28 @@ class BilibiliPublisher:
         # self.driver.get(url)  # Assume the URL navigates directly to a page where elements are present
         # time.sleep(2)  # Wait for the page to load completely
 
+        try:
+            outer_element = self.driver.find_element(By.CSS_SELECTOR, outer_element_selector)
+            # inner_element = self.driver.find_element(By.CSS_SELECTOR, inner_element_selector)
+            img_selector = self.driver.find_element(By.CSS_SELECTOR, image_element_selector)
+
+            # Get the bounding rectangle and calculate differences
+            outer_rect = driver.execute_script("return arguments[0].getBoundingClientRect();", outer_element)
+            img_rect = driver.execute_script("return arguments[0].getBoundingClientRect();", img_element)
+
+            # Calculate vertical (top) difference
+            print("img_rect['top']: ", img_rect['top'], "outer_rect['top']: ", outer_rect['top'])
+            vertical_difference = img_rect['top'] - outer_rect['top']
+        except:
+            vertical_difference = 50
+
+        print(f"Vertical difference between outer element and image: {vertical_difference}")
+
         # Use the capture_and_crop_screenshot to take and save the screenshot
-        self.capture_and_crop_screenshot(outer_element_selector, inner_element_selector, file_path)
+        self.capture_and_crop_screenshot(outer_element_selector, inner_element_selector, image_element_selector, file_path)
 
         print(f"Screenshot saved as {file_path}")
-        return file_path
+        return file_path, vertical_difference
 
     def solve_captcha(self):
         time.sleep(3)
@@ -157,7 +179,7 @@ class BilibiliPublisher:
 
             if captcha_image_url:
                 # img_path = download_image(captcha_image_url)
-                img_path = self.take_screenshot(captcha_image_url)
+                img_path, vertical_difference = self.take_screenshot(captcha_image_url)
                 result = b64_api(username="lachlanchen", password="eG8h.YfnWMyd9QR", img_path=img_path, ID="08272733")
                 print(result)
 
@@ -165,7 +187,7 @@ class BilibiliPublisher:
                 for key in [f'顺序{i}' for i in range(1, 10)]:  # Add more keys if there are more click points
                     if key in result['data']:
                         x = result['data'][key]['X坐标值']
-                        y = result['data'][key]['Y坐标值']
+                        y = result['data'][key]['Y坐标值'] + vertical_difference
                         # Execute JavaScript to simulate the click
                         self.driver.execute_script(f"""
                             let rect = document.querySelector('.geetest_item_wrap').getBoundingClientRect();
