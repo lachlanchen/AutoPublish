@@ -187,7 +187,7 @@ class BilibiliPublisher:
                 for key in [f'顺序{i}' for i in range(1, 10)]:  # Add more keys if there are more click points
                     if key in result['data']:
                         x = result['data'][key]['X坐标值']
-                        y = result['data'][key]['Y坐标值'] + vertical_difference
+                        y = result['data'][key]['Y坐标值'] - vertical_difference
                         # Execute JavaScript to simulate the click
                         self.driver.execute_script(f"""
                             let rect = document.querySelector('.geetest_item_wrap').getBoundingClientRect();
