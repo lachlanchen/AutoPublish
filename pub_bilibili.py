@@ -156,6 +156,11 @@ class BilibiliPublisher:
         # Use the capture_and_crop_screenshot to take and save the screenshot
         self.capture_and_crop_screenshot(outer_element_selector, inner_element_selector, image_element_selector, file_path)
 
+        try:
+            self.download_image(url, local_path=local_path)
+        except:
+            pass
+
         print(f"Screenshot saved as {file_path}")
         return file_path, vertical_difference
 
