@@ -132,16 +132,16 @@ def stop_and_start_chromium_sessions(
 def refresh_browsers(ports_patterns):
     global is_publishing
     while True:
-        if not is_publishing:
 
-            stop_and_start_chromium_sessions(
-                publish_xhs=True,
-                publish_douyin=True,
-                publish_shipinhao=True,
-            )
+        stop_and_start_chromium_sessions(
+            publish_xhs=True,
+            publish_douyin=True,
+            publish_shipinhao=True,
+        )
 
-            for port, patterns in ports_patterns.items():
-                
+        for port, patterns in ports_patterns.items():
+            if not is_publishing:
+            
                 try:
                     bring_to_front(patterns)
 
@@ -168,9 +168,9 @@ def refresh_browsers(ports_patterns):
                     print(f"Failed to refresh browser on port {port}: {e}")
                     traceback.print_exc()
 
-                # time.sleep(3)
-                # Short sleep between refreshing each browser, if needed
-                time.sleep(max(3, random.normalvariate(mu=3, sigma=1)))
+            # time.sleep(3)
+            # Short sleep between refreshing each browser, if needed
+            time.sleep(max(3, random.normalvariate(mu=3, sigma=1)))
 
         # time.sleep(refresh_time)
         # Calculate sleep time as the mean plus an absolute value of a normal distribution centered at 0
