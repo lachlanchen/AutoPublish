@@ -231,6 +231,19 @@ class BilibiliPublisher:
         else:
             print("No CAPTCHA detected.")
 
+    def click_specific_tag_if_exists(self, driver, tag_text):
+        try:
+            # Construct XPath to find the tag based on its visible text
+            tag_xpath = f"//span[contains(text(), '{tag_text}')]"
+            # Wait until the tag is clickable and then click on it
+            tag_element = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, tag_xpath)))
+            tag_element.click()
+            print(f"Clicked on the tag: {tag_text}")
+            return True
+        except TimeoutException:
+            print(f"Tag '{tag_text}' not found or not clickable.")
+            return False
+
     def publish(self):
         if self.retry_count < 3:  # maximum 3 tries (initial + 2 retries)
             try:
@@ -349,10 +362,15 @@ class BilibiliPublisher:
                 driver.find_element(By.XPATH, '//*[text()="日常"]').click()
                 # time.sleep(1)
 
+
+                # Click on the specific tag before adding other tags
+                success = self.click_specific_tag_if_exists("随手记录我的生活碎片")
+
+
                 # Add Tags
                 print("Adding tags...")
                 tag_input_xpath = '//input[@placeholder="按回车键Enter创建标签"]'
-                for tag in metadata['tags']:
+                for tag in metadata['tags'][:-1]:
                     # wait_for_element_to_be_clickable(tag_input_xpath)
                     time.sleep(1)
                     driver.find_element(By.XPATH, tag_input_xpath).send_keys(tag)
