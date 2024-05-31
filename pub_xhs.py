@@ -166,10 +166,19 @@ class XiaoHongShuPublisher:
                 time.sleep(3)
                 driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
                 time.sleep(3)
+                
                 # driver.find_element(By.XPATH, '//*[contains(text(),"上传封面")]/../../../../..//*[text()="确定"]').click()
-                confirm_button_xpath = '//*[contains(text(),"确定")]'
-                print("Clicking '确定' to confirm upload...")
+                # confirm_button_xpath = '//*[contains(text(),"确定")]'
+                # print("Clicking '确定' to confirm upload...")
+                # driver.find_element(By.XPATH, confirm_button_xpath).click()
+
+                print("Waiting for the '确定' button to be clickable...")
+                confirm_button_xpath = "//button[contains(@class, 'btn-confirm') and contains(., '确定')]"
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, confirm_button_xpath)))
+
+                print("Clicking on the '确定' button...")
                 driver.find_element(By.XPATH, confirm_button_xpath).click()
+                print("Button clicked successfully! Proceeding with further actions.")
                 
                 cover_uploaded_button_xpath = '//*[text()="修改默认封面"]'
                 time.sleep(3)
