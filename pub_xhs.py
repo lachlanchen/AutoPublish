@@ -119,14 +119,15 @@ class XiaoHongShuPublisher:
                 print("Clicking on '编辑' button...")
                 driver.find_element(By.XPATH, edit_button_xpath).click()
 
-                
+
                 print("Waiting 上传封面")
                 self.wait_for_element_to_be_clickable('//*[text()="上传封面"]')
                 driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
 
                 print(f"Uploading cover from path: {path_cover}")
                 print(f"Waiting for the file input to be ready to receive the cover file path...")
-                file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
+                file_input_xpath = '//input[@class="upload-input"]'
+                # file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
                 print(f"Sending cover file path to input: {path_cover}")
                 time.sleep(3)
                 driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
