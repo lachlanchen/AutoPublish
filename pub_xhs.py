@@ -113,10 +113,7 @@ class XiaoHongShuPublisher:
                 # self.wait_for_element_to_be_clickable(cover_button_xpath)
                 # driver.find_element(By.XPATH, cover_button_xpath).click()
 
-                # print("Waiting for the '编辑' button...")
-                # edit_button_xpath = '//*[contains(@class,"btn-bottom") and contains(text(),"编辑")]'
-                # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, edit_button_xpath)))
-
+                
             
                 # print("Waiting for the '编辑默认封面' or '修改默认封面' button...")
                 # # The XPath checks for both possible button texts
@@ -144,9 +141,13 @@ class XiaoHongShuPublisher:
                 print("Cover uploaded or edited successfully! Proceeding with further actions.")
                 
 
+                # print("Waiting for the '编辑' button...")
+                # edit_button_xpath = '//*[contains(@class,"btn-bottom") and contains(text(),"编辑")]'
+                # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, edit_button_xpath)))
 
-                print("Clicking on '编辑' button...")
-                driver.find_element(By.XPATH, edit_button_xpath).click()
+
+                # print("Clicking on '编辑' button...")
+                # driver.find_element(By.XPATH, edit_button_xpath).click()
 
                 time.sleep(3)
 
