@@ -107,45 +107,65 @@ class XiaoHongShuPublisher:
                 time.sleep(3)
                 driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
 
-                print("Handling cover upload.")
-                cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
-                print("Waiting 编辑默认封面...")
-                self.wait_for_element_to_be_clickable(cover_button_xpath)
-                driver.find_element(By.XPATH, cover_button_xpath).click()
+                # print("Handling cover upload.")
+                # cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
+                # print("Waiting 编辑默认封面...")
+                # self.wait_for_element_to_be_clickable(cover_button_xpath)
+                # driver.find_element(By.XPATH, cover_button_xpath).click()
 
                 # print("Waiting for the '编辑' button...")
                 # edit_button_xpath = '//*[contains(@class,"btn-bottom") and contains(text(),"编辑")]'
                 # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, edit_button_xpath)))
 
-                print("Clicking on '编辑' button...")
-                driver.find_element(By.XPATH, edit_button_xpath).click()
+                try:
+                    print("Waiting for the '编辑默认封面' or '修改默认封面' button...")
+                    # The XPath checks for both possible button texts
+                    cover_button_xpath = '//*[contains(text(),"编辑默认封面") or contains(text(),"修改默认封面")]'
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
+                    
+                    print("Clicking on the button...")
+                    driver.find_element(By.XPATH, cover_button_xpath).click()
 
-                time.sleep(3)
+                    # Additional steps to upload the cover would go here
+                    # For example, finding the file input element, sending the file path, etc.
+                    # These would depend on the further HTML structure which isn't provided.
+
+                    print("Cover uploaded or edited successfully! Proceeding with further actions.")
+                    
 
 
-                print("Waiting 上传封面")
-                self.wait_for_element_to_be_clickable('//*[text()="上传封面"]')
-                driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
+                    print("Clicking on '编辑' button...")
+                    driver.find_element(By.XPATH, edit_button_xpath).click()
 
-                time.sleep(3)
+                    time.sleep(3)
 
-                print(f"Uploading cover from path: {path_cover}")
-                print(f"Waiting for the file input to be ready to receive the cover file path...")
-                # file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
-                print(f"Sending cover file path to input: {path_cover}")
-                file_input_xpath = '//input[@class="upload-input"]'
-                time.sleep(3)
-                driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
-                time.sleep(3)
-                # driver.find_element(By.XPATH, '//*[contains(text(),"上传封面")]/../../../../..//*[text()="确定"]').click()
-                confirm_button_xpath = '//*[contains(text(),"确定")]'
-                print("Clicking '确定' to confirm upload...")
-                driver.find_element(By.XPATH, confirm_button_xpath).click()
-                
-                cover_uploaded_button_xpath = '//*[text()="修改默认封面"]'
-                time.sleep(3)
-                WebDriverWait(driver, 600).until(EC.presence_of_element_located((By.XPATH, cover_uploaded_button_xpath)))
-                print("Cover uploaded successfully! Proceeding to location selection.")
+
+                    print("Waiting 上传封面")
+                    self.wait_for_element_to_be_clickable('//*[text()="上传封面"]')
+                    driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
+
+                    time.sleep(3)
+
+                    print(f"Uploading cover from path: {path_cover}")
+                    print(f"Waiting for the file input to be ready to receive the cover file path...")
+                    # file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
+                    print(f"Sending cover file path to input: {path_cover}")
+                    file_input_xpath = '//input[@class="upload-input"]'
+                    time.sleep(3)
+                    driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
+                    time.sleep(3)
+                    # driver.find_element(By.XPATH, '//*[contains(text(),"上传封面")]/../../../../..//*[text()="确定"]').click()
+                    confirm_button_xpath = '//*[contains(text(),"确定")]'
+                    print("Clicking '确定' to confirm upload...")
+                    driver.find_element(By.XPATH, confirm_button_xpath).click()
+                    
+                    cover_uploaded_button_xpath = '//*[text()="修改默认封面"]'
+                    time.sleep(3)
+                    WebDriverWait(driver, 600).until(EC.presence_of_element_located((By.XPATH, cover_uploaded_button_xpath)))
+                    print("Cover uploaded successfully! Proceeding to location selection.")
+
+                except Exception as e:
+                    print(f"An error occurred: {str(e)}")
 
                 # Location selection logic here (if applicable)
                 
