@@ -107,11 +107,19 @@ class XiaoHongShuPublisher:
                 time.sleep(3)
                 driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
 
-                print("Handling cover upload.")
-                cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
-                print("Waiting 编辑默认封面...")
-                self.wait_for_element_to_be_clickable(cover_button_xpath)
-                driver.find_element(By.XPATH, cover_button_xpath).click()
+                # print("Handling cover upload.")
+                # cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
+                # print("Waiting 编辑默认封面...")
+                # self.wait_for_element_to_be_clickable(cover_button_xpath)
+                # driver.find_element(By.XPATH, cover_button_xpath).click()
+                print("Waiting for the '编辑' button...")
+                edit_button_xpath = '//*[contains(@class,"btn-bottom") and contains(text(),"编辑")]'
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, edit_button_xpath)))
+
+                print("Clicking on '编辑' button...")
+                driver.find_element(By.XPATH, edit_button_xpath).click()
+
+                
                 print("Waiting 上传封面")
                 self.wait_for_element_to_be_clickable('//*[text()="上传封面"]')
                 driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
