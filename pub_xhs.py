@@ -121,7 +121,9 @@ class XiaoHongShuPublisher:
                 print("Waiting for the '编辑默认封面' or '修改默认封面' button...")
                 # The XPath checks for both possible button texts
                 cover_button_xpath = '//*[contains(text(),"编辑默认封面") or contains(text(),"修改默认封面")]'
-                WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
+                # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
+
+                time.sleep(10)
                 
                 print("Clicking on the button...")
                 driver.find_element(By.XPATH, cover_button_xpath).click()
