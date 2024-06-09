@@ -218,7 +218,7 @@ class XiaoHongShuPublisher:
                     except TimeoutException:
                         if retry_count > 0 and len(location_names) > 1:
                             print(f"Retrying to select location... Attempts left: {retry_count}")
-                            select_location(driver, location_names[1:], retry_count - 1)
+                            select_location_b(driver, location_names[1:], retry_count - 1)
                         else:
                             print(f"Failed to select location after multiple attempts.")
                 
@@ -256,7 +256,7 @@ class XiaoHongShuPublisher:
                             select_location(driver, location_names[1:], retry_count - 1)  # Remove the first name and retry with the next one
                         else:
                             print(f"Failed to select location after multiple attempts. Try another method. ")
-                            
+
                             select_location_b(driver, ['香港大学', 'The University of Hong Kong'])
 
 
