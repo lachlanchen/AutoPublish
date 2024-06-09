@@ -191,6 +191,36 @@ class XiaoHongShuPublisher:
                 
 
                 # Location selection logic here (if applicable)
+
+                def select_location_b(driver, location_names, retry_count=2):
+                    try:
+                        location_name = location_names[0]
+
+                        time.sleep(3)
+                        input_box = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='请选择地点']"))
+                        )
+                        input_box.click()
+                        input_box.send_keys(location_name)
+                        input_box.send_keys(Keys.RETURN)
+
+                        time.sleep(3)
+                        WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.CLASS_NAME, "el-autocomplete-suggestion"))
+                        )
+
+                        time.sleep(3)
+                        location_option = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, f"//span[contains(text(), '{location_name}')]"))
+                        )
+                        location_option.click()
+                        print(f"Location '{location_name}' selected successfully!")
+                    except TimeoutException:
+                        if retry_count > 0 and len(location_names) > 1:
+                            print(f"Retrying to select location... Attempts left: {retry_count}")
+                            select_location(driver, location_names[1:], retry_count - 1)
+                        else:
+                            print(f"Failed to select location after multiple attempts.")
                 
                 def select_location(driver, location_names, retry_count=2):
                     try:
@@ -225,7 +255,11 @@ class XiaoHongShuPublisher:
                             print(f"Retrying to select location... Attempts left: {retry_count}")
                             select_location(driver, location_names[1:], retry_count - 1)  # Remove the first name and retry with the next one
                         else:
+                            select_location_b(driver, ['香港大学', 'The University of Hong Kong'])
                             print(f"Failed to select location after multiple attempts.")
+
+
+                
 
                 if self.retry_count == 0:
                     # Try selecting the location with a list of names
