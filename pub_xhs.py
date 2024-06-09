@@ -201,7 +201,7 @@ class XiaoHongShuPublisher:
                         # Wait for the input box to be clickable, click it, and send the location name
                         time.sleep(3)
                         input_box = WebDriverWait(driver, 10).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, "input.single-input[placeholder='请选择']"))
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, "input.single-input[placeholder='请选择地点']"))
                         )
                         input_box.click()
                         input_box.send_keys(location_name)
