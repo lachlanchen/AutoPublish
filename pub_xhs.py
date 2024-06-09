@@ -196,33 +196,41 @@ class XiaoHongShuPublisher:
                     try:
                         location_name = location_names[0]
 
+                        print(f"Attempting to select location: {location_name}")
                         time.sleep(3)
+
                         input_box = WebDriverWait(driver, 10).until(
                             EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='请选择地点']"))
                         )
+                        print("Location input box is clickable.")
                         input_box.click()
                         input_box.send_keys(location_name)
                         input_box.send_keys(Keys.RETURN)
+                        print(f"Entered location: {location_name}")
 
                         time.sleep(3)
                         WebDriverWait(driver, 10).until(
                             EC.visibility_of_element_located((By.CLASS_NAME, "el-autocomplete-suggestion"))
                         )
+                        print("Dropdown suggestions are visible.")
 
                         time.sleep(3)
                         location_option = WebDriverWait(driver, 10).until(
                             EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'name') and text()='{location_name}']"))
                         )
+                        print(f"Location option '{location_name}' is clickable.")
                         driver.execute_script("arguments[0].click();", location_option)
                         print(f"Location '{location_name}' selected successfully!")
-                    except TimeoutException:
+                    except TimeoutException as te:
+                        print(f"TimeoutException: {te}")
                         if retry_count > 0 and len(location_names) > 1:
                             print(f"Retrying to select location... Attempts left: {retry_count - 1}")
                             select_location(driver, location_names[1:], retry_count - 1)
                         else:
-                            print(f"Failed to select location after multiple attempts.")
-                
-                
+                            print("Failed to select location after multiple attempts.")
+                    except Exception as e:
+                        print(f"Exception: {e}")
+                        traceback.print_exc()
 
                 
 
