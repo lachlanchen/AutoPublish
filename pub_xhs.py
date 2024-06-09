@@ -257,14 +257,14 @@ class XiaoHongShuPublisher:
                         else:
                             print(f"Failed to select location after multiple attempts. Try another method. ")
 
-                            select_location_b(driver, ['香港大学', 'The University of Hong Kong'])
+                            # select_location_b(driver, ['香港大学', 'The University of Hong Kong'])
 
 
                 
 
                 if self.retry_count == 0:
                     # Try selecting the location with a list of names
-                    select_location(driver, ['香港大学', 'The University of Hong Kong'])
+                    select_location_b(driver, ['香港大学', 'The University of Hong Kong'])
 
                 # Prompt the user to confirm publishing
                 if test:
