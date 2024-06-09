@@ -256,6 +256,7 @@ class XiaoHongShuPublisher:
                             select_location(driver, location_names[1:], retry_count - 1)  # Remove the first name and retry with the next one
                         else:
                             print(f"Failed to select location after multiple attempts. Try another method. ")
+                            
                             select_location_b(driver, ['香港大学', 'The University of Hong Kong'])
 
 
