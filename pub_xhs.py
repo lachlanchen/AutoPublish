@@ -215,11 +215,17 @@ class XiaoHongShuPublisher:
                         print("Dropdown suggestions are visible.")
 
                         time.sleep(3)
-                        location_option = WebDriverWait(driver, 10).until(
-                            EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'name') and text()='{location_name}']"))
-                        )
-                        print(f"Location option '{location_name}' is clickable.")
-                        driver.execute_script("arguments[0].click();", location_option)
+                        print(f"Executing JavaScript to click on the location option '{location_name}'")
+                        js_code = f"""
+                        var options = document.querySelectorAll(".el-autocomplete-suggestion__list .item .name");
+                        options.forEach(function(option) {{
+                            if (option.innerText === "{location_name}") {{
+                                option.click();
+                                console.log("Selected option: '{location_name}'");
+                            }}
+                        }});
+                        """
+                        driver.execute_script(js_code)
                         print(f"Location '{location_name}' selected successfully!")
                     except TimeoutException as te:
                         print(f"TimeoutException: {te}")
