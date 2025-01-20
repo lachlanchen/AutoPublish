@@ -256,30 +256,101 @@ class ShiPinHaoPublisher:
                 self.clear_and_type(short_title_input, self.clean_title(title[:16]))
                 time.sleep(3)
 
-                # Original declaration
-                original_content_checkbox = driver.find_element(By.XPATH, '//input[@class="ant-checkbox-input" and @type="checkbox"]')
-                original_content_checkbox.click()
-                time.sleep(3)
+#                 # Original declaration
+#                 original_content_checkbox = driver.find_element(By.XPATH, '//input[@class="ant-checkbox-input" and @type="checkbox"]')
+#                 original_content_checkbox.click()
+#                 time.sleep(3)
 
-                # Define the dropdown and select "生活"
-                dropdown_label = driver.find_element(By.XPATH, '//div[@class="weui-desktop-form__dropdown weui-desktop-form__dropdown__default"]/dl')
-                dropdown_label.click()
-                time.sleep(3)
+#                 # Define the dropdown and select "生活"
+#                 dropdown_label = driver.find_element(By.XPATH, '//div[@class="weui-desktop-form__dropdown weui-desktop-form__dropdown__default"]/dl')
+#                 dropdown_label.click()
+#                 time.sleep(3)
 
-                life_option = driver.find_element(By.XPATH, '//span[@class="weui-desktop-dropdown__list-ele__text" and text()="生活"]')
-                life_option.click()
-                time.sleep(3)
+#                 life_option = driver.find_element(By.XPATH, '//span[@class="weui-desktop-dropdown__list-ele__text" and text()="生活"]')
+#                 life_option.click()
+#                 time.sleep(3)
 
-                # Check the agreement checkbox
-                agreement_checkbox = driver.find_element(By.XPATH, '//div[@class="original-proto-wrapper"]//input[@type="checkbox"]')
-                if not agreement_checkbox.is_selected():
-                    agreement_checkbox.click()
-                    time.sleep(3)
+#                 # Check the agreement checkbox
+#                 agreement_checkbox = driver.find_element(By.XPATH, '//div[@class="original-proto-wrapper"]//input[@type="checkbox"]')
+#                 if not agreement_checkbox.is_selected():
+#                     agreement_checkbox.click()
+#                     time.sleep(3)
 
-                # Click on the "声明原创" button once it's clickable
-                declare_original_button = wait_for_element_clickable(driver, '//div[@class="weui-desktop-dialog__ft"]//button[contains(text(), "声明原创")]', 30)
-                declare_original_button.click()
-                time.sleep(3)
+#                 # Click on the "声明原创" button once it's clickable
+#                 declare_original_button = wait_for_element_clickable(driver, '//div[@class="weui-desktop-dialog__ft"]//button[contains(text(), "声明原创")]', 30)
+#                 declare_original_button.click()
+#                 time.sleep(3)
+
+                # ------------------ Step 6: Declare original content ------------------
+                print("Declaring original content...")
+                driver.execute_script(
+                    """
+                    // Step 1: Click the first checkbox to open the dialog
+                    let declareOriginalCheckbox = document.querySelector('.declare-original-checkbox input.ant-checkbox-input');
+
+                    if (declareOriginalCheckbox) {
+                        // Simulate a click event on the first checkbox
+                        let event = new MouseEvent('click', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window,
+                        });
+                        declareOriginalCheckbox.dispatchEvent(event);
+                        console.log('First checkbox clicked to open dialog.');
+
+                        setTimeout(() => {
+                            // Step 2: Find the dialog-specific checkbox
+                            let dialogCheckbox = document.querySelector('.original-proto-wrapper input.ant-checkbox-input');
+                            if (dialogCheckbox) {
+                                dialogCheckbox.checked = true;
+                                let changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                dialogCheckbox.dispatchEvent(changeEvent);
+                                console.log('Dialog checkbox programmatically checked.');
+
+                                setTimeout(() => {
+                                    // Step 3: Find and click the "声明原创" button by text
+                                    let buttons = document.querySelectorAll('button');
+                                    let declareButton = Array.from(buttons).find(
+                                        btn => btn.textContent.trim() === '声明原创'
+                                    );
+                                    if (declareButton) {
+                                        let buttonEvent = new MouseEvent('click', {
+                                            bubbles: true,
+                                            cancelable: true,
+                                            view: window,
+                                        });
+                                        declareButton.dispatchEvent(buttonEvent);
+                                        console.log('"声明原创" button clicked!');
+
+                                        setTimeout(() => {
+                                            // Step 4: Close the dialog
+                                            let closeButton = document.querySelector('.weui-desktop-icon-btn.weui-desktop-dialog__close-btn');
+                                            if (closeButton) {
+                                                let closeEvent = new MouseEvent('click', {
+                                                    bubbles: true,
+                                                    cancelable: true,
+                                                    view: window,
+                                                });
+                                                closeButton.dispatchEvent(closeEvent);
+                                                console.log('Dialog closed!');
+                                            } else {
+                                                console.log('Close button not found!');
+                                            }
+                                        }, 500);
+                                    } else {
+                                        console.log('"声明原创" button not found!');
+                                    }
+                                }, 500);
+                            } else {
+                                console.log('Dialog checkbox not found!');
+                            }
+                        }, 500);
+                    } else {
+                        console.log('First checkbox not found!');
+                    }
+                    """
+                )
+                time.sleep(5)
 
                 # Click publish button
                 if test:

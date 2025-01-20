@@ -67,7 +67,7 @@ class XiaoHongShuPublisher:
                 driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
 
                 # Monitor upload status
-                reupload_xpath = '//*[contains(text(),"重新上传")]'
+                reupload_xpath = '//*[contains(text(),"替换视频")]'
                 failure_xpath = '//*[contains(text(),"上传失败")]'
                 # reupload_xpath = '//*[text()="重新上传"]'
                 # failure_xpath = '//*[text()="上传失败"]'
@@ -105,144 +105,148 @@ class XiaoHongShuPublisher:
                 
                 description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
                 time.sleep(3)
-                driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
+                # driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
+                driver.find_element(
+                    By.XPATH,
+                    '//div[contains(@class,"ql-editor") and @contenteditable="true"]'
+                ).send_keys(description_with_tags[:1000])
 
-                try:
-                    # print("Handling cover upload.")
-                    # cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
-                    # print("Waiting 编辑默认封面...")
-                    # self.wait_for_element_to_be_clickable(cover_button_xpath)
-                    # driver.find_element(By.XPATH, cover_button_xpath).click()
+#                 try:
+#                     # print("Handling cover upload.")
+#                     # cover_button_xpath = '//*[text()="编辑默认封面" or text()="修改默认封面"]'
+#                     # print("Waiting 编辑默认封面...")
+#                     # self.wait_for_element_to_be_clickable(cover_button_xpath)
+#                     # driver.find_element(By.XPATH, cover_button_xpath).click()
 
                     
                 
-                    # print("Waiting for the '编辑默认封面' or '修改默认封面' button...")
-                    # # The XPath checks for both possible button texts
-                    # cover_button_xpath = '//*[contains(text(),"编辑默认封面") or contains(text(),"修改默认封面")]'
-                    # # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
+#                     # print("Waiting for the '编辑默认封面' or '修改默认封面' button...")
+#                     # # The XPath checks for both possible button texts
+#                     # cover_button_xpath = '//*[contains(text(),"编辑默认封面") or contains(text(),"修改默认封面")]'
+#                     # # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
 
-                    # time.sleep(10)
+#                     # time.sleep(10)
                     
-                    # print("Clicking on the button...")
-                    # driver.find_element(By.XPATH, cover_button_xpath).click()
+#                     # print("Clicking on the button...")
+#                     # driver.find_element(By.XPATH, cover_button_xpath).click()
 
-                    # Wait for the button to not only be present but also to be clickable (enabled).
-                    print("Waiting for the '编辑默认封面' button to become clickable...")
-                    cover_button_xpath = "//button[not(@disabled) and contains(., '编辑默认封面')]"
-                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
+#                     # Wait for the button to not only be present but also to be clickable (enabled).
+#                     print("Waiting for the '编辑默认封面' button to become clickable...")
+#                     cover_button_xpath = "//button[not(@disabled) and contains(., '编辑默认封面')]"
+#                     WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, cover_button_xpath)))
 
-                    print("Clicking on the '编辑默认封面' button...")
-                    driver.find_element(By.XPATH, cover_button_xpath).click()
-                    print("Button clicked successfully! Proceeding with further actions.")
+#                     print("Clicking on the '编辑默认封面' button...")
+#                     driver.find_element(By.XPATH, cover_button_xpath).click()
+#                     print("Button clicked successfully! Proceeding with further actions.")
 
-                    # Additional steps to upload the cover would go here
-                    # For example, finding the file input element, sending the file path, etc.
-                    # These would depend on the further HTML structure which isn't provided.
+#                     # Additional steps to upload the cover would go here
+#                     # For example, finding the file input element, sending the file path, etc.
+#                     # These would depend on the further HTML structure which isn't provided.
 
-                    print("Cover uploaded or edited successfully! Proceeding with further actions.")
+#                     print("Cover uploaded or edited successfully! Proceeding with further actions.")
                     
 
-                    # print("Waiting for the '编辑' button...")
-                    # edit_button_xpath = '//*[contains(@class,"btn-bottom") and contains(text(),"编辑")]'
-                    # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, edit_button_xpath)))
+#                     # print("Waiting for the '编辑' button...")
+#                     # edit_button_xpath = '//*[contains(@class,"btn-bottom") and contains(text(),"编辑")]'
+#                     # WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, edit_button_xpath)))
 
 
-                    # print("Clicking on '编辑' button...")
-                    # driver.find_element(By.XPATH, edit_button_xpath).click()
+#                     # print("Clicking on '编辑' button...")
+#                     # driver.find_element(By.XPATH, edit_button_xpath).click()
 
-                    time.sleep(3)
+#                     time.sleep(3)
 
 
-                    print("Waiting 上传封面")
-                    self.wait_for_element_to_be_clickable('//*[text()="上传封面"]')
-                    driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
+#                     print("Waiting 上传封面")
+#                     self.wait_for_element_to_be_clickable('//*[text()="上传封面"]')
+#                     driver.find_element(By.XPATH, '//*[text()="上传封面"]').click()
 
-                    time.sleep(3)
+#                     time.sleep(3)
 
-                    print(f"Uploading cover from path: {path_cover}")
-                    print(f"Waiting for the file input to be ready to receive the cover file path...")
-                    # file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
-                    print(f"Sending cover file path to input: {path_cover}")
-                    file_input_xpath = '//input[@class="upload-input"]'
-                    time.sleep(3)
-                    driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
-                    time.sleep(3)
+#                     print(f"Uploading cover from path: {path_cover}")
+#                     print(f"Waiting for the file input to be ready to receive the cover file path...")
+#                     # file_input_xpath = '//*[@id="upload-cover-containner"]/..//input[@type="file"]'
+#                     print(f"Sending cover file path to input: {path_cover}")
+#                     file_input_xpath = '//input[@class="upload-input"]'
+#                     time.sleep(3)
+#                     driver.find_element(By.XPATH, file_input_xpath).send_keys(path_cover)
+#                     time.sleep(3)
                     
-                    # driver.find_element(By.XPATH, '//*[contains(text(),"上传封面")]/../../../../..//*[text()="确定"]').click()
-                    # confirm_button_xpath = '//*[contains(text(),"确定")]'
-                    # print("Clicking '确定' to confirm upload...")
-                    # driver.find_element(By.XPATH, confirm_button_xpath).click()
+#                     # driver.find_element(By.XPATH, '//*[contains(text(),"上传封面")]/../../../../..//*[text()="确定"]').click()
+#                     # confirm_button_xpath = '//*[contains(text(),"确定")]'
+#                     # print("Clicking '确定' to confirm upload...")
+#                     # driver.find_element(By.XPATH, confirm_button_xpath).click()
 
-                    print("Waiting for the '确定' button to be clickable...")
-                    confirm_button_xpath = "//button[contains(@class, 'btn-confirm') and contains(., '确定')]"
-                    WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, confirm_button_xpath)))
+#                     print("Waiting for the '确定' button to be clickable...")
+#                     confirm_button_xpath = "//button[contains(@class, 'btn-confirm') and contains(., '确定')]"
+#                     WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.XPATH, confirm_button_xpath)))
 
-                    print("Clicking on the '确定' button...")
-                    driver.find_element(By.XPATH, confirm_button_xpath).click()
-                    print("Button clicked successfully! Proceeding with further actions.")
+#                     print("Clicking on the '确定' button...")
+#                     driver.find_element(By.XPATH, confirm_button_xpath).click()
+#                     print("Button clicked successfully! Proceeding with further actions.")
                     
-                    cover_uploaded_button_xpath = '//*[text()="修改默认封面"]'
-                    time.sleep(3)
-                    WebDriverWait(driver, 600).until(EC.presence_of_element_located((By.XPATH, cover_uploaded_button_xpath)))
-                    print("Cover uploaded successfully! Proceeding to location selection.")
+#                     cover_uploaded_button_xpath = '//*[text()="修改默认封面"]'
+#                     time.sleep(3)
+#                     WebDriverWait(driver, 600).until(EC.presence_of_element_located((By.XPATH, cover_uploaded_button_xpath)))
+#                     print("Cover uploaded successfully! Proceeding to location selection.")
 
-                except Exception as e:
-                    print("Cover upload with error: ", str(e))
+#                 except Exception as e:
+#                     print("Cover upload with error: ", str(e))
                 
 
                 # Location selection logic here (if applicable)
 
-                def select_location(driver, location_names, retry_count=2):
-                    try:
-                        location_name = location_names[0]
+#                 def select_location(driver, location_names, retry_count=2):
+#                     try:
+#                         location_name = location_names[0]
 
-                        print(f"Attempting to select location: {location_name}")
-                        time.sleep(3)
+#                         print(f"Attempting to select location: {location_name}")
+#                         time.sleep(3)
 
-                        input_box = WebDriverWait(driver, 10).until(
-                            EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='请选择地点']"))
-                        )
-                        print("Location input box is clickable.")
-                        input_box.click()
-                        input_box.send_keys(location_name)
-                        input_box.send_keys(Keys.RETURN)
-                        print(f"Entered location: {location_name}")
+#                         input_box = WebDriverWait(driver, 10).until(
+#                             EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='请选择地点']"))
+#                         )
+#                         print("Location input box is clickable.")
+#                         input_box.click()
+#                         input_box.send_keys(location_name)
+#                         input_box.send_keys(Keys.RETURN)
+#                         print(f"Entered location: {location_name}")
 
-                        time.sleep(3)
-                        WebDriverWait(driver, 10).until(
-                            EC.visibility_of_element_located((By.CLASS_NAME, "el-autocomplete-suggestion"))
-                        )
-                        print("Dropdown suggestions are visible.")
+#                         time.sleep(3)
+#                         WebDriverWait(driver, 10).until(
+#                             EC.visibility_of_element_located((By.CLASS_NAME, "el-autocomplete-suggestion"))
+#                         )
+#                         print("Dropdown suggestions are visible.")
 
-                        time.sleep(3)
-                        print(f"Executing JavaScript to click on the location option '{location_name}'")
-                        js_code = f"""
-                        var options = document.querySelectorAll(".el-autocomplete-suggestion__list .item .name");
-                        options.forEach(function(option) {{
-                            if (option.innerText === "{location_name}") {{
-                                option.click();
-                                console.log("Selected option: '{location_name}'");
-                            }}
-                        }});
-                        """
-                        driver.execute_script(js_code)
-                        print(f"Location '{location_name}' selected successfully!")
-                    except TimeoutException as te:
-                        print(f"TimeoutException: {te}")
-                        if retry_count > 0 and len(location_names) > 1:
-                            print(f"Retrying to select location... Attempts left: {retry_count - 1}")
-                            select_location(driver, location_names[1:], retry_count - 1)
-                        else:
-                            print("Failed to select location after multiple attempts.")
-                    except Exception as e:
-                        print(f"Exception: {e}")
-                        traceback.print_exc()
+#                         time.sleep(3)
+#                         print(f"Executing JavaScript to click on the location option '{location_name}'")
+#                         js_code = f"""
+#                         var options = document.querySelectorAll(".el-autocomplete-suggestion__list .item .name");
+#                         options.forEach(function(option) {{
+#                             if (option.innerText === "香港大学") {{
+#                                 option.click();
+#                                 console.log("Selected option: '{location_name}'");
+#                             }}
+#                         }});
+#                         """
+#                         driver.execute_script(js_code)
+#                         print(f"Location '{location_name}' selected successfully!")
+#                     except TimeoutException as te:
+#                         print(f"TimeoutException: {te}")
+#                         if retry_count > 0 and len(location_names) > 1:
+#                             print(f"Retrying to select location... Attempts left: {retry_count - 1}")
+#                             select_location(driver, location_names[1:], retry_count - 1)
+#                         else:
+#                             print("Failed to select location after multiple attempts.")
+#                     except Exception as e:
+#                         print(f"Exception: {e}")
+#                         traceback.print_exc()
 
                 
 
-                if self.retry_count == 0:
-                    # Try selecting the location with a list of names
-                    select_location(driver, ['香港大学', 'The University of Hong Kong'])
+#                 if self.retry_count == 0:
+#                     # Try selecting the location with a list of names
+#                     select_location(driver, ['The University','香港大学', 'The University of Hong Kong'])
 
                 # Prompt the user to confirm publishing
                 if test:
@@ -318,7 +322,7 @@ if __name__ == "__main__":
         }
 
         # Create an instance of the XiaoHongShuPublisher
-        pub_xhslisher = XiaoHongShuPublisher(
+        xhs_publisher = XiaoHongShuPublisher(
             driver=driver,
             path_mp4=path_mp4,
             path_cover=path_cover,
@@ -326,4 +330,4 @@ if __name__ == "__main__":
         )
 
         # Start publishing process
-        pub_xhslisher.publish()
+        xhs_publisher.publish()

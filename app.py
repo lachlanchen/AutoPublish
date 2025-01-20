@@ -135,9 +135,9 @@ def refresh_browsers(ports_patterns):
         if not is_publishing:
 
             stop_and_start_chromium_sessions(
-                # publish_xhs=True,
+                publish_xhs=True,
                 # publish_douyin=True,
-                # publish_shipinhao=True,
+                publish_shipinhao=True,
             )
 
             for port, patterns in ports_patterns.items():
