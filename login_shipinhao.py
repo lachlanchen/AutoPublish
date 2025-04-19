@@ -130,12 +130,32 @@ class ShiPinHaoLogin:
 
         # self.driver.quit()
 
+    # def is_qr_outdated(self):
+    #     elements = self.driver.find_elements(By.CSS_SELECTOR, ".refresh-wrap .refresh-tip")
+    #     for element in elements:
+    #         if element.text == "二维码已过期，点击刷新":
+    #             return True
+    #     return False
     def is_qr_outdated(self):
-        elements = self.driver.find_elements(By.CSS_SELECTOR, ".refresh-wrap .refresh-tip")
-        for element in elements:
-            if element.text == "二维码已过期，点击刷新":
-                return True
-        return False
+        try:
+            # Look for the more specific structure - a visible mask containing the refresh message
+            elements = self.driver.find_elements(By.CSS_SELECTOR, ".mask.show .refresh-tip")
+            for element in elements:
+                if "二维码已过期" in element.text:
+                    return True
+                    
+            # Alternative approach - check if the mask with refresh is visible
+            outdated_masks = self.driver.find_elements(By.CSS_SELECTOR, ".mask.show")
+            for mask in outdated_masks:
+                refresh_tips = mask.find_elements(By.CSS_SELECTOR, ".refresh-tip")
+                for tip in refresh_tips:
+                    if "二维码已过期" in tip.text:
+                        return True
+                        
+            return False
+        except Exception as e:
+            print(f"Error checking if QR is outdated: {e}")
+            return False
 
     def needs_login(self):
         elements = self.driver.find_elements(By.CSS_SELECTOR, ".tip span")
