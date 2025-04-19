@@ -185,7 +185,7 @@ class BilibiliPublisher:
             if captcha_image_url:
                 # img_path = download_image(captcha_image_url)
                 img_path, vertical_difference = self.take_screenshot(captcha_image_url)
-                result = b64_api(username="lachlanchen", password="eG8h.YfnWMyd9QR", img_path=img_path, ID="08272733")
+                result = b64_api(username=os.environ.get('TULING_USERNAME'), password=os.environ.get('TULING_PASSWORD'), img_path=img_path, ID=os.environ.get('TULING_ID'))
                 print(result)
 
                 # Use the result to simulate the clicks on the CAPTCHA image
