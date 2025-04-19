@@ -36,13 +36,11 @@ import time
 
 
 is_publishing = False
-# Argument parsing for configurable refresh time and port
+# Argument parsing for configurable refresh time
 parser = argparse.ArgumentParser(description="Auto-publish application with browser refresh feature.")
 parser.add_argument('--refresh-time', type=int, default=1800, help="Time in seconds between each browser refresh.")
-parser.add_argument('--port', type=int, default=8081, help="Port to listen on for the web server.")
 args = parser.parse_args()
 refresh_time = args.refresh_time
-port = args.port
 
 
 # Global variables for paths and publishers
@@ -456,7 +454,7 @@ if __name__ == "__main__":
     refresh_thread.start()
 
     app = make_app()
-    app.listen(port, max_body_size=10*1024 * 1024 * 1024)
-    print("Listen on: ", f"http://lazyingart:{port}")
+    app.listen(8081, max_body_size=10*1024 * 1024 * 1024)
+    print("Listen on: ", f"http://lazyingart:8081")
     tornado.autoreload.start()
     tornado.ioloop.IOLoop.current().start()
