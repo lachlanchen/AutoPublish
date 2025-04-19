@@ -135,9 +135,9 @@ def refresh_browsers(ports_patterns):
         if not is_publishing:
 
             stop_and_start_chromium_sessions(
-                publish_xhs=True,
+                # publish_xhs=True,
                 # publish_douyin=True,
-                publish_shipinhao=True,
+                # publish_shipinhao=True,
             )
 
             for port, patterns in ports_patterns.items():
@@ -443,11 +443,11 @@ def make_app():
 if __name__ == "__main__":
 
     ports_patterns = {
-        5003: ["小红书", "你访问的页面不见了"],
-        5004: ["抖音"],
-        5005: ["哔哩哔哩"],
-        5006: ["视频号助手"],
-        9222: ["YouTube"]
+        # 5003: ["小红书", "你访问的页面不见了"],
+        # 5004: ["抖音"],
+        # 5005: ["哔哩哔哩"],
+        # 5006: ["视频号助手"],
+        # 9222: ["YouTube"]
     }
 
     refresh_thread = threading.Thread(target=refresh_browsers, args=(ports_patterns,), daemon=True)
