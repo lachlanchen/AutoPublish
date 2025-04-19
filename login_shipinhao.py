@@ -107,26 +107,60 @@ class ShiPinHaoLogin:
         last_refresh_time = time.time()
         last_email_time = time.time() - 30  # Initialize to send email immediately
 
+        # while time.time() < end_time:
+        #     if self.is_qr_outdated():
+        #         print("QR code is outdated, refreshing...")
+        #         self.driver.refresh()
+        #         time.sleep(5)
+        #         self.take_screenshot_and_send_email()
+        #         WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
+        #         last_refresh_time = time.time()
+
+        #     # if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
+        #     #     print("Taking screenshot and sending email...")
+        #     #     self.take_screenshot_and_send_email()
+        #     #     last_email_time = time.time()
+
+        #     if self.needs_login():
+        #         print("Login required, will check again in 5 seconds...")
+        #         time.sleep(5)  # Check again in 5 seconds
+        #     else:
+        #         print("Logged in successfully, stopping checks.")
+        #         break  # Break the loop if logged in
         while time.time() < end_time:
-            if self.is_qr_outdated():
-                print("QR code is outdated, refreshing...")
-                self.driver.refresh()
-                time.sleep(5)
-                self.take_screenshot_and_send_email()
-                WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
-                last_refresh_time = time.time()
-
-            # if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
-            #     print("Taking screenshot and sending email...")
-            #     self.take_screenshot_and_send_email()
-            #     last_email_time = time.time()
-
-            if self.needs_login():
+            try:
+                # Always refresh the page and send email periodically
+                current_time = time.time()
+                time_since_refresh = current_time - last_refresh_time
+                
+                # Refresh every 60 seconds regardless of QR status
+                if time_since_refresh >= 180:
+                    print("Refreshing page and sending new QR code...")
+                    self.driver.refresh()
+                    time.sleep(5)
+                    
+                    # Try to switch to the iframe again
+                    try:
+                        WebDriverWait(self.driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
+                    except TimeoutException:
+                        print("Could not find iframe after refresh, page may have changed.")
+                    
+                    # Take screenshot and send it regardless
+                    self.take_screenshot_and_send_email()
+                    last_refresh_time = current_time
+                
+                # Check if we're logged in
+                if not self.needs_login():
+                    print("Logged in successfully, stopping checks.")
+                    break  # Break the loop if logged in
+                
                 print("Login required, will check again in 5 seconds...")
                 time.sleep(5)  # Check again in 5 seconds
-            else:
-                print("Logged in successfully, stopping checks.")
-                break  # Break the loop if logged in
+                    
+            except Exception as e:
+                print(f"Error during refresh cycle: {e}")
+                # Still try to continue the loop
+                time.sleep(5)
 
         # self.driver.quit()
 
@@ -175,5 +209,10 @@ class ShiPinHaoLogin:
         )
 
 if __name__ == "__main__":
-    shi_pin_hao_login = ShiPinHaoLogin()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", default="5006", help="Chrome debugging port")
+    args = parser.parse_args()
+
+    shi_pin_hao_login = ShiPinHaoLogin(port=args.port)
     shi_pin_hao_login.check_and_act()
