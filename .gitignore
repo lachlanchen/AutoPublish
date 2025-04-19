@@ -1,3 +1,6 @@
+archived/*
+notebooks/*
+*.old
 videos/*
 transcription_data/*
 logs*/*
