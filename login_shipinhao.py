@@ -110,7 +110,8 @@ class ShiPinHaoLogin:
         while time.time() < end_time:
             current_time = time.time()
         
-            if self.is_qr_outdated() or (current_time - last_email_time >= 180):
+            # if self.is_qr_outdated() or (current_time - last_refresh_time >= 180):
+            if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
                 self.driver.refresh()
                 time.sleep(5)
