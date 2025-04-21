@@ -18,7 +18,7 @@ from utils import dismiss_alert, bring_to_front
 
 # class SendMail:
 #     # Set defaults within the class, but allow them to be overridden
-#     def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email='lachlan.miao.chen@gmail.com', to_email='lachlan.mia.chan@gmail.com'):
+#     def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email=os.environ.get('FROM_EMAIL'), to_email=os.environ.get('TO_EMAIL')):
 #         self.sendgrid_api_key = sendgrid_api_key
 #         self.from_email = from_email
 #         self.to_email = to_email
@@ -110,7 +110,8 @@ class ShiPinHaoLogin:
         while time.time() < end_time:
             current_time = time.time()
         
-            if self.is_qr_outdated() or (current_time - last_email_time >= 180):
+            # if self.is_qr_outdated() or (current_time - last_refresh_time >= 180):
+            if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
                 self.driver.refresh()
                 time.sleep(5)

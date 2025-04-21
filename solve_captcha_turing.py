@@ -37,9 +37,9 @@ if __name__ == "__main__":
         # Download image and get local path
         img_path = download_image(img_url)
         print(f"Image downloaded to: {img_path}")
-        
+        result = b64_api(username=os.environ.get('TULING_USERNAME'), password=os.environ.get('TULING_PASSWORD'), img_path=img_path, ID=os.environ.get('TULING_ID'))
         # Call API with downloaded image
-        result = b64_api(username="lachlanchen", password="eG8h.YfnWMyd9QR", img_path=img_path, ID="08272733")
+        
         print(result)
     except Exception as e:
         print(f"An error occurred: {e}")

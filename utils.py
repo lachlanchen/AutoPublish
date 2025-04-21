@@ -25,7 +25,7 @@ from sendgrid.helpers.mail import FileContent, FileName, FileType, Disposition
 
 # class SendMail:
 #     # Set defaults within the class, but allow them to be overridden
-#     def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email='lachlan.miao.chen@gmail.com', to_email='lachlan.mia.chan@gmail.com'):
+#     def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email=os.environ.get('FROM_EMAIL'), to_email=os.environ.get('TO_EMAIL')):
 #         self.sendgrid_api_key = sendgrid_api_key
 #         self.from_email = from_email
 #         self.to_email = to_email
@@ -95,7 +95,7 @@ class QRCodeProcessor:
         return None
 
 class SendMail:
-    def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email='lachlan.miao.chen@gmail.com', to_email='lachlan.mia.chan@gmail.com'):
+    def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email=os.environ.get('FROM_EMAIL'), to_email=os.environ.get('TO_EMAIL')):
         self.sendgrid_api_key = sendgrid_api_key
         self.from_email = from_email
         self.to_email = to_email

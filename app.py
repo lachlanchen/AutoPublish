@@ -33,6 +33,17 @@ import random
 
 import time
 
+# Add this import
+from load_env import load_env_from_bashrc
+
+# Load environment variables at the very beginning
+try:
+    load_env_from_bashrc()
+except Exception as e:
+    print(f"WARNING: Failed to load environment variables: {e}")
+    traceback.print_exc()
+
+
 
 
 is_publishing = False
