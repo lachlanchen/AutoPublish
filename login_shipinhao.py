@@ -60,18 +60,65 @@ class ShiPinHaoLogin:
         driver = webdriver.Chrome(options=options)
         return driver
 
+    # def find_lazying_art(self):
+    #     try:
+    #         # Search for the span element containing the specific text
+    #         # Adjusted the XPath to target the class and text more accurately based on the provided structure
+    #         user_info_element = self.driver.find_element(By.XPATH, "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt懒人艺术')]")
+    #         if user_info_element:
+    #             print("Found '陈苗LazyingArt懒人艺术'.")
+    #             return True
+    #     except NoSuchElementException:
+    #         # If the element is not found, NoSuchElementException is caught
+    #         print("Did not find '陈苗LazyingArt懒人艺术'.")
+    #     return False
     def find_lazying_art(self):
         try:
-            # Search for the span element containing the specific text
-            # Adjusted the XPath to target the class and text more accurately based on the provided structure
-            user_info_element = self.driver.find_element(By.XPATH, "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt懒人艺术')]")
-            if user_info_element:
-                print("Found '陈苗LazyingArt懒人艺术'.")
-                return True
-        except NoSuchElementException:
-            # If the element is not found, NoSuchElementException is caught
-            print("Did not find '陈苗LazyingArt懒人艺术'.")
-        return False
+            # First switch to default content in case we're in an iframe
+            try:
+                self.driver.switch_to.default_content()
+            except Exception as e:
+                print(f"Error switching to default content: {e}")
+                
+            # Try multiple selector strategies for better reliability
+            selectors = [
+                # Original approach - specific class and text
+                "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt懒人艺术')]",
+                # More flexible - just look for the class with partial text
+                "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt')]",
+                # Even more flexible - any element with account info near it
+                "//div[contains(@class, 'account-info')]//span[contains(text(), '陈苗')]",
+                # Try CSS selector approach
+                ".account-info .name"
+            ]
+            
+            for selector in selectors:
+                try:
+                    wait = WebDriverWait(self.driver, 5)
+                    if selector.startswith('.'):
+                        elements = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
+                    else:
+                        elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, selector)))
+                    
+                    for element in elements:
+                        if '陈苗' in element.text:
+                            print(f"Found user element with text: '{element.text}' using selector: {selector}")
+                            return True
+                except Exception as e:
+                    print(f"Selector {selector} failed: {e}")
+                    continue
+                    
+            # Take a screenshot for debugging
+            debug_path = '/tmp/debug-screenshot.png'
+            self.driver.save_screenshot(debug_path)
+            print(f"Saved debug screenshot to {debug_path}")
+            
+            print("Did not find '陈苗LazyingArt懒人艺术' after trying multiple approaches.")
+            return False
+        except Exception as e:
+            print(f"Error in find_lazying_art: {e}")
+            traceback.print_exc()
+            return False
 
 
     def check_and_act(self):
