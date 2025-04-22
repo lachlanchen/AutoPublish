@@ -103,7 +103,7 @@ class ShiPinHaoLogin:
 
 
 
-        end_time = time.time() + 600  # 30 minutes from now
+        end_time = time.time() + 1800  # 30 minutes from now
         last_refresh_time = time.time()
         last_email_time = time.time() - 30  # Initialize to send email immediately
 
@@ -165,7 +165,11 @@ class ShiPinHaoLogin:
         for element in elements:
             if element.text == "微信扫码登录 视频号助手":
                 return True
-        return False
+
+        if self.find_lazying_art():
+            return False
+        else:
+            return True
 
     def take_screenshot_and_send_email(self):
         screenshot_path = '/tmp/shipinhao-screenshot.png'
