@@ -9,7 +9,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from twocaptcha import TwoCaptcha
 
-api_key = os.getenv('APIKEY_2CAPTCHA', '35e6654df7be91eaf3a278d1671ebbde')
+api_key = os.getenv('APIKEY_2CAPTCHA')
+if not api_key:
+    raise RuntimeError(
+        "Set the APIKEY_2CAPTCHA environment variable (see .env.example or README.md) before running."
+    )
 
 solver = TwoCaptcha(api_key)
 

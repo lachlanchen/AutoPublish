@@ -6,3 +6,4 @@ transcription_data/*
 logs*/*
 temp/*
 temp*/
+.env
