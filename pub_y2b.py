@@ -380,8 +380,8 @@ class YouTubePublisher:
                 self.set_tags_and_more()
                 time.sleep(3)
                     
-                # Wait to ensure checks or additional processing is done
-                self.wait_for_processing()
+                # Wait for the final checks to finish before clicking Publish
+                self.wait_for_processing(mode="check", interval=1, duration=600)
 
                 self.set_visibility_and_publish()
 
