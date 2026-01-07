@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="60" viewBox="0 0 320 60">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6EE7F9"/>
+      <stop offset="50%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#EC4899"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-50%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect x="4" y="4" rx="14" ry="14" width="312" height="52" fill="url(#g)" filter="url(#shadow)"/>
+  <rect x="4" y="4" rx="14" ry="14" width="312" height="52" fill="none" stroke="rgba(255,255,255,0.35)"/>
+  <g transform="translate(72,18)">
+    <path d="M16 6c-3.3 0-6 2.7-6 6 0 6.2 9.2 10.7 11.2 12 .5.3 1.1.3 1.6 0C25.8 22.7 35 18.2 35 12c0-3.3-2.7-6-6-6-2.1 0-3.9 1.1-5 2.7C19.9 7.1 18.1 6 16 6z" fill="#fff" opacity="0.9"/>
+  </g>
+  <text x="170" y="36" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="22" fill="#fff" font-weight="700" letter-spacing="0.3px">Donate</text>
+</svg>
+
