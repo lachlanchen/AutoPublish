@@ -27,11 +27,11 @@ import subprocess
 from utils import bring_to_front
 
 import argparse
+import itertools
+import queue
 import threading
 import time
 import random
-
-import time
 
 # Add this import
 from load_env import load_env_from_bashrc
@@ -47,6 +47,12 @@ except Exception as e:
 
 
 is_publishing = False
+PUBLISH_QUEUE: "queue.Queue[str]" = queue.Queue()
+PUBLISH_JOBS: dict[str, dict] = {}
+PUBLISH_JOB_ORDER: list[str] = []
+PUBLISH_LOCK = threading.Lock()
+PUBLISH_COUNTER = itertools.count(1)
+PUBLISH_MAX_HISTORY = 50
 # Argument parsing for configurable refresh time and port
 parser = argparse.ArgumentParser(description="Auto-publish application with browser refresh feature.")
 parser.add_argument('--refresh-time', type=int, default=1800, help="Time in seconds between each browser refresh.")
@@ -70,6 +76,49 @@ chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
 os.makedirs(logs_folder_root, exist_ok=True)
 open(videos_db_path, 'a').close()
 open(processed_path, 'a').close()
+
+def _job_timestamp():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def _new_job_id():
+    return f"job-{int(time.time() * 1000)}-{next(PUBLISH_COUNTER)}"
+
+def _serialize_job(job):
+    return {
+        "id": job.get("id"),
+        "filename": job.get("filename"),
+        "status": job.get("status"),
+        "created_at": job.get("created_at"),
+        "updated_at": job.get("updated_at"),
+        "platforms": job.get("platforms", []),
+        "error": job.get("error"),
+    }
+
+def _enqueue_publish_job(job):
+    with PUBLISH_LOCK:
+        PUBLISH_JOBS[job["id"]] = job
+        PUBLISH_JOB_ORDER.append(job["id"])
+        if len(PUBLISH_JOB_ORDER) > PUBLISH_MAX_HISTORY:
+            overflow = PUBLISH_JOB_ORDER[:-PUBLISH_MAX_HISTORY]
+            for job_id in overflow:
+                PUBLISH_JOBS.pop(job_id, None)
+            del PUBLISH_JOB_ORDER[:-PUBLISH_MAX_HISTORY]
+    PUBLISH_QUEUE.put(job["id"])
+
+def _update_job_status(job_id, status, error=None):
+    with PUBLISH_LOCK:
+        job = PUBLISH_JOBS.get(job_id)
+        if not job:
+            return None
+        job["status"] = status
+        job["updated_at"] = _job_timestamp()
+        if error:
+            job["error"] = error
+        return job
+
+def _get_queue_snapshot():
+    with PUBLISH_LOCK:
+        return [_serialize_job(PUBLISH_JOBS[job_id]) for job_id in PUBLISH_JOB_ORDER if job_id in PUBLISH_JOBS]
 
 # Function to create a new WebDriver instance
 def create_new_driver(port=5003):
@@ -205,6 +254,114 @@ def publish_platform(publisher, platform_name):
         traceback.print_exc()
         return 0
 
+def _process_publish_job(job):
+    publish_xhs = job.get("publish_xhs", False)
+    publish_bilibili = job.get("publish_bilibili", False)
+    publish_douyin = job.get("publish_douyin", False)
+    publish_shipinhao = job.get("publish_shipinhao", False)
+    publish_y2b = job.get("publish_y2b", False)
+    test_mode = job.get("test_mode", False)
+
+    if not any([publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b]):
+        print("No publish targets selected. Skipping job.")
+        return
+
+    stop_and_start_chromium_sessions(
+        publish_xhs=publish_xhs,
+        publish_bilibili=publish_bilibili,
+        publish_douyin=publish_douyin,
+        publish_shipinhao=publish_shipinhao,
+        publish_y2b=publish_y2b
+    )
+
+    filename = job.get("filename")
+    transcription_dir = job.get("transcription_dir")
+    transcription_path = job.get("zip_path")
+    if not filename or not transcription_dir or not transcription_path:
+        raise ValueError("Publish job missing filename or paths.")
+    if not os.path.exists(transcription_path):
+        raise FileNotFoundError(f"Missing zip at {transcription_path}")
+
+    with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
+        zip_ref.extractall(transcription_dir)
+
+    metadata_json_path = os.path.join(transcription_dir, f"{Path(filename).stem}_metadata.json")
+    if not os.path.exists(metadata_json_path):
+        raise FileNotFoundError(f"Metadata JSON not found in {transcription_dir}")
+
+    with open(metadata_json_path, 'r', encoding='utf-8') as json_file:
+        metadata = json.load(json_file)
+        metadata["title"] = clean_title(metadata["title"])
+        fields_to_clean = ["brief_description", "middle_description", "long_description"]
+        for field in fields_to_clean:
+            metadata[field] = clean_bmp(metadata[field])
+
+        metadata_en = metadata["english_version"]
+        metadata_en["title"] = metadata_en["title"]
+        for field in fields_to_clean:
+            metadata_en[field] = clean_bmp(metadata_en[field])
+
+    video_filename = metadata.get('video_filename', None)
+    cover_filename = metadata.get('cover_filename', None)
+    path_mp4 = os.path.join(transcription_dir, video_filename) if video_filename else None
+    path_cover = os.path.join(transcription_dir, cover_filename) if cover_filename else None
+
+    publishers = []
+    if publish_xhs:
+        pub_xhslisher = XiaoHongShuPublisher(create_new_driver(port=5003), path_mp4, path_cover, metadata, test_mode)
+        publishers.append((pub_xhslisher, 'XiaoHongShu'))
+    if publish_douyin:
+        pub_douyinlisher = DouyinPublisher(create_new_driver(port=5004), path_mp4, path_cover, metadata, test_mode)
+        publishers.append((pub_douyinlisher, 'Douyin'))
+    if publish_bilibili:
+        pub_bilibililisher = BilibiliPublisher(create_new_driver(port=5005), path_mp4, path_cover, metadata, test_mode)
+        publishers.append((pub_bilibililisher, 'Bilibili'))
+    if publish_shipinhao:
+        pub_shipinhaolisher = ShiPinHaoPublisher(create_new_driver(port=5006), path_mp4, path_cover, metadata, test_mode)
+        publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
+    if publish_y2b:
+        pub_y2blisher = YouTubePublisher(create_new_driver(port=9222), path_mp4, path_cover, metadata_en, test_mode)
+        publishers.append((pub_y2blisher, 'YouTube'))
+
+    for publisher, name in publishers:
+        if name == 'XiaoHongShu':
+            bring_to_front(["小红书", "你访问的页面不见了"])
+        elif name == 'Douyin':
+            bring_to_front(["抖音"])
+        elif name == 'Bilibili':
+            bring_to_front(["哔哩哔哩"])
+        elif name == 'ShiPinHao':
+            bring_to_front(["视频号助手"])
+        elif name == 'YouTube':
+            bring_to_front(["YouTube"])
+
+        publisher.publish()
+
+def _publish_worker():
+    global is_publishing
+    while True:
+        job_id = PUBLISH_QUEUE.get()
+        if job_id is None:
+            PUBLISH_QUEUE.task_done()
+            break
+        with PUBLISH_LOCK:
+            job = PUBLISH_JOBS.get(job_id)
+        if not job:
+            PUBLISH_QUEUE.task_done()
+            continue
+        is_publishing = True
+        _update_job_status(job_id, "running")
+        try:
+            _process_publish_job(job)
+            _update_job_status(job_id, "done")
+        except Exception as exc:
+            _update_job_status(job_id, "failed", str(exc))
+            print(f"Publish job failed: {exc}")
+            traceback.print_exc()
+        finally:
+            is_publishing = False
+            PUBLISH_QUEUE.task_done()
+
 # def clean_title(title):
 #     print("Original title: ", title)
 #     # Define a regex pattern that matches Chinese characters, English letters, numbers, Japanese characters, and punctuation
@@ -309,9 +466,6 @@ class PublishHandler(tornado.web.RequestHandler):
 
     # @tornado.web.stream_request_body
     def post(self):
-        global is_publishing
-        is_publishing = True
-
         # Read publishing options from request
         publish_xhs = self.get_argument('publish_xhs', 'false').lower() == 'true'
         publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
@@ -338,14 +492,6 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_shipinhao = check_ignore_file(publish_shipinhao, ignore_files['shipinhao'])
         publish_y2b = check_ignore_file(publish_y2b, ignore_files['y2b'])
 
-        self.stop_and_start_chromium_sessions(
-            publish_xhs=publish_xhs,
-            publish_bilibili=publish_bilibili,
-            publish_douyin=publish_douyin,
-            publish_shipinhao=publish_shipinhao,
-            publish_y2b=publish_y2b
-        )
-
         # Extract filename from form fields or use current datetime as default
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = self.get_argument('filename')
@@ -366,91 +512,62 @@ class PublishHandler(tornado.web.RequestHandler):
         with open(transcription_path, 'wb') as f:
             f.write(self.request.body)
 
-        
+        platforms = []
+        if publish_xhs:
+            platforms.append("xiaohongshu")
+        if publish_douyin:
+            platforms.append("douyin")
+        if publish_bilibili:
+            platforms.append("bilibili")
+        if publish_shipinhao:
+            platforms.append("shipinhao")
+        if publish_y2b:
+            platforms.append("youtube")
 
+        job_id = _new_job_id()
+        job = {
+            "id": job_id,
+            "filename": filename,
+            "zip_path": transcription_path,
+            "transcription_dir": transcription_dir,
+            "publish_xhs": publish_xhs,
+            "publish_bilibili": publish_bilibili,
+            "publish_douyin": publish_douyin,
+            "publish_shipinhao": publish_shipinhao,
+            "publish_y2b": publish_y2b,
+            "test_mode": test_mode,
+            "platforms": platforms,
+            "status": "queued",
+            "created_at": _job_timestamp(),
+            "updated_at": _job_timestamp(),
+        }
+        _enqueue_publish_job(job)
+        self.write(json.dumps({
+            "status": "queued",
+            "job_id": job_id,
+            "filename": filename,
+            "queue_size": PUBLISH_QUEUE.qsize(),
+        }))
 
-        # Unzip the file
-        with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
-            zip_ref.extractall(transcription_dir)
-        
-        # Process the files inside the ZIP
-        try:
-            metadata_json_path = os.path.join(transcription_dir, f"{Path(filename).stem}_metadata.json")
-            if os.path.exists(metadata_json_path):
-                with open(metadata_json_path, 'r', encoding='utf-8') as json_file:
-                    metadata = json.load(json_file)
-                    metadata["title"] = clean_title(metadata["title"])
-                    # Clean the description fields
-                    fields_to_clean = ["brief_description", "middle_description", "long_description"]
-                    for field in fields_to_clean:
-                        metadata[field] = clean_bmp(metadata[field])
+class PublishQueueHandler(tornado.web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header("Content-Type", "application/json")
 
-                    metadata_en = metadata["english_version"]
-                    # metadata_en["title"] = clean_title(metadata_en["title"])
-                    metadata_en["title"] = metadata_en["title"]
-                    # Clean the description fields
-                    fields_to_clean = ["brief_description", "middle_description", "long_description"]
-                    for field in fields_to_clean:
-                        metadata_en[field] = clean_bmp(metadata_en[field])
-
-                
-                video_filename = metadata.get('video_filename', None)
-                cover_filename = metadata.get('cover_filename', None)
-                path_mp4 = os.path.join(transcription_dir, video_filename) if video_filename else None
-                path_cover = os.path.join(transcription_dir, cover_filename) if cover_filename else None
-
-                publishers = []
-                if publish_xhs:
-                    pub_xhslisher = XiaoHongShuPublisher(self.create_new_driver(5003), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((pub_xhslisher, 'XiaoHongShu'))
-                if publish_douyin:
-                    pub_douyinlisher = DouyinPublisher(self.create_new_driver(5004), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((pub_douyinlisher, 'Douyin'))
-                if publish_bilibili:
-                    pub_bilibililisher = BilibiliPublisher(self.create_new_driver(5005), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((pub_bilibililisher, 'Bilibili'))
-                if publish_shipinhao:
-                    pub_shipinhaolisher = ShiPinHaoPublisher(self.create_new_driver(5006), path_mp4, path_cover, metadata, test_mode)
-                    publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
-                if publish_y2b:
-                    pub_y2blisher = YouTubePublisher(self.create_new_driver(9222), path_mp4, path_cover, metadata_en, test_mode)
-                    publishers.append((pub_y2blisher, 'YouTube'))
-
-                # with ThreadPoolExecutor(max_workers=len(publishers)) as executor:
-                #     future_to_publisher = {executor.submit(publish_platform, publisher, name): name for publisher, name in publishers}
-                #     for future in as_completed(future_to_publisher):
-                #         future.result()
-
-                for publisher, name in publishers:
-
-                    if name == 'XiaoHongShu':
-                        bring_to_front(["小红书", "你访问的页面不见了"])
-                    elif name == 'Douyin':
-                        bring_to_front(["抖音"])
-                    elif name == 'Bilibili':
-                        bring_to_front(["哔哩哔哩"])
-                    elif name == 'ShiPinHao':
-                        bring_to_front(["视频号助手"])
-                    elif name == 'YouTube':
-                        bring_to_front(["YouTube"])
-
-                    publisher.publish()
-
-                self.write(json.dumps({"message": f"Published the content from {filename}"}))
-            else:
-                self.write(json.dumps({"error": f"Metadata JSON file not found in {transcription_dir}"}))
-        except Exception as e:
-            self.write(json.dumps({"error": f"An error occurred: {str(e)}"}))
-            traceback.print_exc()
-
-        finally:
-            is_publishing = False
+    def get(self):
+        payload = {
+            "status": "ok",
+            "jobs": _get_queue_snapshot(),
+            "queue_size": PUBLISH_QUEUE.qsize(),
+            "is_publishing": is_publishing,
+        }
+        self.write(json.dumps(payload))
 
 def make_app():
     # transcription_path = "/home/lachlan/Projects/auto-publish/transcription_data"
     # chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
     return tornado.web.Application([
         (r"/publish", PublishHandler, dict(transcription_root=transcription_root, chromedriver_path=chromedriver_path)),
+        (r"/publish/queue", PublishQueueHandler),
     ])
 
 if __name__ == "__main__":
@@ -465,6 +582,9 @@ if __name__ == "__main__":
 
     refresh_thread = threading.Thread(target=refresh_browsers, args=(ports_patterns,), daemon=True)
     refresh_thread.start()
+
+    publish_thread = threading.Thread(target=_publish_worker, daemon=True)
+    publish_thread.start()
 
     app = make_app()
     app.listen(port, max_body_size=10*1024 * 1024 * 1024)
