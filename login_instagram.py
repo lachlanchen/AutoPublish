@@ -174,6 +174,51 @@ class InstagramLogin:
         for by, value in markers:
             if driver.find_elements(by, value):
                 return True
+        return self.save_info_prompt_present()
+
+    def save_info_prompt_present(self):
+        driver = self.driver
+        markers = [
+            (By.XPATH, "//h1[normalize-space()='Save your login info?']"),
+            (By.XPATH, "//div[@role='heading' and normalize-space()='Save your login info?']"),
+            (By.XPATH, "//button[normalize-space()='Save info']"),
+            (By.XPATH, "//div[@role='button' and normalize-space()='Not now']"),
+        ]
+        for by, value in markers:
+            if driver.find_elements(by, value):
+                return True
+        return False
+
+    def dismiss_save_info_prompt(self):
+        driver = self.driver
+        if not self.save_info_prompt_present():
+            return False
+
+        save_login = os.getenv("INSTAGRAM_SAVE_LOGIN", "").strip().lower() in {"1", "true", "yes", "y"}
+        if save_login:
+            button_order = ["Save info", "Not now"]
+        else:
+            button_order = ["Not now", "Save info"]
+
+        for label in button_order:
+            try:
+                button = WebDriverWait(driver, 8).until(
+                    EC.element_to_be_clickable((By.XPATH, f"//button[normalize-space()='{label}']"))
+                )
+                button.click()
+                return True
+            except Exception:
+                pass
+
+            try:
+                button = WebDriverWait(driver, 8).until(
+                    EC.element_to_be_clickable((By.XPATH, f\"//div[@role='button' and normalize-space()='{label}']\"))
+                )
+                button.click()
+                return True
+            except Exception:
+                pass
+
         return False
 
     def is_login_form_visible(self):
@@ -225,6 +270,7 @@ class InstagramLogin:
 
         if self.is_already_logged_in():
             print("Instagram already logged in.")
+            self.dismiss_save_info_prompt()
             return
 
         try:
@@ -236,6 +282,7 @@ class InstagramLogin:
 
         if self.is_already_logged_in():
             print("Instagram logged in after page load.")
+            self.dismiss_save_info_prompt()
             return
 
         if self.try_password_login():
@@ -243,6 +290,7 @@ class InstagramLogin:
             time.sleep(5)
             if self.is_already_logged_in():
                 print("Instagram login succeeded.")
+                self.dismiss_save_info_prompt()
                 return
 
         print("Instagram login requires manual action.")
@@ -255,6 +303,7 @@ class InstagramLogin:
         while time.time() - start_time < 600:
             if self.is_already_logged_in():
                 print("Instagram login completed.")
+                self.dismiss_save_info_prompt()
                 return
             time.sleep(5)
 
