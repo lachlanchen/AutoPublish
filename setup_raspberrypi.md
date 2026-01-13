@@ -137,3 +137,33 @@ tmux attach -t autopub
 - The virtual desktop exposes VNC on port `5901` when `x11vnc` is installed.
 - `scripts/setup_envs.sh` installs a minimal `requirements.autopub.txt` by default. Use `AUTOPUB_REQUIREMENTS=full` for the full file.
 - When running full mode, the script skips `arandr==0.1.11`, `av==10.0.0`, `cupshelpers==1.0`, `dbus-python==1.3.2`, and `gpg==1.18.0` by default on Pi. Override with `AUTOPUB_PIP_EXCLUDE=""` if you want to try installing them.
+
+## 11. Check VNC + services
+
+Service status:
+
+```bash
+systemctl status virtual-desktop.service
+systemctl status autopub.service
+```
+
+Logs:
+
+```bash
+journalctl -u virtual-desktop.service --no-pager -n 200
+```
+
+Confirm VNC is listening:
+
+```bash
+ss -ltnp | grep 5901
+```
+
+Connect from RealVNC Viewer:
+
+- Host: `lazyingart:5901` (or `lazyingart::5901`)
+- If you set a password, add it to `/etc/default/autopub` as `AUTOPUB_VNC_PASSWORD=...`, then restart:
+
+```bash
+sudo systemctl restart virtual-desktop.service
+```

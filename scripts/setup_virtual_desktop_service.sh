@@ -14,6 +14,17 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
+if [[ ! -f "$ENV_FILE" ]]; then
+  cat > "$ENV_FILE" <<ENV
+# AutoPublish service environment
+AUTOPUB_DISPLAY=${DISPLAY_NUM}
+AUTOPUB_RESOLUTION=${RESOLUTION}
+AUTOPUB_VNC_PORT=${VNC_PORT}
+# AUTOPUB_VNC_PASSWORD=change_me
+ENV
+  chmod 600 "$ENV_FILE"
+fi
+
 cat > "$START_SCRIPT" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -22,15 +33,22 @@ DISPLAY_NUM="${AUTOPUB_DISPLAY:-1}"
 RESOLUTION="${AUTOPUB_RESOLUTION:-1280x720x24}"
 VNC_PORT="${AUTOPUB_VNC_PORT:-5901}"
 VNC_PASSWORD="${AUTOPUB_VNC_PASSWORD:-}"
+XAUTHORITY_FILE="${XAUTHORITY:-$HOME/.Xauthority}"
 
 export DISPLAY=":${DISPLAY_NUM}"
+export XAUTHORITY="$XAUTHORITY_FILE"
 
 /usr/bin/Xvfb "$DISPLAY" -screen 0 "$RESOLUTION" -ac -nolisten tcp &
 XVFB_PID=$!
 
 sleep 1
 
-VNC_ARGS=(-display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -auth guess)
+touch "$XAUTHORITY_FILE"
+if command -v xauth >/dev/null 2>&1; then
+  xauth -f "$XAUTHORITY_FILE" generate "$DISPLAY" . trusted >/dev/null 2>&1 || true
+fi
+
+VNC_ARGS=(-display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -auth "$XAUTHORITY_FILE")
 if [[ -n "$VNC_PASSWORD" ]]; then
   mkdir -p "$HOME/.vnc"
   x11vnc -storepasswd "$VNC_PASSWORD" "$HOME/.vnc/passwd"
