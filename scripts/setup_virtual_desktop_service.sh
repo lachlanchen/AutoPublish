@@ -37,18 +37,27 @@ VNC_PORT="${AUTOPUB_VNC_PORT:-5901}"
 VNC_PASSWORD="${AUTOPUB_VNC_PASSWORD:-}"
 VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-unix}"
 XAUTHORITY_FILE="${XAUTHORITY:-$HOME/.Xauthority}"
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 export DISPLAY=":${DISPLAY_NUM}"
 export XAUTHORITY="$XAUTHORITY_FILE"
+export XDG_RUNTIME_DIR="$RUNTIME_DIR"
 
 /usr/bin/Xvfb "$DISPLAY" -screen 0 "$RESOLUTION" -ac -nolisten tcp &
 XVFB_PID=$!
 
 sleep 1
 
+mkdir -p "$RUNTIME_DIR"
+chmod 700 "$RUNTIME_DIR"
+
 touch "$XAUTHORITY_FILE"
 if command -v xauth >/dev/null 2>&1; then
   xauth -f "$XAUTHORITY_FILE" generate "$DISPLAY" . trusted >/dev/null 2>&1 || true
+fi
+
+if command -v xsetroot >/dev/null 2>&1; then
+  xsetroot -solid "#2e3440" || true
 fi
 
 VNC_ARGS=(-display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -auth "$XAUTHORITY_FILE" -noxdamage)
@@ -79,12 +88,19 @@ if command -v x11vnc >/dev/null 2>&1; then
   /usr/bin/x11vnc "${VNC_ARGS[@]}" &
 fi
 
+SESSION_CMD=()
+if command -v dbus-run-session >/dev/null 2>&1; then
+  SESSION_CMD=(dbus-run-session)
+elif command -v dbus-launch >/dev/null 2>&1; then
+  eval "$(dbus-launch --sh-syntax)"
+fi
+
 if command -v startlxde >/dev/null 2>&1; then
-  exec startlxde
+  exec "${SESSION_CMD[@]}" startlxde
 fi
 
 if command -v lxsession >/dev/null 2>&1; then
-  exec lxsession -s LXDE -e LXDE
+  exec "${SESSION_CMD[@]}" lxsession -s LXDE -e LXDE
 fi
 
 if command -v openbox-session >/dev/null 2>&1; then
