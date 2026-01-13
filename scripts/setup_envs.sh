@@ -31,8 +31,39 @@ apt-get install -y \
 mkdir -p "/home/${TARGET_USER}/venvs"
 python3 -m venv "$VENV_DIR"
 
+export PIP_CACHE_DIR="/root/.cache/pip"
+mkdir -p "$PIP_CACHE_DIR"
+
 "$VENV_DIR/bin/pip" install --upgrade pip wheel
-"$VENV_DIR/bin/pip" install -r "$REPO_DIR/requirements.txt"
+
+REQ_FILE="$REPO_DIR/requirements.txt"
+SKIP_LIST="${AUTOPUB_PIP_EXCLUDE:-arandr==0.1.11}"
+TMP_REQ="$(mktemp)"
+trap 'rm -f "$TMP_REQ"' EXIT
+
+export REQ_FILE TMP_REQ SKIP_LIST
+python3 - <<'PY'
+import os
+
+req = os.environ["REQ_FILE"]
+tmp = os.environ["TMP_REQ"]
+skip = {item.strip() for item in os.environ.get("SKIP_LIST", "").split() if item.strip()}
+
+with open(req, "r", encoding="utf-8") as handle:
+    lines = handle.readlines()
+
+with open(tmp, "w", encoding="utf-8") as handle:
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            handle.write(line)
+            continue
+        if stripped in skip:
+            continue
+        handle.write(line)
+PY
+
+"$VENV_DIR/bin/pip" install -r "$TMP_REQ"
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 
