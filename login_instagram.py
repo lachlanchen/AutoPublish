@@ -1,6 +1,7 @@
 import os
 import time
 import traceback
+from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,9 +12,27 @@ from selenium.webdriver.support import expected_conditions as EC
 from utils import SendMail, dismiss_alert, bring_to_front
 
 
+def _load_dotenv(env_path: Path):
+    if not env_path.exists():
+        return
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except Exception:
+        traceback.print_exc()
+
+
 class InstagramLogin:
     def __init__(self, driver=None, debug_port=None):
         print("Initializing InstagramLogin...")
+        _load_dotenv(Path(__file__).resolve().parent / ".env")
         self.mailer = SendMail()
         self.debug_port = debug_port or int(os.getenv("INSTAGRAM_DEBUG_PORT", "5007"))
         self.driver = driver if driver else self.create_new_driver()
