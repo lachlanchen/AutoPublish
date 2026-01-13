@@ -193,6 +193,15 @@ class InstagramPublisher:
             or driver.find_elements(By.XPATH, "//img[contains(@src,'ShFi4iY4Fd9.gif')]")
         )
 
+    def _publish_success_present(self):
+        driver = self.driver
+        return bool(
+            driver.find_elements(By.XPATH, "//h3[normalize-space()='Your reel has been shared.']")
+            or driver.find_elements(By.XPATH, "//div[normalize-space()='Your reel has been shared.']")
+            or driver.find_elements(By.XPATH, "//img[@alt='Animated checkmark']")
+            or driver.find_elements(By.XPATH, "//img[contains(@src,'sHkePOqEDPz.gif')]")
+        )
+
     def _build_caption(self):
         title = (self.metadata.get("title") or "").strip()
         desc = (self.metadata.get("long_description") or "").strip()
@@ -259,16 +268,18 @@ class InstagramPublisher:
             self._click_xpath("//button[normalize-space()='Share']", timeout=30)
         return True
 
-    def _wait_for_publish_complete(self, timeout=240):
+    def _wait_for_publish_complete(self, timeout=600):
         start_time = time.time()
         while time.time() - start_time < timeout:
             self._dismiss_reels_dialog(timeout=2)
+            if self._publish_success_present():
+                return True
             if self._share_sheet_present():
                 self._close_share_sheet()
-                return True
-            if not self._caption_present() and not self._get_create_dialog():
-                return True
             if self._spinner_present():
+                time.sleep(2)
+                continue
+            if not self._caption_present() and not self._get_create_dialog():
                 time.sleep(2)
                 continue
             time.sleep(2)
@@ -331,9 +342,9 @@ class InstagramPublisher:
             self._click_share_button()
 
             if self._wait_for_publish_complete():
-                print("Instagram publish completed.")
+                print("Instagram publish confirmed.")
             else:
-                print("Instagram publish triggered (confirmation timed out).")
+                print("Instagram publish not confirmed (confirmation timed out).")
         except Exception as exc:
             self.retry_count += 1
             print(f"Instagram publish failed: {exc}")
