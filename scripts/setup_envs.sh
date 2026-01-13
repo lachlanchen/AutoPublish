@@ -93,6 +93,33 @@ else
   exit 1
 fi
 
+OPENBOX_DIR="/home/${TARGET_USER}/.config/openbox"
+mkdir -p "$OPENBOX_DIR"
+cat > "$OPENBOX_DIR/autostart" <<'EOF'
+# Openbox session helpers
+if command -v feh >/dev/null 2>&1; then
+  for wallpaper in \
+    /usr/share/rpd-wallpaper/*.jpg \
+    /usr/share/rpd-wallpaper/*.png \
+    /usr/share/raspberrypi-artwork/*.jpg \
+    /usr/share/raspberrypi-artwork/*.png \
+    /usr/share/backgrounds/*.jpg \
+    /usr/share/backgrounds/*.png; do
+    if [ -f "$wallpaper" ]; then
+      feh --bg-fill "$wallpaper"
+      break
+    fi
+  done
+fi
+
+command -v xsetroot >/dev/null 2>&1 && xsetroot -solid "#2e3440" || true
+
+command -v pcmanfm >/dev/null 2>&1 && pcmanfm --desktop --profile LXDE &
+command -v lxpanel >/dev/null 2>&1 && lxpanel --profile LXDE &
+EOF
+
+chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config"
+
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 
 echo "Virtual env created at $VENV_DIR"
