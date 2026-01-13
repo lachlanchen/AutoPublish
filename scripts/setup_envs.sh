@@ -14,6 +14,8 @@ fi
 
 apt-get update
 apt-get install -y \
+  build-essential \
+  python3-dev \
   tmux \
   feh \
   openbox \
@@ -21,6 +23,15 @@ apt-get install -y \
   x11vnc \
   xauth \
   x11-xserver-utils \
+  pkg-config \
+  ffmpeg \
+  libavcodec-dev \
+  libavdevice-dev \
+  libavfilter-dev \
+  libavformat-dev \
+  libavutil-dev \
+  libswresample-dev \
+  libswscale-dev \
   unzip \
   zip \
   chromium \
