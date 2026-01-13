@@ -48,7 +48,7 @@ mkdir -p "$PIP_CACHE_DIR"
 "$VENV_DIR/bin/pip" install --upgrade pip wheel
 
 REQ_FILE="$REPO_DIR/requirements.txt"
-SKIP_LIST="${AUTOPUB_PIP_EXCLUDE:-arandr==0.1.11}"
+SKIP_LIST="${AUTOPUB_PIP_EXCLUDE:-arandr==0.1.11 av==10.0.0}"
 TMP_REQ="$(mktemp)"
 trap 'rm -f "$TMP_REQ"' EXIT
 
