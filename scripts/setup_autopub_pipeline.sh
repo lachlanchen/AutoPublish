@@ -18,3 +18,8 @@ fi
 "$SCRIPT_DIR/setup_autopub_service.sh"
 
 echo "AutoPublish pipeline setup complete."
+echo ""
+echo "Next steps:"
+echo "- Set a VNC password in /etc/default/autopub (AUTOPUB_VNC_PASSWORD=...), then: sudo systemctl restart virtual-desktop.service"
+echo "- Check services: systemctl status virtual-desktop.service autopub.service"
+echo "- Check ports: sudo ss -ltnp | grep 590"

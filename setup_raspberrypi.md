@@ -51,6 +51,12 @@ git clone git@github.com:lachlanchen/AutoPublish.git autopub
 cd /home/<USERNAME>/Projects/autopub
 ```
 
+One-liner (clone if missing, otherwise pull):
+
+```bash
+[ -d /home/<USERNAME>/Projects/autopub/.git ] && git -C /home/<USERNAME>/Projects/autopub pull || { mkdir -p /home/<USERNAME>/Projects && git clone git@github.com:lachlanchen/AutoPublish.git /home/<USERNAME>/Projects/autopub; }
+```
+
 ## 5. One-command setup (recommended)
 
 Runs all setup scripts in order (packages, virtual desktop, driver aliases, service):
@@ -64,8 +70,12 @@ sudo -E ./scripts/setup_autopub_pipeline.sh
 Optional VNC password and port:
 
 ```bash
-export AUTOPUB_VNC_PASSWORD=<VNC_PASSWORD>
-export AUTOPUB_VNC_PORT=5901
+sudoedit /etc/default/autopub
+# set:
+# AUTOPUB_VNC_PASSWORD=<VNC_PASSWORD>
+# AUTOPUB_VNC_PORT=5901
+# AUTOPUB_VNC_EXTRA_PORT=5900
+sudo systemctl restart virtual-desktop.service
 ```
 
 ## 6. Install OS packages and Python env
@@ -101,6 +111,16 @@ Check status:
 systemctl status virtual-desktop.service
 ```
 
+If you want VNC on both `5901` and `5900`, set:
+
+```bash
+sudoedit /etc/default/autopub
+# set:
+# AUTOPUB_VNC_PORT=5901
+# AUTOPUB_VNC_EXTRA_PORT=5900
+sudo systemctl restart virtual-desktop.service
+```
+
 ## 8. Set up Chromium driver aliases
 
 ```bash
@@ -124,6 +144,8 @@ Check status:
 systemctl status autopub.service
 ```
 
+`autopub.service` will show `active (exited)` because it starts the long-running process inside tmux.
+
 Attach to tmux:
 
 ```bash
@@ -134,7 +156,7 @@ tmux attach -t autopub
 
 - The service uses `DISPLAY=:1`. If you change it, update `AUTOPUB_DISPLAY` when running the setup scripts.
 - The app listens on port `8081` by default. Adjust `scripts/start_autopub_tmux.sh` if you want a different port.
-- The virtual desktop exposes VNC on port `5901` when `x11vnc` is installed.
+- The virtual desktop exposes VNC on `AUTOPUB_VNC_PORT` (default `5901`) and optionally `AUTOPUB_VNC_EXTRA_PORT` (default `5900`) via `x11vnc`.
 - `scripts/setup_envs.sh` installs a minimal `requirements.autopub.txt` by default. Use `AUTOPUB_REQUIREMENTS=full` for the full file.
 - When running full mode, the script skips `arandr==0.1.11`, `av==10.0.0`, `cupshelpers==1.0`, `dbus-python==1.3.2`, and `gpg==1.18.0` by default on Pi. Override with `AUTOPUB_PIP_EXCLUDE=""` if you want to try installing them.
 
@@ -150,26 +172,43 @@ systemctl status autopub.service
 Logs:
 
 ```bash
-journalctl -u virtual-desktop.service --no-pager -n 200
+sudo journalctl -u virtual-desktop.service --no-pager -n 200
 ```
 
 Confirm VNC is listening:
 
 ```bash
-ss -ltnp | grep 5901
+sudo ss -ltnp | grep 590
 ```
 
 Connect from RealVNC Viewer:
 
-- Host: `lazyingart:5901` (or `lazyingart::5901`)
-- Default auth uses your system account (username/password) via `AUTOPUB_VNC_AUTH=unix`.
-- To use a VNC password instead, set `AUTOPUB_VNC_AUTH=password` (or `1`) and `AUTOPUB_VNC_PASSWORD=...` in `/etc/default/autopub`, then restart:
+- Host: `lazyingart:5901` (or `lazyingart::5901`), and optionally `lazyingart:5900`.
+- This VNC server is `x11vnc` and RealVNC Viewer may warn that the connection is not encrypted. If you want encryption, use an SSH tunnel.
+- Set a VNC password in `/etc/default/autopub`, then restart:
 
 ```bash
+sudoedit /etc/default/autopub
+# set:
+# AUTOPUB_VNC_PASSWORD=<VNC_PASSWORD>
 sudo systemctl restart virtual-desktop.service
+```
+
+If `5900` is already used by the built-in RealVNC service, disable it (or just use `5901`):
+
+```bash
+sudo systemctl disable --now vncserver-x11-serviced.service
 ```
 
 Desktop session selection:
 
 - Default: `AUTOPUB_DESKTOP=openbox` (stable, lightweight).
-- Optional: `AUTOPUB_DESKTOP=lxde` to try full LXDE.
+
+## 12. Fix permissions if you used sudo -E before
+
+If you see `bash: /home/<USERNAME>/.bashrc: Permission denied` or `chmod: ... Operation not permitted` for `~/chromium_dev_session_*`:
+
+```bash
+export AUTOPUB_USER=<USERNAME>
+sudo -E ./scripts/fix_user_home_permissions.sh
+```

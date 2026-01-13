@@ -25,7 +25,8 @@ After=network.target virtual-desktop.service
 Wants=virtual-desktop.service
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 User=${USER_NAME}
 WorkingDirectory=${REPO_DIR}
 EnvironmentFile=-${ENV_FILE}
@@ -33,8 +34,6 @@ Environment=AUTOPUB_USER=${USER_NAME}
 Environment=AUTOPUB_REPO=${REPO_DIR}
 Environment=AUTOPUB_DISPLAY=1
 ExecStart=${START_SCRIPT}
-Restart=always
-RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

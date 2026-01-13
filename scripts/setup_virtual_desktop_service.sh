@@ -4,8 +4,10 @@ set -euo pipefail
 USER_NAME="${AUTOPUB_USER:-lachlan}"
 DISPLAY_NUM="${AUTOPUB_DISPLAY:-1}"
 RESOLUTION="${AUTOPUB_RESOLUTION:-1280x720x24}"
-VNC_PORT="${AUTOPUB_VNC_PORT:-5901}"
-VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-unix}"
+VNC_PORT_DEFAULT="$((5900 + DISPLAY_NUM))"
+VNC_PORT="${AUTOPUB_VNC_PORT:-$VNC_PORT_DEFAULT}"
+VNC_EXTRA_PORT="${AUTOPUB_VNC_EXTRA_PORT:-5900}"
+VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-password}"
 DESKTOP_MODE="${AUTOPUB_DESKTOP:-openbox}"
 ENV_FILE="/etc/default/autopub"
 SERVICE_PATH="/etc/systemd/system/virtual-desktop.service"
@@ -22,6 +24,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 AUTOPUB_DISPLAY=${DISPLAY_NUM}
 AUTOPUB_RESOLUTION=${RESOLUTION}
 AUTOPUB_VNC_PORT=${VNC_PORT}
+AUTOPUB_VNC_EXTRA_PORT=${VNC_EXTRA_PORT}
 AUTOPUB_VNC_AUTH=${VNC_AUTH_MODE}
 AUTOPUB_DESKTOP=${DESKTOP_MODE}
 # AUTOPUB_VNC_PASSWORD=change_me
@@ -32,6 +35,7 @@ else
     "AUTOPUB_DISPLAY=${DISPLAY_NUM}" \
     "AUTOPUB_RESOLUTION=${RESOLUTION}" \
     "AUTOPUB_VNC_PORT=${VNC_PORT}" \
+    "AUTOPUB_VNC_EXTRA_PORT=${VNC_EXTRA_PORT}" \
     "AUTOPUB_VNC_AUTH=${VNC_AUTH_MODE}" \
     "AUTOPUB_DESKTOP=${DESKTOP_MODE}"; do
     key="${entry%%=*}"
@@ -47,94 +51,69 @@ set -euo pipefail
 
 DISPLAY_NUM="${AUTOPUB_DISPLAY:-1}"
 RESOLUTION="${AUTOPUB_RESOLUTION:-1280x720x24}"
-VNC_PORT="${AUTOPUB_VNC_PORT:-5901}"
+VNC_PORT_DEFAULT="$((5900 + DISPLAY_NUM))"
+VNC_PORT="${AUTOPUB_VNC_PORT:-$VNC_PORT_DEFAULT}"
+VNC_EXTRA_PORT="${AUTOPUB_VNC_EXTRA_PORT:-}"
 VNC_PASSWORD="${AUTOPUB_VNC_PASSWORD:-}"
-VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-unix}"
+VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-password}"
 DESKTOP_MODE="${AUTOPUB_DESKTOP:-openbox}"
-XAUTHORITY_FILE="${XAUTHORITY:-$HOME/.Xauthority}"
-RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-USER_NAME="$(id -un)"
-HOME_DIR="${HOME:-/home/${USER_NAME}}"
-CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME_DIR/.config}"
-CACHE_HOME="${XDG_CACHE_HOME:-$HOME_DIR/.cache}"
-DATA_HOME="${XDG_DATA_HOME:-$HOME_DIR/.local/share}"
-STATE_HOME="${XDG_STATE_HOME:-$HOME_DIR/.local/state}"
-
-export HOME="$HOME_DIR"
+export HOME="${HOME:-/home/$(id -un)}"
 export DISPLAY=":${DISPLAY_NUM}"
-export XAUTHORITY="$XAUTHORITY_FILE"
-export XDG_RUNTIME_DIR="$RUNTIME_DIR"
-export XDG_CONFIG_HOME="$CONFIG_HOME"
-export XDG_CACHE_HOME="$CACHE_HOME"
-export XDG_DATA_HOME="$DATA_HOME"
-export XDG_STATE_HOME="$STATE_HOME"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+mkdir -p "$XDG_RUNTIME_DIR" "$HOME/.cache" "$HOME/.config" "$HOME/.local/share" "$HOME/.local/state"
+chmod 700 "$XDG_RUNTIME_DIR" || true
 
 /usr/bin/Xvfb "$DISPLAY" -screen 0 "$RESOLUTION" -ac -nolisten tcp &
-XVFB_PID=$!
+sleep 0.5
 
-sleep 1
+for _ in $(seq 1 50); do
+  if DISPLAY="$DISPLAY" xset q >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.1
+done
 
-mkdir -p "$RUNTIME_DIR" "$CONFIG_HOME" "$CACHE_HOME" "$DATA_HOME" "$STATE_HOME"
-chmod 700 "$RUNTIME_DIR"
+DISPLAY="$DISPLAY" xsetroot -solid "#2e3440" >/dev/null 2>&1 || true
 
-touch "$XAUTHORITY_FILE"
-if command -v xauth >/dev/null 2>&1; then
-  xauth -f "$XAUTHORITY_FILE" generate "$DISPLAY" . trusted >/dev/null 2>&1 || true
+if command -v dbus-launch >/dev/null 2>&1; then
+  eval "$(dbus-launch --sh-syntax)" || true
 fi
 
-if command -v xsetroot >/dev/null 2>&1; then
-  xsetroot -solid "#2e3440" || true
+if command -v openbox-session >/dev/null 2>&1; then
+  openbox-session &
+elif command -v openbox >/dev/null 2>&1; then
+  openbox &
 fi
-
-VNC_ARGS=(-display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -auth "$XAUTHORITY_FILE" -noxdamage)
 
 AUTH_MODE="$(printf '%s' "$VNC_AUTH_MODE" | tr '[:upper:]' '[:lower:]')"
+VNC_AUTH_ARGS=()
 case "$AUTH_MODE" in
-  unix|user|system)
-    VNC_ARGS+=(-unixpw)
-    ;;
-  password|pass|pw|1|true|yes)
-    if [[ -n "$VNC_PASSWORD" ]]; then
-      mkdir -p "$HOME/.vnc"
-      x11vnc -storepasswd "$VNC_PASSWORD" "$HOME/.vnc/passwd"
-      VNC_ARGS+=(-rfbauth "$HOME/.vnc/passwd")
-    else
-      VNC_ARGS+=(-nopw)
+	  password|pass|pw|1|true|yes|*)
+	    if [[ -n "$VNC_PASSWORD" && "$VNC_PASSWORD" != "change_me" ]]; then
+	      mkdir -p "$HOME/.vnc"
+	      chmod 700 "$HOME/.vnc" || true
+	      if ! command -v x11vnc >/dev/null 2>&1; then
+	        echo "ERROR: x11vnc is not installed. Run scripts/setup_envs.sh first." >&2
+	        exit 1
+	      fi
+	      x11vnc -storepasswd "$VNC_PASSWORD" "$HOME/.vnc/passwd" >/dev/null
+	      chmod 600 "$HOME/.vnc/passwd" || true
+	      VNC_AUTH_ARGS+=(-rfbauth "$HOME/.vnc/passwd")
+	    else
+	      echo "WARN: AUTOPUB_VNC_PASSWORD not set; starting VNC with no password." >&2
+      VNC_AUTH_ARGS+=(-nopw)
     fi
-    ;;
-  none|nopw|0|false|no|"")
-    VNC_ARGS+=(-nopw)
-    ;;
-  *)
-    VNC_ARGS+=(-nopw)
     ;;
 esac
 
-if command -v x11vnc >/dev/null 2>&1; then
-  /usr/bin/x11vnc "${VNC_ARGS[@]}" &
+COMMON_ARGS=(-display "$DISPLAY" -forever -shared -noxdamage -repeat)
+
+if command -v x11vnc >/dev/null 2>&1 && [[ -n "$VNC_EXTRA_PORT" && "$VNC_EXTRA_PORT" != "$VNC_PORT" ]]; then
+  /usr/bin/x11vnc "${COMMON_ARGS[@]}" -rfbport "$VNC_EXTRA_PORT" "${VNC_AUTH_ARGS[@]}" &
 fi
 
-if command -v dbus-run-session >/dev/null 2>&1; then
-  if [[ "$(printf '%s' "$DESKTOP_MODE" | tr '[:upper:]' '[:lower:]')" == "lxde" ]] && command -v startlxde >/dev/null 2>&1; then
-    exec dbus-run-session startlxde
-  fi
-
-  if command -v openbox-session >/dev/null 2>&1; then
-    exec dbus-run-session bash -lc 'pcmanfm --desktop --profile LXDE & lxpanel --profile LXDE & exec openbox-session'
-  fi
-elif command -v dbus-launch >/dev/null 2>&1; then
-  eval "$(dbus-launch --sh-syntax)"
-  if [[ "$(printf '%s' "$DESKTOP_MODE" | tr '[:upper:]' '[:lower:]')" == "lxde" ]] && command -v startlxde >/dev/null 2>&1; then
-    exec startlxde
-  fi
-  if command -v openbox-session >/dev/null 2>&1; then
-    pcmanfm --desktop --profile LXDE &
-    lxpanel --profile LXDE &
-    exec openbox-session
-  fi
-fi
-
-wait "$XVFB_PID"
+exec /usr/bin/x11vnc "${COMMON_ARGS[@]}" -rfbport "$VNC_PORT" "${VNC_AUTH_ARGS[@]}"
 SCRIPT
 
 chmod +x "$START_SCRIPT"
@@ -151,8 +130,9 @@ EnvironmentFile=-${ENV_FILE}
 Environment=AUTOPUB_DISPLAY=${DISPLAY_NUM}
 Environment=AUTOPUB_RESOLUTION=${RESOLUTION}
 Environment=AUTOPUB_VNC_PORT=${VNC_PORT}
+Environment=AUTOPUB_VNC_EXTRA_PORT=${VNC_EXTRA_PORT}
 ExecStart=${START_SCRIPT}
-Restart=always
+Restart=on-failure
 RestartSec=3
 
 [Install]
@@ -164,3 +144,7 @@ systemctl reset-failed virtual-desktop.service || true
 systemctl enable --now virtual-desktop.service
 
 echo "virtual-desktop.service installed and started."
+if [[ "$VNC_EXTRA_PORT" == "5900" ]] && systemctl is-active --quiet vncserver-x11-serviced.service 2>/dev/null; then
+  echo "NOTE: vncserver-x11-serviced.service is active and may already use port 5900."
+  echo "If you want AutoPublish to also listen on 5900, disable it: sudo systemctl disable --now vncserver-x11-serviced.service"
+fi

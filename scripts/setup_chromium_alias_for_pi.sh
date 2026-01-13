@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+detect_target_user() {
+  if [[ -n "${AUTOPUB_USER:-}" ]]; then
+    echo "$AUTOPUB_USER"
+    return
+  fi
+  if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    echo "$SUDO_USER"
+    return
+  fi
+  id -un
+}
+
+TARGET_USER="$(detect_target_user)"
+
+if [[ "$EUID" -eq 0 ]]; then
+  if [[ "$TARGET_USER" == "root" ]]; then
+    echo "Refusing to write aliases into /root. Set AUTOPUB_USER to a non-root user."
+    exit 1
+  fi
+  if command -v sudo >/dev/null 2>&1; then
+    exec sudo -u "$TARGET_USER" -H AUTOPUB_USER="$TARGET_USER" bash "$0" "$@"
+  fi
+  exec runuser -u "$TARGET_USER" -- env AUTOPUB_USER="$TARGET_USER" HOME="/home/$TARGET_USER" bash "$0" "$@"
+fi
+
 TARGET_DIR="${HOME}/scripts"
 TARGET_FILE="${TARGET_DIR}/sourced_chromium_aliases.sh"
 BASHRC_FILE="${HOME}/.bashrc"
@@ -32,22 +57,9 @@ cat > "${TARGET_FILE}" <<'EOF'
 # Chromium aliases for Raspberry Pi
 # Created: April 19, 2025
 
-# Create logs/session directories if they don't exist
-mkdir -p "$HOME/chromium_dev_session_logs"
-mkdir -p "$HOME/chromium_dev_session_5003"
-mkdir -p "$HOME/chromium_dev_session_5004"
-mkdir -p "$HOME/chromium_dev_session_5005"
-mkdir -p "$HOME/chromium_dev_session_5006"
-mkdir -p "$HOME/chromium_dev_session_5007"
-mkdir -p "$HOME/chromium_dev_session_9222"
-
-chmod 755 "$HOME/chromium_dev_session_logs"
-chmod 700 "$HOME/chromium_dev_session_5003"
-chmod 700 "$HOME/chromium_dev_session_5004"
-chmod 700 "$HOME/chromium_dev_session_5005"
-chmod 700 "$HOME/chromium_dev_session_5006"
-chmod 700 "$HOME/chromium_dev_session_5007"
-chmod 700 "$HOME/chromium_dev_session_9222"
+mkdir -p "$HOME/chromium_dev_session_logs" "$HOME/chromium_dev_session_5003" "$HOME/chromium_dev_session_5004" \
+  "$HOME/chromium_dev_session_5005" "$HOME/chromium_dev_session_5006" "$HOME/chromium_dev_session_5007" \
+  "$HOME/chromium_dev_session_9222" 2>/dev/null || true
 
 alias start_chromium_xhs='DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir="$HOME/chromium_dev_session_5003" https://creator.xiaohongshu.com/creator/post > "$HOME/chromium_dev_session_logs/chromium_xhs.log" 2>&1'
 alias start_chromium_douyin='DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir="$HOME/chromium_dev_session_5004" https://creator.douyin.com/creator-micro/content/upload > "$HOME/chromium_dev_session_logs/chromium_douyin.log" 2>&1'
@@ -61,19 +73,19 @@ EOF
 
 chmod 644 "${TARGET_FILE}"
 
-if [ -f "${BASHRC_FILE}" ]; then
-  backup_name=".bashrc.bak.$(date +%Y%m%d_%H%M%S)"
-  cp "${BASHRC_FILE}" "${HOME}/${backup_name}"
-  tmp_file="$(mktemp)"
-  sed -E 's/^([[:space:]]*)alias start_chromium_/\1# alias start_chromium_/' "${BASHRC_FILE}" > "${tmp_file}"
-  mv "${tmp_file}" "${BASHRC_FILE}"
-  if ! grep -q "sourced_chromium_aliases.sh" "${BASHRC_FILE}"; then
-    {
-      echo ""
-      echo "# Chromium aliases (moved to scripts)"
-      echo ". \"${TARGET_FILE}\""
-    } >> "${BASHRC_FILE}"
-  fi
+touch "${BASHRC_FILE}"
+backup_name=".bashrc.bak.$(date +%Y%m%d_%H%M%S)"
+cp "${BASHRC_FILE}" "${HOME}/${backup_name}"
+tmp_file="$(mktemp)"
+sed -E 's/^([[:space:]]*)alias start_chromium_/\1# alias start_chromium_/' "${BASHRC_FILE}" > "${tmp_file}"
+mv "${tmp_file}" "${BASHRC_FILE}"
+if ! grep -q "sourced_chromium_aliases.sh" "${BASHRC_FILE}"; then
+  {
+    echo ""
+    echo "# Chromium aliases (AutoPublish)"
+    echo ". \"${TARGET_FILE}\""
+  } >> "${BASHRC_FILE}"
 fi
+chmod 644 "${BASHRC_FILE}" || true
 
 echo "Updated ${TARGET_FILE}"
