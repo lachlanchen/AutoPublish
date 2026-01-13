@@ -156,6 +156,55 @@ cat > "$LXDE_PI_DIR/autostart" <<EOF
 @$DESKTOP_SCRIPT
 EOF
 
+create_panel_config() {
+  local panel_path="$1"
+  if [[ -f "$panel_path" ]]; then
+    return
+  fi
+  mkdir -p "$(dirname "$panel_path")"
+  cat > "$panel_path" <<'EOF'
+Global {
+  edge=top
+  allign=left
+  margin=0
+  widthtype=percent
+  width=100
+  height=28
+  transparent=0
+  tintcolor=#000000
+  alpha=0
+  autohide=0
+  heightwhenhidden=2
+  setdocktype=1
+  setpartialstrut=1
+  usefontcolor=1
+  fontcolor=#ffffff
+}
+
+Plugin {
+  type = menu
+}
+
+Plugin {
+  type = taskbar
+}
+
+Plugin {
+  type = tray
+}
+
+Plugin {
+  type = clock
+  Config {
+    ClockFmt=%R
+  }
+}
+EOF
+}
+
+create_panel_config "/home/${TARGET_USER}/.config/lxpanel/LXDE/panels/panel"
+create_panel_config "/home/${TARGET_USER}/.config/lxpanel/LXDE-pi/panels/panel"
+
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/${TARGET_USER}/.local"
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
