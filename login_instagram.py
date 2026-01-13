@@ -2,6 +2,7 @@ import json
 import os
 import platform
 import re
+import socket
 import subprocess
 import time
 import traceback
@@ -36,6 +37,84 @@ def _load_dotenv(env_path: Path):
     except Exception:
         traceback.print_exc()
 
+
+def _is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def _resolve_chrome_bin():
+    env_bin = os.getenv("INSTAGRAM_CHROME_BIN") or os.getenv("CHROME_BIN")
+    if env_bin and Path(env_bin).exists():
+        return env_bin
+    for candidate in ("google-chrome", "google-chrome-stable", "chromium-browser", "chromium"):
+        try:
+            path = subprocess.check_output(f"command -v {candidate}", shell=True, text=True).strip()
+        except Exception:
+            continue
+        if path:
+            return path
+    return "google-chrome"
+
+
+def _resolve_profile_dir(chrome_bin: str, port: int):
+    env_dir = os.getenv("INSTAGRAM_PROFILE_DIR")
+    if env_dir:
+        return env_dir
+    if "chromium" in chrome_bin:
+        return str(Path.home() / f"chromium_dev_session_{port}")
+    return str(Path.home() / f"chrome_dev_session_{port}")
+
+
+def _resolve_logs_dir(chrome_bin: str):
+    if "chromium" in chrome_bin:
+        return str(Path.home() / "chromium_dev_session_logs")
+    return str(Path.home() / "chrome_dev_session_logs")
+
+
+def _ensure_debug_chrome(port: int):
+    if _is_port_open("127.0.0.1", port):
+        return
+
+    chrome_bin = _resolve_chrome_bin()
+    profile_dir = _resolve_profile_dir(chrome_bin, port)
+    logs_dir = _resolve_logs_dir(chrome_bin)
+    log_path = Path(logs_dir) / "chrome_instagram.log"
+    headless = os.getenv("INSTAGRAM_HEADLESS", "").strip().lower() in {"1", "true", "yes", "y"}
+
+    Path(profile_dir).mkdir(parents=True, exist_ok=True)
+    Path(logs_dir).mkdir(parents=True, exist_ok=True)
+
+    display = os.getenv("INSTAGRAM_DISPLAY") or os.getenv("DISPLAY") or ":0"
+
+    cmd = [
+        chrome_bin,
+        "--hide-crash-restore-bubble",
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={profile_dir}",
+        "https://www.instagram.com",
+    ]
+    if headless:
+        cmd.insert(1, "--headless=new")
+        cmd.insert(2, "--disable-gpu")
+
+    with open(log_path, "ab") as log_file:
+        subprocess.Popen(
+            cmd,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            env={**os.environ, "DISPLAY": display},
+            start_new_session=True,
+        )
+
+    start_time = time.time()
+    while time.time() - start_time < 15:
+        if _is_port_open("127.0.0.1", port):
+            return
+        time.sleep(0.5)
 
 def _detect_chrome_version():
     candidates = [
@@ -160,6 +239,7 @@ class InstagramLogin:
     def create_new_driver(self):
         print("Creating new WebDriver instance for Instagram...")
         options = webdriver.ChromeOptions()
+        _ensure_debug_chrome(self.debug_port)
         options.add_experimental_option("debuggerAddress", f"127.0.0.1:{self.debug_port}")
         driver = _build_driver(options)
         return driver
@@ -253,8 +333,14 @@ class InstagramLogin:
             WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.NAME, "username")))
             user_input = driver.find_element(By.NAME, "username")
             pass_input = driver.find_element(By.NAME, "password")
+            user_input.click()
+            user_input.send_keys(Keys.CONTROL, "a")
+            user_input.send_keys(Keys.BACKSPACE)
             user_input.clear()
             user_input.send_keys(username)
+            pass_input.click()
+            pass_input.send_keys(Keys.CONTROL, "a")
+            pass_input.send_keys(Keys.BACKSPACE)
             pass_input.clear()
             pass_input.send_keys(password)
             pass_input.send_keys(Keys.ENTER)
