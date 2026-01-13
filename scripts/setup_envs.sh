@@ -93,8 +93,10 @@ else
   exit 1
 fi
 
-WALLPAPER_SCRIPT="/home/${TARGET_USER}/.local/bin/autopub-wallpaper.sh"
-mkdir -p "$(dirname "$WALLPAPER_SCRIPT")"
+BIN_DIR="/home/${TARGET_USER}/.local/bin"
+WALLPAPER_SCRIPT="${BIN_DIR}/autopub-wallpaper.sh"
+DESKTOP_SCRIPT="${BIN_DIR}/autopub-desktop.sh"
+mkdir -p "$BIN_DIR"
 cat > "$WALLPAPER_SCRIPT" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -117,23 +119,41 @@ fi
 command -v xsetroot >/dev/null 2>&1 && xsetroot -solid "#2e3440" || true
 EOF
 
-chmod +x "$WALLPAPER_SCRIPT"
+cat > "$DESKTOP_SCRIPT" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROFILE="LXDE"
+if [ -d /etc/xdg/lxpanel/LXDE-pi ] || [ -d /etc/xdg/pcmanfm/LXDE-pi ]; then
+  PROFILE="LXDE-pi"
+fi
+
+command -v pcmanfm >/dev/null 2>&1 && pcmanfm --desktop --profile "$PROFILE" &
+command -v lxpanel >/dev/null 2>&1 && lxpanel --profile "$PROFILE" &
+EOF
+
+chmod +x "$WALLPAPER_SCRIPT" "$DESKTOP_SCRIPT"
 
 OPENBOX_DIR="/home/${TARGET_USER}/.config/openbox"
 mkdir -p "$OPENBOX_DIR"
 cat > "$OPENBOX_DIR/autostart" <<EOF
 # Openbox session helpers
 "$WALLPAPER_SCRIPT" &
-command -v pcmanfm >/dev/null 2>&1 && pcmanfm --desktop --profile LXDE &
-command -v lxpanel >/dev/null 2>&1 && lxpanel --profile LXDE &
+"$DESKTOP_SCRIPT" &
 EOF
 
 LXDE_DIR="/home/${TARGET_USER}/.config/lxsession/LXDE"
 mkdir -p "$LXDE_DIR"
 cat > "$LXDE_DIR/autostart" <<EOF
 @$WALLPAPER_SCRIPT
-@pcmanfm --desktop --profile LXDE
-@lxpanel --profile LXDE
+@$DESKTOP_SCRIPT
+EOF
+
+LXDE_PI_DIR="/home/${TARGET_USER}/.config/lxsession/LXDE-pi"
+mkdir -p "$LXDE_PI_DIR"
+cat > "$LXDE_PI_DIR/autostart" <<EOF
+@$WALLPAPER_SCRIPT
+@$DESKTOP_SCRIPT
 EOF
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/${TARGET_USER}/.local"
