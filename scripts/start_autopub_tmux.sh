@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR_DEFAULT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARGET_USER="${AUTOPUB_USER:-lachlan}"
-REPO_DIR="${AUTOPUB_REPO:-/home/lachlan/ProjectsLFS/LazyEdit/AutoPublish}"
+REPO_DIR="${AUTOPUB_REPO:-$REPO_DIR_DEFAULT}"
 VENV_DIR="/home/${TARGET_USER}/venvs/autopub"
 SESSION_NAME="autopub"
 
@@ -11,12 +13,12 @@ APP_CMD=("$VENV_DIR/bin/python" "$REPO_DIR/app.py" --refresh-time 1800 --port 80
 export DISPLAY=":${AUTOPUB_DISPLAY:-1}"
 
 if ! command -v tmux >/dev/null 2>&1; then
-  echo "tmux is not installed. Run setup_envs.sh first."
+  echo "tmux is not installed. Run scripts/setup_envs.sh first."
   exit 1
 fi
 
 if [[ ! -x "$VENV_DIR/bin/python" ]]; then
-  echo "Virtual env not found at $VENV_DIR. Run setup_envs.sh first."
+  echo "Virtual env not found at $VENV_DIR. Run scripts/setup_envs.sh first."
   exit 1
 fi
 

@@ -58,7 +58,7 @@ Runs all setup scripts in order (packages, virtual desktop, driver aliases, serv
 ```bash
 export AUTOPUB_USER=<USERNAME>
 export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
-sudo -E ./setup_autopub_pipeline.sh
+sudo -E ./scripts/setup_autopub_pipeline.sh
 ```
 
 Optional VNC password and port:
@@ -75,7 +75,7 @@ This creates the `autopub` virtual environment and installs dependencies.
 ```bash
 export AUTOPUB_USER=<USERNAME>
 export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
-sudo ./setup_envs.sh
+sudo ./scripts/setup_envs.sh
 ```
 
 ## 7. Set up the virtual desktop service
@@ -84,7 +84,7 @@ This creates `virtual-desktop.service` and starts it on `DISPLAY=:1`.
 
 ```bash
 export AUTOPUB_USER=<USERNAME>
-sudo ./setup_virtual_desktop_service.sh
+sudo ./scripts/setup_virtual_desktop_service.sh
 ```
 
 Check status:
@@ -97,7 +97,7 @@ systemctl status virtual-desktop.service
 
 ```bash
 export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
-sudo ./download_and_setup_driver.sh
+sudo ./scripts/download_and_setup_driver.sh
 ```
 
 ## 9. Set up the AutoPublish service
@@ -107,7 +107,7 @@ This creates `autopub.service` which starts a tmux session running `app.py`.
 ```bash
 export AUTOPUB_USER=<USERNAME>
 export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
-sudo ./setup_autopub_service.sh
+sudo ./scripts/setup_autopub_service.sh
 ```
 
 Check status:
@@ -125,5 +125,5 @@ tmux attach -t autopub
 ## 10. Notes
 
 - The service uses `DISPLAY=:1`. If you change it, update `AUTOPUB_DISPLAY` when running the setup scripts.
-- The app listens on port `8081` by default. Adjust `start_autopub_tmux.sh` if you want a different port.
+- The app listens on port `8081` by default. Adjust `scripts/start_autopub_tmux.sh` if you want a different port.
 - The virtual desktop exposes VNC on port `5901` when `x11vnc` is installed.

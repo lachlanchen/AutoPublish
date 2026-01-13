@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR_DEFAULT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARGET_USER="${AUTOPUB_USER:-lachlan}"
-REPO_DIR="${AUTOPUB_REPO:-/home/lachlan/ProjectsLFS/LazyEdit/AutoPublish}"
+REPO_DIR="${AUTOPUB_REPO:-$REPO_DIR_DEFAULT}"
 VENV_DIR="/home/${TARGET_USER}/venvs/autopub"
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Please run as root: sudo $0"
+  echo "Please run as root: sudo -E $0"
   exit 1
 fi
 

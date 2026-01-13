@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR_DEFAULT="$(cd "$SCRIPT_DIR/.." && pwd)"
 USER_NAME="${AUTOPUB_USER:-lachlan}"
-REPO_DIR="${AUTOPUB_REPO:-/home/lachlan/ProjectsLFS/LazyEdit/AutoPublish}"
+REPO_DIR="${AUTOPUB_REPO:-$REPO_DIR_DEFAULT}"
 ENV_FILE="/etc/default/autopub"
 SERVICE_PATH="/etc/systemd/system/autopub.service"
-START_SCRIPT="$REPO_DIR/start_autopub_tmux.sh"
+START_SCRIPT="$REPO_DIR/scripts/start_autopub_tmux.sh"
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Please run as root: sudo $0"
+  echo "Please run as root: sudo -E $0"
   exit 1
 fi
 

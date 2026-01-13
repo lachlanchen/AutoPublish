@@ -35,7 +35,7 @@ Workflow at a glance:
 | `pub_xhs.py`, `pub_douyin.py`, `pub_bilibili.py`, `pub_shipinhao.py`, `pub_y2b.py` | Selenium automation per platform. Each depends on a companion `login_*.py` module for QR-code based re-login flows. |
 | `login_*.py` | Detects when a platform session has expired, requests a new QR code, screenshots it, and emails it through SendGrid. |
 | `load_env.py` | Sources `~/.bashrc`, loads secrets into `os.environ`, and masks sensitive values in logs. |
-| `run_autopub.sh`, `setup_autopub.sh` | Wrapper + macOS LaunchAgent generator for running `autopub.py` on a schedule with locking and logging. |
+| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Wrapper + macOS LaunchAgent generator for running `autopub.py` on a schedule with locking and logging. |
 | `ignore_*` files | Drop an empty file named `ignore_xhs`, `ignore_douyin`, etc. to temporarily disable a platform without changing code. |
 | `logs/`, `logs-autopub/`, `chromium_dev_session_logs/` | Execution and browser logs—inspect them whenever a run fails. |
 
@@ -98,7 +98,7 @@ Many modules hard-code directories under `/home/lachlan/Projects/auto-publish`. 
 | --- | --- | --- |
 | `app.py` | `logs_folder_root`, `autopublish_folder_root`, `videos_db_path`, `processed_path`, `transcription_root`, `upload_url`, `process_url`, `chromedriver_path`. | Base folders for assets, log files, transcription output, and processing endpoints. |
 | `autopub.py` | `logs_folder_path`, `autopublish_folder_path`, `videos_db_path`, `processed_path`, `transcription_path`, `upload_url`, `process_url`, `chromedriver_path`. | Same as above for the CLI workflow. |
-| `run_autopub.sh` / `setup_autopub.sh` | Absolute paths to Conda, repo, lockfiles, and log destinations. |
+| `scripts/run_autopub.sh` / `scripts/setup_autopub.sh` | Absolute paths to Conda, repo, lockfiles, and log destinations. |
 | `utils.py` | `crop_and_resize_cover_image` points to `/usr/local/bin/ffmpeg`. Change if FFmpeg lives elsewhere. |
 
 Tip: centralize these values via environment variables or a `.env` reader if you plan to deploy the project on multiple machines.
@@ -158,13 +158,13 @@ Tip: centralize these values via environment variables or a `.env` reader if you
    - Launch publishers in parallel via `ThreadPoolExecutor`.
    - Update `processed.csv` only after at least one platform succeeded.
 
-5. To run it on a schedule, use `run_autopub.sh`. It:
+5. To run it on a schedule, use `scripts/run_autopub.sh`. It:
    - Sources your shell profile,
    - Activates Conda,
    - Checks/creates `/path/to/autopub.lock`,
    - Logs output to `logs-autopub/autopub_<timestamp>.log`.
 
-   On macOS, run `setup_autopub.sh` to install a LaunchAgent (`~/Library/LaunchAgents/com.lachlan.autopublish.plist`) that triggers whenever files change inside the watch path. On Linux, adapt the same logic to systemd timers or cron.
+   On macOS, run `scripts/setup_autopub.sh` to install a LaunchAgent (`~/Library/LaunchAgents/com.lachlan.autopublish.plist`) that triggers whenever files change inside the watch path. On Linux, adapt the same logic to systemd timers or cron.
 
 ---
 
@@ -260,7 +260,7 @@ For each platform you can temporarily pause automation by touching the correspon
 * **Captchas**: Bilibili and other sites may surface Geetest challenges. Configure `solve_captcha_turing.py` or `solve_captcha_2captcha.py` with real credentials and integrate their outputs in the publisher flows.
 * **Processing backend**: If `process_video` fails with “Failed to get the uploaded file path,” inspect the API responses from your backend service. The upload endpoint must return JSON containing `file_path`, and the processing endpoint must stream the ZIP in its body.
 * **Logs**: Check `logs/<timestamp>.txt`, `logs-autopub/`, and `chromium_dev_session_logs/*.log` for stack traces. Tornado’s console output also prints every Selenium exception.
-* **Lock files**: If `autopub.py` never starts, delete the stale `autopub.lock` (path configured inside `run_autopub.sh`) after verifying no real process is running.
+* **Lock files**: If `autopub.py` never starts, delete the stale `autopub.lock` (path configured inside `scripts/run_autopub.sh`) after verifying no real process is running.
 
 ---
 

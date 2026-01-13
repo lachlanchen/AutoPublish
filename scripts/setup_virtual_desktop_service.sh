@@ -10,7 +10,7 @@ SERVICE_PATH="/etc/systemd/system/virtual-desktop.service"
 START_SCRIPT="/usr/local/bin/start_virtual_desktop.sh"
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Please run as root: sudo $0"
+  echo "Please run as root: sudo -E $0"
   exit 1
 fi
 
