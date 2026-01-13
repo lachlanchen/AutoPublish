@@ -356,7 +356,7 @@ class InstagramPublisher:
 
 if __name__ == "__main__":
     path_mp4 = (
-        "/home/lachlan/ProjectsLFS/LazyEdit/DATA/IMG_7930_2026_01_04_01_05_56_COMPLETED/"
+        "/home/lachlan/ProjectsLFS/lazyedit/DATA/IMG_7930_2026_01_04_01_05_56_COMPLETED/"
         "IMG_7930_2026_01_04_01_05_56_COMPLETED_subtitles.mp4"
     )
     metadata_dir = Path(

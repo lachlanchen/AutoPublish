@@ -47,17 +47,26 @@ def _is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
 
 
 def _resolve_chrome_bin():
-    env_bin = os.getenv("INSTAGRAM_CHROME_BIN") or os.getenv("CHROME_BIN")
-    if env_bin and Path(env_bin).exists():
-        return env_bin
-    for candidate in ("google-chrome", "google-chrome-stable", "chromium-browser", "chromium"):
+    env_bin = os.getenv("INSTAGRAM_CHROME_BIN") or os.getenv("CHROME_BIN") or os.getenv("CHROMIUM_BIN")
+    if env_bin:
+        env_path = Path(env_bin)
+        if env_path.exists():
+            return str(env_path)
+    machine = platform.machine().lower()
+    prefer_chromium = machine.startswith("arm") or machine in {"aarch64", "arm64"}
+    candidates = (
+        ("chromium-browser", "chromium", "google-chrome", "google-chrome-stable")
+        if prefer_chromium
+        else ("google-chrome", "google-chrome-stable", "chromium-browser", "chromium")
+    )
+    for candidate in candidates:
         try:
             path = subprocess.check_output(f"command -v {candidate}", shell=True, text=True).strip()
         except Exception:
             continue
         if path:
             return path
-    return "google-chrome"
+    return "chromium-browser" if prefer_chromium else "google-chrome"
 
 
 def _resolve_profile_dir(chrome_bin: str, port: int):
@@ -74,12 +83,21 @@ def _resolve_logs_dir(chrome_bin: str):
         return str(Path.home() / "chromium_dev_session_logs")
     return str(Path.home() / "chrome_dev_session_logs")
 
+def _resolve_display():
+    env_display = os.getenv("INSTAGRAM_DISPLAY") or os.getenv("DISPLAY")
+    if env_display:
+        return env_display
+    if Path("/tmp/.X11-unix/X1").exists():
+        return ":1"
+    if Path("/tmp/.X11-unix/X0").exists():
+        return ":0"
+    return ":0"
 
-def _ensure_debug_chrome(port: int):
+def _ensure_debug_chrome(port: int, chrome_bin: str | None = None):
     if _is_port_open("127.0.0.1", port):
         return
 
-    chrome_bin = _resolve_chrome_bin()
+    chrome_bin = chrome_bin or _resolve_chrome_bin()
     profile_dir = _resolve_profile_dir(chrome_bin, port)
     logs_dir = _resolve_logs_dir(chrome_bin)
     log_path = Path(logs_dir) / "chrome_instagram.log"
@@ -88,7 +106,7 @@ def _ensure_debug_chrome(port: int):
     Path(profile_dir).mkdir(parents=True, exist_ok=True)
     Path(logs_dir).mkdir(parents=True, exist_ok=True)
 
-    display = os.getenv("INSTAGRAM_DISPLAY") or os.getenv("DISPLAY") or ":0"
+    display = _resolve_display()
 
     cmd = [
         chrome_bin,
@@ -194,16 +212,38 @@ def _download_chromedriver(version):
 
 
 def _candidate_driver_paths():
-    paths = [
+    paths = []
+    candidates = [
         os.getenv("INSTAGRAM_CHROMEDRIVER_PATH"),
         os.getenv("CHROMEDRIVER_PATH"),
         "/usr/lib/chromium-browser/chromedriver",
+        "/usr/bin/chromedriver",
+        "/usr/local/bin/chromedriver",
+        "/snap/bin/chromium.chromedriver",
     ]
-    return [path for path in paths if path and Path(path).exists()]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            paths.append(candidate)
+    try:
+        resolved = subprocess.check_output("command -v chromedriver", shell=True, text=True).strip()
+    except Exception:
+        resolved = ""
+    if resolved and Path(resolved).exists():
+        paths.append(resolved)
+    deduped = []
+    seen = set()
+    for path in paths:
+        if path in seen:
+            continue
+        seen.add(path)
+        deduped.append(path)
+    return deduped
 
 
-def _build_driver(options):
+def _build_driver(options, chrome_bin: str | None = None):
     last_exc = None
+    if chrome_bin and Path(chrome_bin).exists():
+        options.binary_location = chrome_bin
     for path in _candidate_driver_paths():
         try:
             return webdriver.Chrome(service=Service(path), options=options)
@@ -239,9 +279,10 @@ class InstagramLogin:
     def create_new_driver(self):
         print("Creating new WebDriver instance for Instagram...")
         options = webdriver.ChromeOptions()
-        _ensure_debug_chrome(self.debug_port)
+        chrome_bin = _resolve_chrome_bin()
+        _ensure_debug_chrome(self.debug_port, chrome_bin=chrome_bin)
         options.add_experimental_option("debuggerAddress", f"127.0.0.1:{self.debug_port}")
-        driver = _build_driver(options)
+        driver = _build_driver(options, chrome_bin=chrome_bin)
         return driver
 
     def is_already_logged_in(self):

@@ -4,6 +4,8 @@ import re
 import traceback
 import zipfile
 import json
+import platform
+import shutil
 
 import tornado.web
 import tornado.ioloop
@@ -17,9 +19,11 @@ from pub_bilibili import BilibiliPublisher
 from pub_douyin import DouyinPublisher
 from pub_y2b import YouTubePublisher
 from pub_shipinhao import ShiPinHaoPublisher
+from pub_instagram import InstagramPublisher
 from login_xiaohongshu import XiaoHongShuLogin
 from login_douyin import DouyinLogin
 from login_shipinhao import ShiPinHaoLogin
+from login_instagram import InstagramLogin
 from selenium.webdriver.chrome.service import Service
 
 import subprocess
@@ -70,7 +74,80 @@ processed_path = '/home/lachlan/Projects/auto-publish/processed.csv'
 transcription_root = "/home/lachlan/Projects/auto-publish/transcription_data"
 upload_url = 'http://lachlanserver:8081/upload'
 process_url = 'http://lachlanserver:8081/video-processing'
-chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
+
+
+def _resolve_display():
+    display = os.environ.get("AUTOPUBLISH_DISPLAY") or os.environ.get("DISPLAY")
+    if display:
+        return display
+    if os.path.exists("/tmp/.X11-unix/X1"):
+        return ":1"
+    return ":0"
+
+
+def _resolve_browser_bin():
+    for key in ("AUTOPUBLISH_BROWSER_BIN", "CHROMIUM_BIN", "CHROME_BIN"):
+        value = os.environ.get(key)
+        if value:
+            return value
+    is_arm = platform.machine().lower().startswith(("arm", "aarch64"))
+    candidates = (
+        ["chromium-browser", "chromium", "google-chrome", "google-chrome-stable"]
+        if is_arm
+        else ["google-chrome", "google-chrome-stable", "chromium-browser", "chromium"]
+    )
+    for name in candidates:
+        found = shutil.which(name)
+        if found:
+            return found
+    return "chromium-browser" if is_arm else "google-chrome"
+
+
+def _resolve_session_prefix(browser_bin):
+    base = os.path.basename(browser_bin or "")
+    if "chromium" in base:
+        return "chromium"
+    return "chrome"
+
+
+def _resolve_profile_dir(port, prefix):
+    return os.path.join(os.path.expanduser("~"), f"{prefix}_dev_session_{port}")
+
+
+def _resolve_logs_dir(prefix):
+    return os.path.join(os.path.expanduser("~"), f"{prefix}_dev_session_logs")
+
+
+def _resolve_chromedriver_path():
+    for key in ("AUTOPUBLISH_CHROMEDRIVER", "CHROMEDRIVER_PATH"):
+        value = os.environ.get(key)
+        if value and os.path.exists(value):
+            return value
+    candidates = [
+        "/usr/lib/chromium-browser/chromedriver",
+        "/usr/bin/chromedriver",
+        "/usr/local/bin/chromedriver",
+        "/snap/bin/chromium.chromedriver",
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    found = shutil.which("chromedriver")
+    if found:
+        return found
+    return "/usr/lib/chromium-browser/chromedriver"
+
+
+def _build_start_command(name, port, url, browser_bin, display, profile_dir, log_dir, prefix):
+    log_file = os.path.join(log_dir, f"{prefix}_{name}.log")
+    return (
+        f'DISPLAY={display} "{browser_bin}" --hide-crash-restore-bubble '
+        f'--remote-debugging-port={port} --user-data-dir="{profile_dir}" {url} '
+        f'> "{log_file}" 2>&1 &'
+    )
+
+
+chromedriver_path = _resolve_chromedriver_path()
 
 # Ensure the logs and database files exist
 os.makedirs(logs_folder_root, exist_ok=True)
@@ -124,6 +201,9 @@ def _get_queue_snapshot():
 def create_new_driver(port=5003):
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:{str(port)}")
+    browser_bin = _resolve_browser_bin()
+    if browser_bin and os.path.exists(browser_bin):
+        options.binary_location = browser_bin
     service = Service(executable_path=chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
     return driver
@@ -141,7 +221,8 @@ def stop_and_start_chromium_sessions(
             publish_bilibili=False,
             publish_douyin=False,
             publish_shipinhao=False,
-            publish_y2b=False
+            publish_y2b=False,
+            publish_instagram=False
         ):
         password = "1"  # This should be secured
         try:
@@ -152,14 +233,78 @@ def stop_and_start_chromium_sessions(
             except:
                 pass
             
-            # Start new Chromium sessions, replicating what the aliases would do
-            # Note: The use of shell=True and passing commands as a single string due to the complexity of commands
+            browser_bin = _resolve_browser_bin()
+            display = _resolve_display()
+            session_prefix = _resolve_session_prefix(browser_bin)
+            log_dir = _resolve_logs_dir(session_prefix)
+            os.makedirs(log_dir, exist_ok=True)
+
+            def _session_dir(port):
+                path = _resolve_profile_dir(port, session_prefix)
+                os.makedirs(path, exist_ok=True)
+                return path
+
             start_commands = {
-                "xhs": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir=\"$HOME/chromium_dev_session_5003\" https://creator.xiaohongshu.com/creator/post > \"$HOME/chromium_dev_session_logs/chromium_xhs.log\" 2>&1 &",
-                "douyin": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir=\"$HOME/chromium_dev_session_5004\" https://creator.douyin.com/creator-micro/content/upload > \"$HOME/chromium_dev_session_logs/chromium_douyin.log\" 2>&1 &",
-                "bilibili": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir=\"$HOME/chromium_dev_session_5005\" https://member.bilibili.com/platform/upload/video/frame > \"$HOME/chromium_dev_session_logs/chromium_bilibili.log\" 2>&1 &",
-                "shipinhao": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir=\"$HOME/chromium_dev_session_5006\" https://channels.weixin.qq.com/post/create > \"$HOME/chromium_dev_session_logs/chromium_shipinhao.log\" 2>&1 &",
-                "y2b": "DISPLAY=:1 chromium-browser --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir=\"$HOME/chromium_dev_session_9222\" https://youtube.com/upload > \"$HOME/chromium_dev_session_logs/chromium_youtube.log\" 2>&1 &"
+                "xhs": _build_start_command(
+                    "xhs",
+                    5003,
+                    "https://creator.xiaohongshu.com/creator/post",
+                    browser_bin,
+                    display,
+                    _session_dir(5003),
+                    log_dir,
+                    session_prefix,
+                ),
+                "douyin": _build_start_command(
+                    "douyin",
+                    5004,
+                    "https://creator.douyin.com/creator-micro/content/upload",
+                    browser_bin,
+                    display,
+                    _session_dir(5004),
+                    log_dir,
+                    session_prefix,
+                ),
+                "bilibili": _build_start_command(
+                    "bilibili",
+                    5005,
+                    "https://member.bilibili.com/platform/upload/video/frame",
+                    browser_bin,
+                    display,
+                    _session_dir(5005),
+                    log_dir,
+                    session_prefix,
+                ),
+                "shipinhao": _build_start_command(
+                    "shipinhao",
+                    5006,
+                    "https://channels.weixin.qq.com/post/create",
+                    browser_bin,
+                    display,
+                    _session_dir(5006),
+                    log_dir,
+                    session_prefix,
+                ),
+                "instagram": _build_start_command(
+                    "instagram",
+                    5007,
+                    "https://www.instagram.com",
+                    browser_bin,
+                    display,
+                    _session_dir(5007),
+                    log_dir,
+                    session_prefix,
+                ),
+                "y2b": _build_start_command(
+                    "y2b",
+                    9222,
+                    "https://youtube.com/upload",
+                    browser_bin,
+                    display,
+                    _session_dir(9222),
+                    log_dir,
+                    session_prefix,
+                ),
             }
 
             # for platform, command in start_commands.items():
@@ -182,6 +327,8 @@ def stop_and_start_chromium_sessions(
                 run_command(start_commands["shipinhao"])
             if publish_y2b:
                 run_command(start_commands["y2b"])
+            if publish_instagram:
+                run_command(start_commands["instagram"])
 
             time.sleep(10)
 
@@ -223,6 +370,10 @@ def refresh_browsers(ports_patterns):
                             shi_pin_hao_login = ShiPinHaoLogin(create_new_driver(port=port))
                             shi_pin_hao_login.check_and_act()
 
+                        elif port == 5007:
+                            instagram_login = InstagramLogin(create_new_driver(port=port))
+                            instagram_login.check_and_act()
+
                         else:
                             print("Not implemented. ")
 
@@ -260,9 +411,12 @@ def _process_publish_job(job):
     publish_douyin = job.get("publish_douyin", False)
     publish_shipinhao = job.get("publish_shipinhao", False)
     publish_y2b = job.get("publish_y2b", False)
+    publish_instagram = job.get("publish_instagram", False)
     test_mode = job.get("test_mode", False)
 
-    if not any([publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b]):
+    if not any(
+        [publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b, publish_instagram]
+    ):
         print("No publish targets selected. Skipping job.")
         return
 
@@ -271,7 +425,8 @@ def _process_publish_job(job):
         publish_bilibili=publish_bilibili,
         publish_douyin=publish_douyin,
         publish_shipinhao=publish_shipinhao,
-        publish_y2b=publish_y2b
+        publish_y2b=publish_y2b,
+        publish_instagram=publish_instagram,
     )
 
     filename = job.get("filename")
@@ -319,6 +474,9 @@ def _process_publish_job(job):
     if publish_shipinhao:
         pub_shipinhaolisher = ShiPinHaoPublisher(create_new_driver(port=5006), path_mp4, path_cover, metadata, test_mode)
         publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
+    if publish_instagram:
+        pub_instagramlisher = InstagramPublisher(create_new_driver(port=5007), path_mp4, path_cover, metadata, test_mode)
+        publishers.append((pub_instagramlisher, 'Instagram'))
     if publish_y2b:
         pub_y2blisher = YouTubePublisher(create_new_driver(port=9222), path_mp4, path_cover, metadata_en, test_mode)
         publishers.append((pub_y2blisher, 'YouTube'))
@@ -332,6 +490,8 @@ def _process_publish_job(job):
             bring_to_front(["哔哩哔哩"])
         elif name == 'ShiPinHao':
             bring_to_front(["视频号助手"])
+        elif name == 'Instagram':
+            bring_to_front(["Instagram"])
         elif name == 'YouTube':
             bring_to_front(["YouTube"])
 
@@ -429,6 +589,9 @@ class PublishHandler(tornado.web.RequestHandler):
     def create_new_driver(self, port):
         options = webdriver.ChromeOptions()
         options.add_experimental_option("debuggerAddress", f"127.0.0.1:{str(port)}")
+        browser_bin = _resolve_browser_bin()
+        if browser_bin and os.path.exists(browser_bin):
+            options.binary_location = browser_bin
         service = Service(executable_path=self.chromedriver_path)
         driver = webdriver.Chrome(service=service, options=options)
         return driver
@@ -438,7 +601,8 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_bilibili=False,
             publish_douyin=False,
             publish_shipinhao=False,
-            publish_y2b=False
+            publish_y2b=False,
+            publish_instagram=False
         ):
 
         stop_and_start_chromium_sessions(
@@ -446,7 +610,8 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_bilibili=publish_bilibili,
             publish_douyin=publish_douyin,
             publish_shipinhao=publish_shipinhao,
-            publish_y2b=publish_y2b
+            publish_y2b=publish_y2b,
+            publish_instagram=publish_instagram,
         )
 
     def get(self):
@@ -472,6 +637,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
         publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
+        publish_instagram = self.get_argument('publish_instagram', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
 
         # Define ignore files
@@ -480,7 +646,8 @@ class PublishHandler(tornado.web.RequestHandler):
             'bilibili': 'ignore_bilibili',
             'douyin': 'ignore_douyin',
             'shipinhao': 'ignore_shipinhao',
-            'y2b': 'ignore_y2b'
+            'y2b': 'ignore_y2b',
+            'instagram': 'ignore_instagram',
         }
 
         check_ignore_file = self.check_ignore_file
@@ -491,6 +658,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_douyin = check_ignore_file(publish_douyin, ignore_files['douyin'])
         publish_shipinhao = check_ignore_file(publish_shipinhao, ignore_files['shipinhao'])
         publish_y2b = check_ignore_file(publish_y2b, ignore_files['y2b'])
+        publish_instagram = check_ignore_file(publish_instagram, ignore_files['instagram'])
 
         # Extract filename from form fields or use current datetime as default
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -523,6 +691,8 @@ class PublishHandler(tornado.web.RequestHandler):
             platforms.append("shipinhao")
         if publish_y2b:
             platforms.append("youtube")
+        if publish_instagram:
+            platforms.append("instagram")
 
         job_id = _new_job_id()
         job = {
@@ -535,6 +705,7 @@ class PublishHandler(tornado.web.RequestHandler):
             "publish_douyin": publish_douyin,
             "publish_shipinhao": publish_shipinhao,
             "publish_y2b": publish_y2b,
+            "publish_instagram": publish_instagram,
             "test_mode": test_mode,
             "platforms": platforms,
             "status": "queued",
