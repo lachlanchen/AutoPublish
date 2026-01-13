@@ -93,10 +93,12 @@ else
   exit 1
 fi
 
-OPENBOX_DIR="/home/${TARGET_USER}/.config/openbox"
-mkdir -p "$OPENBOX_DIR"
-cat > "$OPENBOX_DIR/autostart" <<'EOF'
-# Openbox session helpers
+WALLPAPER_SCRIPT="/home/${TARGET_USER}/.local/bin/autopub-wallpaper.sh"
+mkdir -p "$(dirname "$WALLPAPER_SCRIPT")"
+cat > "$WALLPAPER_SCRIPT" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
 if command -v feh >/dev/null 2>&1; then
   for wallpaper in \
     /usr/share/rpd-wallpaper/*.jpg \
@@ -107,18 +109,34 @@ if command -v feh >/dev/null 2>&1; then
     /usr/share/backgrounds/*.png; do
     if [ -f "$wallpaper" ]; then
       feh --bg-fill "$wallpaper"
-      break
+      exit 0
     fi
   done
 fi
 
 command -v xsetroot >/dev/null 2>&1 && xsetroot -solid "#2e3440" || true
+EOF
 
+chmod +x "$WALLPAPER_SCRIPT"
+
+OPENBOX_DIR="/home/${TARGET_USER}/.config/openbox"
+mkdir -p "$OPENBOX_DIR"
+cat > "$OPENBOX_DIR/autostart" <<EOF
+# Openbox session helpers
+"$WALLPAPER_SCRIPT" &
 command -v pcmanfm >/dev/null 2>&1 && pcmanfm --desktop --profile LXDE &
 command -v lxpanel >/dev/null 2>&1 && lxpanel --profile LXDE &
 EOF
 
-chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config"
+LXDE_DIR="/home/${TARGET_USER}/.config/lxsession/LXDE"
+mkdir -p "$LXDE_DIR"
+cat > "$LXDE_DIR/autostart" <<EOF
+@$WALLPAPER_SCRIPT
+@pcmanfm --desktop --profile LXDE
+@lxpanel --profile LXDE
+EOF
+
+chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/${TARGET_USER}/.local"
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 
