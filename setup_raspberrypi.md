@@ -163,7 +163,7 @@ Connect from RealVNC Viewer:
 
 - Host: `lazyingart:5901` (or `lazyingart::5901`)
 - Default auth uses your system account (username/password) via `AUTOPUB_VNC_AUTH=unix`.
-- To use a VNC password instead, set `AUTOPUB_VNC_AUTH=password` and `AUTOPUB_VNC_PASSWORD=...` in `/etc/default/autopub`, then restart:
+- To use a VNC password instead, set `AUTOPUB_VNC_AUTH=password` (or `1`) and `AUTOPUB_VNC_PASSWORD=...` in `/etc/default/autopub`, then restart:
 
 ```bash
 sudo systemctl restart virtual-desktop.service

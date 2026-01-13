@@ -51,20 +51,29 @@ if command -v xauth >/dev/null 2>&1; then
   xauth -f "$XAUTHORITY_FILE" generate "$DISPLAY" . trusted >/dev/null 2>&1 || true
 fi
 
-VNC_ARGS=(-display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -auth "$XAUTHORITY_FILE")
-if [[ "$VNC_AUTH_MODE" == "unix" ]]; then
-  VNC_ARGS+=(-unixpw)
-elif [[ "$VNC_AUTH_MODE" == "password" ]]; then
-  if [[ -n "$VNC_PASSWORD" ]]; then
-    mkdir -p "$HOME/.vnc"
-    x11vnc -storepasswd "$VNC_PASSWORD" "$HOME/.vnc/passwd"
-    VNC_ARGS+=(-rfbauth "$HOME/.vnc/passwd")
-  else
+VNC_ARGS=(-display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -auth "$XAUTHORITY_FILE" -noxdamage)
+
+AUTH_MODE="$(printf '%s' "$VNC_AUTH_MODE" | tr '[:upper:]' '[:lower:]')"
+case "$AUTH_MODE" in
+  unix|user|system)
+    VNC_ARGS+=(-unixpw)
+    ;;
+  password|pass|pw|1|true|yes)
+    if [[ -n "$VNC_PASSWORD" ]]; then
+      mkdir -p "$HOME/.vnc"
+      x11vnc -storepasswd "$VNC_PASSWORD" "$HOME/.vnc/passwd"
+      VNC_ARGS+=(-rfbauth "$HOME/.vnc/passwd")
+    else
+      VNC_ARGS+=(-nopw)
+    fi
+    ;;
+  none|nopw|0|false|no|"")
     VNC_ARGS+=(-nopw)
-  fi
-else
-  VNC_ARGS+=(-nopw)
-fi
+    ;;
+  *)
+    VNC_ARGS+=(-nopw)
+    ;;
+esac
 
 if command -v x11vnc >/dev/null 2>&1; then
   /usr/bin/x11vnc "${VNC_ARGS[@]}" &
