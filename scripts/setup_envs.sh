@@ -33,6 +33,10 @@ apt-get install -y \
   libswresample-dev \
   libswscale-dev \
   libzbar0 \
+  dbus-x11 \
+  lxpanel \
+  lxsession \
+  pcmanfm \
   unzip \
   zip \
   chromium \
