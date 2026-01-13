@@ -78,6 +78,14 @@ export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
 sudo ./scripts/setup_envs.sh
 ```
 
+By default, `scripts/setup_envs.sh` installs a minimal set from `requirements.autopub.txt`.
+To force the full `requirements.txt` install, run:
+
+```bash
+export AUTOPUB_REQUIREMENTS=full
+sudo -E ./scripts/setup_envs.sh
+```
+
 ## 7. Set up the virtual desktop service
 
 This creates `virtual-desktop.service` and starts it on `DISPLAY=:1`.
@@ -127,4 +135,5 @@ tmux attach -t autopub
 - The service uses `DISPLAY=:1`. If you change it, update `AUTOPUB_DISPLAY` when running the setup scripts.
 - The app listens on port `8081` by default. Adjust `scripts/start_autopub_tmux.sh` if you want a different port.
 - The virtual desktop exposes VNC on port `5901` when `x11vnc` is installed.
-- `scripts/setup_envs.sh` skips `arandr==0.1.11`, `av==10.0.0`, `cupshelpers==1.0`, and `dbus-python==1.3.2` by default on Pi. Override with `AUTOPUB_PIP_EXCLUDE=""` if you want to try installing them.
+- `scripts/setup_envs.sh` installs a minimal `requirements.autopub.txt` by default. Use `AUTOPUB_REQUIREMENTS=full` for the full file.
+- When running full mode, the script skips `arandr==0.1.11`, `av==10.0.0`, `cupshelpers==1.0`, `dbus-python==1.3.2`, and `gpg==1.18.0` by default on Pi. Override with `AUTOPUB_PIP_EXCLUDE=""` if you want to try installing them.

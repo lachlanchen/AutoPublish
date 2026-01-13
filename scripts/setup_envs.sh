@@ -32,6 +32,7 @@ apt-get install -y \
   libavutil-dev \
   libswresample-dev \
   libswscale-dev \
+  libzbar0 \
   unzip \
   zip \
   chromium \
@@ -47,13 +48,17 @@ mkdir -p "$PIP_CACHE_DIR"
 
 "$VENV_DIR/bin/pip" install --upgrade pip wheel
 
-REQ_FILE="$REPO_DIR/requirements.txt"
-SKIP_LIST="${AUTOPUB_PIP_EXCLUDE:-arandr==0.1.11 av==10.0.0 cupshelpers==1.0 dbus-python==1.3.2}"
-TMP_REQ="$(mktemp)"
-trap 'rm -f "$TMP_REQ"' EXIT
+REQ_MODE="${AUTOPUB_REQUIREMENTS:-minimal}"
+REQ_FILE_MIN="$REPO_DIR/requirements.autopub.txt"
+REQ_FILE_FULL="$REPO_DIR/requirements.txt"
 
-export REQ_FILE TMP_REQ SKIP_LIST
-python3 - <<'PY'
+if [[ "$REQ_MODE" == "full" ]]; then
+  SKIP_LIST="${AUTOPUB_PIP_EXCLUDE:-arandr==0.1.11 av==10.0.0 cupshelpers==1.0 dbus-python==1.3.2 gpg==1.18.0}"
+  TMP_REQ="$(mktemp)"
+  trap 'rm -f "$TMP_REQ"' EXIT
+
+  export REQ_FILE="$REQ_FILE_FULL" TMP_REQ SKIP_LIST
+  python3 - <<'PY'
 import os
 
 req = os.environ["REQ_FILE"]
@@ -74,7 +79,15 @@ with open(tmp, "w", encoding="utf-8") as handle:
         handle.write(line)
 PY
 
-"$VENV_DIR/bin/pip" install -r "$TMP_REQ"
+  "$VENV_DIR/bin/pip" install -r "$TMP_REQ"
+elif [[ -f "$REQ_MODE" ]]; then
+  "$VENV_DIR/bin/pip" install -r "$REQ_MODE"
+elif [[ -f "$REQ_FILE_MIN" ]]; then
+  "$VENV_DIR/bin/pip" install -r "$REQ_FILE_MIN"
+else
+  echo "No requirements file found. Set AUTOPUB_REQUIREMENTS=full or provide a file path."
+  exit 1
+fi
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 

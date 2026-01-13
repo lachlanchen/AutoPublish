@@ -1,0 +1,11 @@
+selenium
+webdriver-manager
+tornado
+requests
+requests-toolbelt
+sendgrid
+qreader
+opencv-python
+numpy
+pillow
+twocaptcha
