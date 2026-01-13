@@ -127,4 +127,4 @@ tmux attach -t autopub
 - The service uses `DISPLAY=:1`. If you change it, update `AUTOPUB_DISPLAY` when running the setup scripts.
 - The app listens on port `8081` by default. Adjust `scripts/start_autopub_tmux.sh` if you want a different port.
 - The virtual desktop exposes VNC on port `5901` when `x11vnc` is installed.
-- `scripts/setup_envs.sh` skips `arandr==0.1.11` and `av==10.0.0` by default on Pi. Override with `AUTOPUB_PIP_EXCLUDE=""` if you want to try installing them.
+- `scripts/setup_envs.sh` skips `arandr==0.1.11`, `av==10.0.0`, and `cupshelpers==1.0` by default on Pi. Override with `AUTOPUB_PIP_EXCLUDE=""` if you want to try installing them.
