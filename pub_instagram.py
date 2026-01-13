@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
 
 from utils import dismiss_alert, bring_to_front
 from login_instagram import InstagramLogin
@@ -80,7 +80,11 @@ class InstagramPublisher:
             EC.element_to_be_clickable((By.XPATH, xpath))
         )
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        element.click()
+        try:
+            element.click()
+        except ElementClickInterceptedException:
+            self._dismiss_reels_dialog(timeout=6)
+            driver.execute_script("arguments[0].click();", element)
         return element
 
     def _find_first(self, xpaths, timeout=10):
@@ -98,6 +102,38 @@ class InstagramPublisher:
         if last_exc:
             raise last_exc
         raise TimeoutException("Element not found")
+
+    def _dismiss_reels_dialog(self, timeout=8):
+        driver = self.driver
+        dialog_xpath = "//div[@role='dialog']"
+        ok_xpaths = [
+            "//div[@role='dialog']//button[normalize-space()='OK']",
+            "//div[@role='dialog']//div[@role='button' and normalize-space()='OK']",
+        ]
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            for xpath in ok_xpaths:
+                buttons = driver.find_elements(By.XPATH, xpath)
+                for button in buttons:
+                    try:
+                        driver.execute_script(
+                            "arguments[0].scrollIntoView({block: 'center'});",
+                            button,
+                        )
+                        button.click()
+                        time.sleep(1)
+                        return True
+                    except Exception:
+                        try:
+                            driver.execute_script("arguments[0].click();", button)
+                            time.sleep(1)
+                            return True
+                        except Exception:
+                            pass
+            if not driver.find_elements(By.XPATH, dialog_xpath):
+                return False
+            time.sleep(1)
+        return False
 
     def _build_caption(self):
         title = (self.metadata.get("title") or "").strip()
@@ -128,6 +164,7 @@ class InstagramPublisher:
     def _click_next_until_caption(self, max_clicks=2):
         driver = self.driver
         for _ in range(max_clicks):
+            self._dismiss_reels_dialog(timeout=4)
             if driver.find_elements(By.XPATH, "//div[@aria-label='Write a caption...']"):
                 return
             if driver.find_elements(By.XPATH, "//textarea[@aria-label='Write a caption...']"):
@@ -172,6 +209,8 @@ class InstagramPublisher:
             time.sleep(2)
 
             self._upload_video()
+
+            self._dismiss_reels_dialog(timeout=10)
 
             self._click_next_until_caption(max_clicks=2)
 
