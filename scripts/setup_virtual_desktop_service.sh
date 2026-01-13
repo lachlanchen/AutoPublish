@@ -28,11 +28,11 @@ AUTOPUB_DESKTOP=${DESKTOP_MODE}
 ENV
   chmod 600 "$ENV_FILE"
 else
-  for entry in \\
-    "AUTOPUB_DISPLAY=${DISPLAY_NUM}" \\
-    "AUTOPUB_RESOLUTION=${RESOLUTION}" \\
-    "AUTOPUB_VNC_PORT=${VNC_PORT}" \\
-    "AUTOPUB_VNC_AUTH=${VNC_AUTH_MODE}" \\
+  for entry in \
+    "AUTOPUB_DISPLAY=${DISPLAY_NUM}" \
+    "AUTOPUB_RESOLUTION=${RESOLUTION}" \
+    "AUTOPUB_VNC_PORT=${VNC_PORT}" \
+    "AUTOPUB_VNC_AUTH=${VNC_AUTH_MODE}" \
     "AUTOPUB_DESKTOP=${DESKTOP_MODE}"; do
     key="${entry%%=*}"
     if ! grep -q "^${key}=" "$ENV_FILE"; then
