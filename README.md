@@ -60,7 +60,13 @@ Workflow at a glance:
   pip install -r requirements.txt
   ```
 
-### 3.2 External Accounts & APIs
+### 3.2 Create a Sudo User (Optional)
+
+```bash
+sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" | sudo chpasswd
+```
+
+### 3.3 External Accounts & APIs
 
 | Variable | Description |
 | --- | --- |
