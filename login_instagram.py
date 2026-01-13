@@ -1,13 +1,21 @@
+import json
 import os
+import platform
+import re
+import subprocess
 import time
 import traceback
+import urllib.request
+import zipfile
 from pathlib import Path
 
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import SessionNotCreatedException
 
 from utils import SendMail, dismiss_alert, bring_to_front
 
@@ -29,6 +37,118 @@ def _load_dotenv(env_path: Path):
         traceback.print_exc()
 
 
+def _detect_chrome_version():
+    candidates = [
+        "google-chrome --version",
+        "google-chrome-stable --version",
+        "chromium-browser --version",
+        "chromium --version",
+    ]
+    for cmd in candidates:
+        try:
+            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True).strip()
+        except Exception:
+            continue
+        match = re.search(r"(\d+\.\d+\.\d+\.\d+)", output)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _chromedriver_platform():
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    if system == "linux":
+        if machine in {"aarch64", "arm64"}:
+            return "linux-arm64"
+        return "linux64"
+    if system == "darwin":
+        return "mac-arm64" if machine in {"arm64", "aarch64"} else "mac-x64"
+    if system == "windows":
+        return "win64"
+    return None
+
+
+def _download_chromedriver(version):
+    platform_key = _chromedriver_platform()
+    if not platform_key:
+        return None
+    cache_root = Path.home() / ".cache" / "chromedriver" / version / platform_key
+    driver_path = cache_root / "chromedriver"
+    if driver_path.exists():
+        return str(driver_path)
+
+    cache_root.mkdir(parents=True, exist_ok=True)
+    index_url = "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
+    with urllib.request.urlopen(index_url, timeout=20) as resp:
+        payload = json.load(resp)
+
+    versions = payload.get("versions", [])
+    target = None
+    major = version.split(".")[0] if version else None
+    for item in reversed(versions):
+        item_version = item.get("version", "")
+        if major and not item_version.startswith(f"{major}."):
+            continue
+        downloads = item.get("downloads", {}).get("chromedriver", [])
+        for entry in downloads:
+            if entry.get("platform") == platform_key:
+                target = entry.get("url")
+                break
+        if target:
+            version = item_version
+            break
+
+    if not target:
+        return None
+
+    zip_path = cache_root / "chromedriver.zip"
+    urllib.request.urlretrieve(target, zip_path)
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(cache_root)
+    zip_path.unlink(missing_ok=True)
+
+    for child in cache_root.rglob("chromedriver"):
+        child.chmod(0o755)
+        return str(child)
+    return None
+
+
+def _candidate_driver_paths():
+    paths = [
+        os.getenv("INSTAGRAM_CHROMEDRIVER_PATH"),
+        os.getenv("CHROMEDRIVER_PATH"),
+        "/usr/lib/chromium-browser/chromedriver",
+    ]
+    return [path for path in paths if path and Path(path).exists()]
+
+
+def _build_driver(options):
+    last_exc = None
+    for path in _candidate_driver_paths():
+        try:
+            return webdriver.Chrome(service=Service(path), options=options)
+        except SessionNotCreatedException as exc:
+            last_exc = exc
+        except Exception as exc:
+            last_exc = exc
+
+    try:
+        return webdriver.Chrome(options=options)
+    except SessionNotCreatedException as exc:
+        last_exc = exc
+
+    chrome_version = _detect_chrome_version()
+    if chrome_version:
+        driver_path = _download_chromedriver(chrome_version)
+        if driver_path:
+            return webdriver.Chrome(service=Service(driver_path), options=options)
+
+    if last_exc:
+        raise last_exc
+    return webdriver.Chrome(options=options)
+
+
 class InstagramLogin:
     def __init__(self, driver=None, debug_port=None):
         print("Initializing InstagramLogin...")
@@ -41,7 +161,7 @@ class InstagramLogin:
         print("Creating new WebDriver instance for Instagram...")
         options = webdriver.ChromeOptions()
         options.add_experimental_option("debuggerAddress", f"127.0.0.1:{self.debug_port}")
-        driver = webdriver.Chrome(options=options)
+        driver = _build_driver(options)
         return driver
 
     def is_already_logged_in(self):
