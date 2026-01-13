@@ -1,11 +1,129 @@
 # Raspberry Pi setup
 
-Create a user with placeholder username/password:
+This guide provisions a fresh Raspberry Pi for AutoPublish. Run everything from a terminal on the Pi.
+
+## 1. Create a user and log in
+
+Create a sudo user (replace placeholders):
 
 ```bash
-sudo useradd -m -s /bin/bash <USERNAME> && echo "<USERNAME>:<PASSWORD>" | sudo chpasswd
+sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" | sudo chpasswd
 ```
 
-### 3.3 Raspberry Pi Setup Notes
+Log in with the new user:
 
-See `/home/lachlan/ProjectsLFS/LazyEdit/AutoPublish/setup_raspberrypi.md` for user-creation placeholders and initial Pi setup commands.
+```bash
+su - <USERNAME>
+```
+
+If you connect remotely:
+
+```bash
+ssh <USERNAME>@<PI_HOST>
+```
+
+## 2. Desktop autologin (lachlan)
+
+To boot straight into the desktop as `lachlan`:
+
+```bash
+sudo raspi-config
+```
+
+Then:
+
+- System Options -> Boot / Auto Login -> Desktop Autologin
+- Select user `lachlan`
+- Reboot
+
+## 3. Decide about Docker
+
+Docker works on Raspberry Pi, but Selenium + Chromium + Xvfb is easier to keep stable on the host. Start without Docker, then containerize once the scripts are reliable.
+
+## 4. Clone or update the repo
+
+```bash
+mkdir -p /home/<USERNAME>/Projects
+cd /home/<USERNAME>/Projects
+git clone git@github.com:lachlanchen/AutoPublish.git autopub
+# Or use HTTPS if SSH keys are not configured:
+# git clone https://github.com/lachlanchen/AutoPublish.git autopub
+cd /home/<USERNAME>/Projects/autopub
+```
+
+## 5. One-command setup (recommended)
+
+Runs all setup scripts in order (packages, virtual desktop, driver aliases, service):
+
+```bash
+export AUTOPUB_USER=<USERNAME>
+export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
+sudo -E ./setup_autopub_pipeline.sh
+```
+
+Optional VNC password and port:
+
+```bash
+export AUTOPUB_VNC_PASSWORD=<VNC_PASSWORD>
+export AUTOPUB_VNC_PORT=5901
+```
+
+## 6. Install OS packages and Python env
+
+This creates the `autopub` virtual environment and installs dependencies.
+
+```bash
+export AUTOPUB_USER=<USERNAME>
+export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
+sudo ./setup_envs.sh
+```
+
+## 7. Set up the virtual desktop service
+
+This creates `virtual-desktop.service` and starts it on `DISPLAY=:1`.
+
+```bash
+export AUTOPUB_USER=<USERNAME>
+sudo ./setup_virtual_desktop_service.sh
+```
+
+Check status:
+
+```bash
+systemctl status virtual-desktop.service
+```
+
+## 8. Set up Chromium driver aliases
+
+```bash
+export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
+sudo ./download_and_setup_driver.sh
+```
+
+## 9. Set up the AutoPublish service
+
+This creates `autopub.service` which starts a tmux session running `app.py`.
+
+```bash
+export AUTOPUB_USER=<USERNAME>
+export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
+sudo ./setup_autopub_service.sh
+```
+
+Check status:
+
+```bash
+systemctl status autopub.service
+```
+
+Attach to tmux:
+
+```bash
+tmux attach -t autopub
+```
+
+## 10. Notes
+
+- The service uses `DISPLAY=:1`. If you change it, update `AUTOPUB_DISPLAY` when running the setup scripts.
+- The app listens on port `8081` by default. Adjust `start_autopub_tmux.sh` if you want a different port.
+- The virtual desktop exposes VNC on port `5901` when `x11vnc` is installed.
