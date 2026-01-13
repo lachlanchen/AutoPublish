@@ -1,6 +1,10 @@
+import json
+import os
 import time
 import traceback
+from pathlib import Path
 
+from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -9,6 +13,54 @@ from selenium.common.exceptions import TimeoutException
 
 from utils import dismiss_alert, bring_to_front
 from login_instagram import InstagramLogin
+
+
+def _load_metadata_from_dir(metadata_dir: Path):
+    if not metadata_dir or not metadata_dir.exists():
+        return {}
+
+    if metadata_dir.is_file():
+        try:
+            return json.loads(metadata_dir.read_text(encoding="utf-8"))
+        except Exception:
+            traceback.print_exc()
+            return {}
+
+    candidates = []
+    for lang_dir in ("en", "zh"):
+        lang_path = metadata_dir / lang_dir
+        if not lang_path.exists():
+            continue
+        for path in sorted(lang_path.glob("*.json")):
+            candidates.append(path)
+
+    if not candidates:
+        candidates = sorted(metadata_dir.glob("*.json"))
+
+    for path in candidates:
+        if path.name.endswith("_metadata_en.json"):
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                traceback.print_exc()
+                return {}
+
+    for path in candidates:
+        if path.name.endswith("_metadata_zh.json"):
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                traceback.print_exc()
+                return {}
+
+    if candidates:
+        try:
+            return json.loads(candidates[0].read_text(encoding="utf-8"))
+        except Exception:
+            traceback.print_exc()
+            return {}
+
+    return {}
 
 
 class InstagramPublisher:
@@ -151,3 +203,30 @@ class InstagramPublisher:
             if self.retry_count < 3:
                 time.sleep(10)
                 self.publish()
+
+
+if __name__ == "__main__":
+    path_mp4 = (
+        "/home/lachlan/ProjectsLFS/LazyEdit/DATA/IMG_7930_2026_01_04_01_05_56_COMPLETED/"
+        "IMG_7930_2026_01_04_01_05_56_COMPLETED_subtitles.mp4"
+    )
+    metadata_dir = Path(
+        "/home/lachlan/ProjectsLFS/lazyedit/DATA/IMG_7930_2026_01_04_01_05_56_COMPLETED/metadata"
+    )
+
+    if not os.path.exists(path_mp4):
+        raise FileNotFoundError(f"Video not found: {path_mp4}")
+
+    metadata = _load_metadata_from_dir(metadata_dir)
+    if not metadata:
+        metadata = {"title": Path(path_mp4).stem}
+
+    login = InstagramLogin()
+    publisher = InstagramPublisher(
+        driver=login.driver,
+        path_mp4=path_mp4,
+        path_cover=None,
+        metadata=metadata,
+        test=True,
+    )
+    publisher.publish()
