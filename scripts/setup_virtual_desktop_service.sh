@@ -27,6 +27,18 @@ AUTOPUB_DESKTOP=${DESKTOP_MODE}
 # AUTOPUB_VNC_PASSWORD=change_me
 ENV
   chmod 600 "$ENV_FILE"
+else
+  for entry in \\
+    "AUTOPUB_DISPLAY=${DISPLAY_NUM}" \\
+    "AUTOPUB_RESOLUTION=${RESOLUTION}" \\
+    "AUTOPUB_VNC_PORT=${VNC_PORT}" \\
+    "AUTOPUB_VNC_AUTH=${VNC_AUTH_MODE}" \\
+    "AUTOPUB_DESKTOP=${DESKTOP_MODE}"; do
+    key="${entry%%=*}"
+    if ! grep -q "^${key}=" "$ENV_FILE"; then
+      echo "$entry" >> "$ENV_FILE"
+    fi
+  done
 fi
 
 cat > "$START_SCRIPT" <<'SCRIPT'
