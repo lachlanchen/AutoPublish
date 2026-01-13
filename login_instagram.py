@@ -194,7 +194,11 @@ class InstagramLogin:
         if not self.save_info_prompt_present():
             return False
 
-        save_login = os.getenv("INSTAGRAM_SAVE_LOGIN", "").strip().lower() in {"1", "true", "yes", "y"}
+        raw_pref = os.getenv("INSTAGRAM_SAVE_LOGIN")
+        if raw_pref is None:
+            save_login = True
+        else:
+            save_login = raw_pref.strip().lower() in {"1", "true", "yes", "y"}
         if save_login:
             button_order = ["Save info", "Not now"]
         else:
@@ -212,7 +216,7 @@ class InstagramLogin:
 
             try:
                 button = WebDriverWait(driver, 8).until(
-                    EC.element_to_be_clickable((By.XPATH, f\"//div[@role='button' and normalize-space()='{label}']\"))
+                    EC.element_to_be_clickable((By.XPATH, f"//div[@role='button' and normalize-space()='{label}']"))
                 )
                 button.click()
                 return True
