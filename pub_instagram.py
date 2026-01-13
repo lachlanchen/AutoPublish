@@ -158,15 +158,15 @@ class InstagramPublisher:
     def _share_sheet_present(self):
         driver = self.driver
         return bool(
-            driver.find_elements(By.XPATH, "//div[@role='dialog']//h2//span[normalize-space()='Share']")
-            or driver.find_elements(By.XPATH, "//div[@role='dialog']//div[@role='button' and normalize-space()='Send']")
+            driver.find_elements(By.XPATH, "//h2//span[normalize-space()='Share']")
+            or driver.find_elements(By.XPATH, "//div[@role='button' and normalize-space()='Send']")
         )
 
     def _close_share_sheet(self):
         driver = self.driver
         close_xpaths = [
-            "//div[@role='dialog']//div[@role='button' and @aria-label='Close']",
-            "//div[@role='dialog']//svg[@aria-label='Close']/ancestor::*[@role='button']",
+            "//div[@role='button' and @aria-label='Close']",
+            "//svg[@aria-label='Close']/ancestor::*[@role='button']",
         ]
         for xpath in close_xpaths:
             buttons = driver.find_elements(By.XPATH, xpath)
@@ -185,6 +185,13 @@ class InstagramPublisher:
                     except Exception:
                         pass
         return False
+
+    def _spinner_present(self):
+        driver = self.driver
+        return bool(
+            driver.find_elements(By.XPATH, "//img[@alt='Spinner placeholder']")
+            or driver.find_elements(By.XPATH, "//img[contains(@src,'ShFi4iY4Fd9.gif')]")
+        )
 
     def _build_caption(self):
         title = (self.metadata.get("title") or "").strip()
@@ -261,6 +268,9 @@ class InstagramPublisher:
                 return True
             if not self._caption_present() and not self._get_create_dialog():
                 return True
+            if self._spinner_present():
+                time.sleep(2)
+                continue
             time.sleep(2)
         return False
 
