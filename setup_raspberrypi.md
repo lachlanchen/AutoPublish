@@ -168,3 +168,8 @@ Connect from RealVNC Viewer:
 ```bash
 sudo systemctl restart virtual-desktop.service
 ```
+
+Desktop session selection:
+
+- Default: `AUTOPUB_DESKTOP=openbox` (stable, lightweight).
+- Optional: `AUTOPUB_DESKTOP=lxde` to try full LXDE.

@@ -6,6 +6,7 @@ DISPLAY_NUM="${AUTOPUB_DISPLAY:-1}"
 RESOLUTION="${AUTOPUB_RESOLUTION:-1280x720x24}"
 VNC_PORT="${AUTOPUB_VNC_PORT:-5901}"
 VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-unix}"
+DESKTOP_MODE="${AUTOPUB_DESKTOP:-openbox}"
 ENV_FILE="/etc/default/autopub"
 SERVICE_PATH="/etc/systemd/system/virtual-desktop.service"
 START_SCRIPT="/usr/local/bin/start_virtual_desktop.sh"
@@ -22,6 +23,7 @@ AUTOPUB_DISPLAY=${DISPLAY_NUM}
 AUTOPUB_RESOLUTION=${RESOLUTION}
 AUTOPUB_VNC_PORT=${VNC_PORT}
 AUTOPUB_VNC_AUTH=${VNC_AUTH_MODE}
+AUTOPUB_DESKTOP=${DESKTOP_MODE}
 # AUTOPUB_VNC_PASSWORD=change_me
 ENV
   chmod 600 "$ENV_FILE"
@@ -36,19 +38,31 @@ RESOLUTION="${AUTOPUB_RESOLUTION:-1280x720x24}"
 VNC_PORT="${AUTOPUB_VNC_PORT:-5901}"
 VNC_PASSWORD="${AUTOPUB_VNC_PASSWORD:-}"
 VNC_AUTH_MODE="${AUTOPUB_VNC_AUTH:-unix}"
+DESKTOP_MODE="${AUTOPUB_DESKTOP:-openbox}"
 XAUTHORITY_FILE="${XAUTHORITY:-$HOME/.Xauthority}"
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+USER_NAME="$(id -un)"
+HOME_DIR="${HOME:-/home/${USER_NAME}}"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME_DIR/.config}"
+CACHE_HOME="${XDG_CACHE_HOME:-$HOME_DIR/.cache}"
+DATA_HOME="${XDG_DATA_HOME:-$HOME_DIR/.local/share}"
+STATE_HOME="${XDG_STATE_HOME:-$HOME_DIR/.local/state}"
 
+export HOME="$HOME_DIR"
 export DISPLAY=":${DISPLAY_NUM}"
 export XAUTHORITY="$XAUTHORITY_FILE"
 export XDG_RUNTIME_DIR="$RUNTIME_DIR"
+export XDG_CONFIG_HOME="$CONFIG_HOME"
+export XDG_CACHE_HOME="$CACHE_HOME"
+export XDG_DATA_HOME="$DATA_HOME"
+export XDG_STATE_HOME="$STATE_HOME"
 
 /usr/bin/Xvfb "$DISPLAY" -screen 0 "$RESOLUTION" -ac -nolisten tcp &
 XVFB_PID=$!
 
 sleep 1
 
-mkdir -p "$RUNTIME_DIR"
+mkdir -p "$RUNTIME_DIR" "$CONFIG_HOME" "$CACHE_HOME" "$DATA_HOME" "$STATE_HOME"
 chmod 700 "$RUNTIME_DIR"
 
 touch "$XAUTHORITY_FILE"
@@ -88,29 +102,24 @@ if command -v x11vnc >/dev/null 2>&1; then
   /usr/bin/x11vnc "${VNC_ARGS[@]}" &
 fi
 
-SESSION_CMD=()
 if command -v dbus-run-session >/dev/null 2>&1; then
-  SESSION_CMD=(dbus-run-session)
+  if [[ "$(printf '%s' "$DESKTOP_MODE" | tr '[:upper:]' '[:lower:]')" == "lxde" ]] && command -v startlxde >/dev/null 2>&1; then
+    exec dbus-run-session startlxde
+  fi
+
+  if command -v openbox-session >/dev/null 2>&1; then
+    exec dbus-run-session bash -lc 'pcmanfm --desktop --profile LXDE & lxpanel --profile LXDE & exec openbox-session'
+  fi
 elif command -v dbus-launch >/dev/null 2>&1; then
   eval "$(dbus-launch --sh-syntax)"
-fi
-
-if command -v startlxde >/dev/null 2>&1; then
-  exec "${SESSION_CMD[@]}" startlxde
-fi
-
-if command -v lxsession >/dev/null 2>&1; then
-  exec "${SESSION_CMD[@]}" lxsession -s LXDE -e LXDE
-fi
-
-if command -v openbox-session >/dev/null 2>&1; then
-  if command -v pcmanfm >/dev/null 2>&1; then
+  if [[ "$(printf '%s' "$DESKTOP_MODE" | tr '[:upper:]' '[:lower:]')" == "lxde" ]] && command -v startlxde >/dev/null 2>&1; then
+    exec startlxde
+  fi
+  if command -v openbox-session >/dev/null 2>&1; then
     pcmanfm --desktop --profile LXDE &
-  fi
-  if command -v lxpanel >/dev/null 2>&1; then
     lxpanel --profile LXDE &
+    exec openbox-session
   fi
-  exec openbox-session
 fi
 
 wait "$XVFB_PID"
@@ -139,6 +148,7 @@ WantedBy=multi-user.target
 SERVICE
 
 systemctl daemon-reload
+systemctl reset-failed virtual-desktop.service || true
 systemctl enable --now virtual-desktop.service
 
 echo "virtual-desktop.service installed and started."
