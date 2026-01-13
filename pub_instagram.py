@@ -103,6 +103,26 @@ class InstagramPublisher:
             raise last_exc
         raise TimeoutException("Element not found")
 
+    def _caption_present(self):
+        driver = self.driver
+        return bool(
+            driver.find_elements(By.XPATH, "//div[@aria-label='Write a caption...']")
+            or driver.find_elements(By.XPATH, "//textarea[@aria-label='Write a caption...']")
+        )
+
+    def _get_create_dialog(self):
+        driver = self.driver
+        dialog_candidates = [
+            "//div[@role='dialog' and @aria-label='Create new post']",
+            "//div[@role='dialog' and .//div[@aria-label='Write a caption...']]",
+            "//div[@role='dialog' and .//textarea[@aria-label='Write a caption...']]",
+        ]
+        for xpath in dialog_candidates:
+            dialogs = driver.find_elements(By.XPATH, xpath)
+            if dialogs:
+                return dialogs[0]
+        return None
+
     def _dismiss_reels_dialog(self, timeout=8):
         driver = self.driver
         dialog_xpath = "//div[@role='dialog']"
@@ -135,6 +155,37 @@ class InstagramPublisher:
             time.sleep(1)
         return False
 
+    def _share_sheet_present(self):
+        driver = self.driver
+        return bool(
+            driver.find_elements(By.XPATH, "//div[@role='dialog']//h2//span[normalize-space()='Share']")
+            or driver.find_elements(By.XPATH, "//div[@role='dialog']//div[@role='button' and normalize-space()='Send']")
+        )
+
+    def _close_share_sheet(self):
+        driver = self.driver
+        close_xpaths = [
+            "//div[@role='dialog']//div[@role='button' and @aria-label='Close']",
+            "//div[@role='dialog']//svg[@aria-label='Close']/ancestor::*[@role='button']",
+        ]
+        for xpath in close_xpaths:
+            buttons = driver.find_elements(By.XPATH, xpath)
+            for button in buttons:
+                try:
+                    driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center'});",
+                        button,
+                    )
+                    button.click()
+                    return True
+                except Exception:
+                    try:
+                        driver.execute_script("arguments[0].click();", button)
+                        return True
+                    except Exception:
+                        pass
+        return False
+
     def _build_caption(self):
         title = (self.metadata.get("title") or "").strip()
         desc = (self.metadata.get("long_description") or "").strip()
@@ -165,15 +216,53 @@ class InstagramPublisher:
         driver = self.driver
         for _ in range(max_clicks):
             self._dismiss_reels_dialog(timeout=4)
-            if driver.find_elements(By.XPATH, "//div[@aria-label='Write a caption...']"):
-                return
-            if driver.find_elements(By.XPATH, "//textarea[@aria-label='Write a caption...']"):
+            if self._caption_present():
                 return
             try:
                 self._click_xpath("//div[@role='button' and normalize-space()='Next']", timeout=20)
             except Exception:
                 self._click_xpath("//button[normalize-space()='Next']", timeout=20)
             time.sleep(2)
+
+    def _click_share_button(self):
+        dialog = self._get_create_dialog()
+        if dialog:
+            for xpath in (
+                ".//div[@role='button' and normalize-space()='Share']",
+                ".//button[normalize-space()='Share']",
+            ):
+                try:
+                    button = dialog.find_element(By.XPATH, xpath)
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center'});",
+                        button,
+                    )
+                    try:
+                        button.click()
+                    except ElementClickInterceptedException:
+                        self._dismiss_reels_dialog(timeout=6)
+                        self.driver.execute_script("arguments[0].click();", button)
+                    return True
+                except Exception:
+                    pass
+
+        try:
+            self._click_xpath("//div[@role='button' and normalize-space()='Share']", timeout=30)
+        except Exception:
+            self._click_xpath("//button[normalize-space()='Share']", timeout=30)
+        return True
+
+    def _wait_for_publish_complete(self, timeout=240):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            self._dismiss_reels_dialog(timeout=2)
+            if self._share_sheet_present():
+                self._close_share_sheet()
+                return True
+            if not self._caption_present() and not self._get_create_dialog():
+                return True
+            time.sleep(2)
+        return False
 
     def publish(self):
         if self.retry_count >= 3:
@@ -229,12 +318,12 @@ class InstagramPublisher:
                     caption_box.click()
                     caption_box.send_keys(caption)
 
-            try:
-                self._click_xpath("//div[@role='button' and normalize-space()='Share']", timeout=30)
-            except Exception:
-                self._click_xpath("//button[normalize-space()='Share']", timeout=30)
+            self._click_share_button()
 
-            print("Instagram publish triggered.")
+            if self._wait_for_publish_complete():
+                print("Instagram publish completed.")
+            else:
+                print("Instagram publish triggered (confirmation timed out).")
         except Exception as exc:
             self.retry_count += 1
             print(f"Instagram publish failed: {exc}")
