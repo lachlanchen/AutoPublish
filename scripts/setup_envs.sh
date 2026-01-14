@@ -22,6 +22,7 @@ apt-get install -y \
   xfce4 \
   xfce4-terminal \
   dbus-x11 \
+  xdotool \
   pkg-config \
   ffmpeg \
   libavcodec-dev \
