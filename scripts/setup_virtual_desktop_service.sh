@@ -34,6 +34,7 @@ elif ! grep -q "^AUTOPUB_DISPLAY=" "$ENV_FILE"; then
   echo "AUTOPUB_DISPLAY=${DISPLAY_NUM}" >> "$ENV_FILE"
 fi
 
+: <<'AUTOPUB_VNC_XSTARTUP'
 VNC_DIR="${HOME_DIR}/.vnc"
 XSTARTUP_PATH="${VNC_DIR}/xstartup"
 mkdir -p "$VNC_DIR"
@@ -63,6 +64,7 @@ EOF
 
 chmod 755 "$XSTARTUP_PATH"
 chown -R "${USER_NAME}:${USER_NAME}" "$VNC_DIR"
+AUTOPUB_VNC_XSTARTUP
 
 cat > "$START_SCRIPT" <<'SCRIPT'
 #!/usr/bin/env bash
