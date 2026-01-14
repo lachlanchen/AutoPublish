@@ -39,6 +39,10 @@ apt-get install -y \
   python3-venv \
   python3-pip
 
+if command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+  ln -sf "$(command -v chromium)" /usr/local/bin/chromium-browser
+fi
+
 mkdir -p "/home/${TARGET_USER}/venvs"
 python3 -m venv "$VENV_DIR"
 
