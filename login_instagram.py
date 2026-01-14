@@ -354,14 +354,11 @@ class InstagramLogin:
 
     def take_screenshot_and_send_email(self):
         screenshot_path = "/tmp/instagram-login.png"
-        self.driver.save_screenshot(screenshot_path)
-        print(f"Screenshot saved to {screenshot_path}.")
-        self.mailer.send_email(
-            "Instagram Login Required",
-            "Login is required. Please see the attached screenshot.",
-            screenshot_path,
-            "instagram-login.png",
-        )
+        try:
+            self.driver.save_screenshot(screenshot_path)
+            print(f"Screenshot saved to {screenshot_path}.")
+        except Exception:
+            traceback.print_exc()
 
     def try_password_login(self):
         username = os.getenv("IG_USERNAME") or os.getenv("INSTAGRAM_USERNAME")
