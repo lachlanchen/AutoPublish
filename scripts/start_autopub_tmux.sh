@@ -11,7 +11,8 @@ ENV_FILE="${REPO_DIR}/.env"
 
 APP_CMD=("$VENV_DIR/bin/python" "$REPO_DIR/app.py" --refresh-time 1800 --port 8081)
 
-export DISPLAY=":${AUTOPUB_DISPLAY:-1}"
+DISPLAY_NUM="${AUTOPUB_DISPLAY:-1}"
+export DISPLAY=":${DISPLAY_NUM}"
 
 if ! command -v tmux >/dev/null 2>&1; then
   echo "tmux is not installed. Run scripts/setup_envs.sh first."
@@ -23,21 +24,25 @@ if [[ ! -x "$VENV_DIR/bin/python" ]]; then
   exit 1
 fi
 
+ENV_SETUP_CMD=""
 if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
+  ENV_SETUP_CMD="set -a; . \"$ENV_FILE\"; set +a;"
 elif [[ -f "$HOME/.bashrc" ]]; then
-  while IFS='=' read -r key value; do
-    export "$key=$value"
-  done < <(bash -c "source \"$HOME/.bashrc\" >/dev/null 2>&1; env")
+  ENV_SETUP_CMD="source \"$HOME/.bashrc\" >/dev/null 2>&1;"
 fi
 
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
   tmux kill-session -t "$SESSION_NAME"
 fi
 
-tmux new-session -d -s "$SESSION_NAME" "${APP_CMD[*]}"
+tmux new-session -d -s "$SESSION_NAME" "bash"
+
+SESSION_CMD="export DISPLAY=\":${DISPLAY_NUM}\"; cd \"$REPO_DIR\"; "
+if [[ -n "$ENV_SETUP_CMD" ]]; then
+  SESSION_CMD+="$ENV_SETUP_CMD "
+fi
+SESSION_CMD+="${APP_CMD[*]}"
+
+tmux send-keys -t "$SESSION_NAME" "$SESSION_CMD" C-m
 
 echo "Started tmux session '$SESSION_NAME' running: ${APP_CMD[*]}"
