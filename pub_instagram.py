@@ -217,14 +217,27 @@ class InstagramPublisher:
         )
 
     def _build_caption(self):
-        title = (self.metadata.get("title") or "").strip()
-        desc = (self.metadata.get("long_description") or "").strip()
-        if not desc:
-            desc = (self.metadata.get("brief_description") or "").strip()
-        tags = self.metadata.get("tags") or []
-        tag_text = " ".join([f"#{tag}" for tag in tags if tag])
-        parts = [part for part in [title, desc, tag_text] if part]
-        caption = "\n\n".join(parts)
+        def build_from(meta):
+            if not isinstance(meta, dict):
+                return ""
+            title = (meta.get("title") or "").strip()
+            desc = (meta.get("long_description") or "").strip()
+            if not desc:
+                desc = (meta.get("brief_description") or "").strip()
+            tags = meta.get("tags") or []
+            tag_text = " ".join([f"#{tag}" for tag in tags if tag])
+            parts = [part for part in [title, desc, tag_text] if part]
+            return "\n\n".join(parts).strip()
+
+        en_meta = self.metadata.get("english_version")
+        en_caption = build_from(en_meta) if isinstance(en_meta, dict) else ""
+        zh_caption = build_from(self.metadata)
+
+        if en_caption and zh_caption and zh_caption != en_caption:
+            caption = f"{en_caption}\n\n{zh_caption}"
+        else:
+            caption = en_caption or zh_caption
+
         return caption[:2200]
 
     def _upload_video(self):
