@@ -18,11 +18,10 @@ apt-get install -y \
   python3-dev \
   tmux \
   feh \
-  openbox \
-  xvfb \
-  x11vnc \
-  xauth \
-  x11-xserver-utils \
+  vim \
+  xfce4 \
+  xfce4-terminal \
+  dbus-x11 \
   pkg-config \
   ffmpeg \
   libavcodec-dev \
@@ -33,10 +32,6 @@ apt-get install -y \
   libswresample-dev \
   libswscale-dev \
   libzbar0 \
-  dbus-x11 \
-  lxpanel \
-  lxsession \
-  pcmanfm \
   unzip \
   zip \
   chromium \
@@ -208,16 +203,5 @@ create_panel_config "/home/${TARGET_USER}/.config/lxpanel/LXDE-pi/panels/panel"
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/${TARGET_USER}/.local"
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
-
-VNC_DIR="/home/${TARGET_USER}/.vnc"
-mkdir -p "$VNC_DIR"
-cat > "$VNC_DIR/xstartup" <<'EOF'
-#!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-exec dbus-launch --exit-with-session openbox-session
-EOF
-chmod 755 "$VNC_DIR/xstartup"
-chown -R "${TARGET_USER}:${TARGET_USER}" "$VNC_DIR"
 
 echo "Virtual env created at $VENV_DIR"
