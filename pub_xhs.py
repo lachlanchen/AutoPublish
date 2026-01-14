@@ -27,6 +27,17 @@ class XiaoHongShuPublisher:
         xhs_login = XiaoHongShuLogin(driver)
         xhs_login.check_and_act()
 
+    def _find_first(self, xpaths, timeout=20, visible=True):
+        last_exc = None
+        condition = EC.visibility_of_element_located if visible else EC.presence_of_element_located
+        for xpath in xpaths:
+            try:
+                return WebDriverWait(self.driver, timeout).until(condition((By.XPATH, xpath)))
+            except Exception as exc:
+                last_exc = exc
+        if last_exc:
+            raise last_exc
+
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         driver = self.driver
         try:
@@ -100,16 +111,28 @@ class XiaoHongShuPublisher:
                 
                 print("Entering title and description.")
                 time.sleep(3)
-                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class,"titleInput")]//input')))
-                driver.find_element(By.XPATH, '//*[contains(@class,"titleInput")]//input').send_keys(metadata['title'][:20])
+                title_input = self._find_first([
+                    '//input[@placeholder="填写标题会有更多赞哦～"]',
+                    '//div[contains(@class,"title-container")]//input[@type="text"]',
+                    '//*[contains(@class,"titleInput")]//input',
+                ])
+                try:
+                    title_input.clear()
+                except Exception:
+                    pass
+                title_input.click()
+                title_input.send_keys(metadata['title'][:20])
                 
                 description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
                 time.sleep(3)
                 # driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
-                driver.find_element(
-                    By.XPATH,
-                    '//div[contains(@class,"ql-editor") and @contenteditable="true"]'
-                ).send_keys(description_with_tags[:1000])
+                description_editor = self._find_first([
+                    '//div[contains(@class,"tiptap") and @contenteditable="true"]',
+                    '//div[contains(@class,"ProseMirror") and @contenteditable="true"]',
+                    '//div[contains(@class,"ql-editor") and @contenteditable="true"]',
+                ])
+                description_editor.click()
+                description_editor.send_keys(description_with_tags[:1000])
 
 #                 try:
 #                     # print("Handling cover upload.")
