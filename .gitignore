@@ -7,3 +7,5 @@ logs*/*
 temp/*
 temp*/
 .env
+ignore_*
+_ignore_*
