@@ -205,32 +205,50 @@ chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/$
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 
 BASHRC_FILE="/home/${TARGET_USER}/.bashrc"
+EXT_FILE="/home/${TARGET_USER}/scripts/sourced_bashrc_extension.sh"
 if [[ ! -f "$BASHRC_FILE" ]]; then
   touch "$BASHRC_FILE"
   chown "${TARGET_USER}:${TARGET_USER}" "$BASHRC_FILE"
   chmod 644 "$BASHRC_FILE"
 fi
 
-if ! grep -q "AutoPublish tmux aliases" "$BASHRC_FILE"; then
-  cat >> "$BASHRC_FILE" <<'EOF'
-
-# AutoPublish tmux aliases
+mkdir -p "/home/${TARGET_USER}/scripts"
+if [[ ! -f "$EXT_FILE" ]]; then
+  cat > "$EXT_FILE" <<'EOF'
+# AutoPublish bashrc extensions
 alias tl="tmux list-sessions"
 alias ta="tmux attach -t"
 alias tn="tmux new-session -s"
 EOF
 else
-  if ! grep -q 'alias tl="tmux list-sessions"' "$BASHRC_FILE"; then
-    echo 'alias tl="tmux list-sessions"' >> "$BASHRC_FILE"
+  if ! grep -q 'alias tl="tmux list-sessions"' "$EXT_FILE"; then
+    echo 'alias tl="tmux list-sessions"' >> "$EXT_FILE"
   fi
-  if ! grep -q 'alias ta="tmux attach -t"' "$BASHRC_FILE"; then
-    echo 'alias ta="tmux attach -t"' >> "$BASHRC_FILE"
+  if ! grep -q 'alias ta="tmux attach -t"' "$EXT_FILE"; then
+    echo 'alias ta="tmux attach -t"' >> "$EXT_FILE"
   fi
-  if ! grep -q 'alias tn="tmux new-session -s"' "$BASHRC_FILE"; then
-    echo 'alias tn="tmux new-session -s"' >> "$BASHRC_FILE"
+  if ! grep -q 'alias tn="tmux new-session -s"' "$EXT_FILE"; then
+    echo 'alias tn="tmux new-session -s"' >> "$EXT_FILE"
   fi
 fi
 
+tmp_file="$(mktemp)"
+sed -e '/^# AutoPublish tmux aliases$/d' \
+    -e '/^alias tl="tmux list-sessions"$/d' \
+    -e '/^alias ta="tmux attach -t"$/d' \
+    -e '/^alias tn="tmux new-session -s"$/d' \
+    "$BASHRC_FILE" > "$tmp_file"
+mv "$tmp_file" "$BASHRC_FILE"
+
+if ! grep -q "sourced_bashrc_extension.sh" "$BASHRC_FILE"; then
+  {
+    echo ""
+    echo "# AutoPublish bashrc extensions"
+    echo ". \"${EXT_FILE}\""
+  } >> "$BASHRC_FILE"
+fi
+
 chown "${TARGET_USER}:${TARGET_USER}" "$BASHRC_FILE"
+chown "${TARGET_USER}:${TARGET_USER}" "$EXT_FILE"
 
 echo "Virtual env created at $VENV_DIR"
