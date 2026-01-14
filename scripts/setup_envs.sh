@@ -204,4 +204,33 @@ chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/$
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 
+BASHRC_FILE="/home/${TARGET_USER}/.bashrc"
+if [[ ! -f "$BASHRC_FILE" ]]; then
+  touch "$BASHRC_FILE"
+  chown "${TARGET_USER}:${TARGET_USER}" "$BASHRC_FILE"
+  chmod 644 "$BASHRC_FILE"
+fi
+
+if ! grep -q "AutoPublish tmux aliases" "$BASHRC_FILE"; then
+  cat >> "$BASHRC_FILE" <<'EOF'
+
+# AutoPublish tmux aliases
+alias tl="tmux list-sessions"
+alias ta="tmux attach -t"
+alias tn="tmux new-session -s"
+EOF
+else
+  if ! grep -q 'alias tl="tmux list-sessions"' "$BASHRC_FILE"; then
+    echo 'alias tl="tmux list-sessions"' >> "$BASHRC_FILE"
+  fi
+  if ! grep -q 'alias ta="tmux attach -t"' "$BASHRC_FILE"; then
+    echo 'alias ta="tmux attach -t"' >> "$BASHRC_FILE"
+  fi
+  if ! grep -q 'alias tn="tmux new-session -s"' "$BASHRC_FILE"; then
+    echo 'alias tn="tmux new-session -s"' >> "$BASHRC_FILE"
+  fi
+fi
+
+chown "${TARGET_USER}:${TARGET_USER}" "$BASHRC_FILE"
+
 echo "Virtual env created at $VENV_DIR"
