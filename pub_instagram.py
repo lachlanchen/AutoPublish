@@ -123,6 +123,20 @@ class InstagramPublisher:
                 return dialogs[0]
         return None
 
+    def _upload_dialog_present(self):
+        driver = self.driver
+        return bool(
+            driver.find_elements(
+                By.XPATH,
+                "//div[@role='dialog' and .//input[@type='file']]",
+            )
+            or driver.find_elements(
+                By.XPATH,
+                "//div[@role='dialog' and .//button[normalize-space()='Select From Computer']]",
+            )
+            or driver.find_elements(By.XPATH, "//input[@type='file']")
+        )
+
     def _dismiss_reels_dialog(self, timeout=8):
         driver = self.driver
         dialog_xpath = "//div[@role='dialog']"
@@ -308,16 +322,24 @@ class InstagramPublisher:
             driver.execute_script("arguments[0].click();", create_button)
             time.sleep(1)
 
-            post_button = self._find_first(
-                [
-                    "//span[normalize-space()='Post']/ancestor::*[self::a or self::button or self::div[@role='button']]",
-                    "//span[normalize-space()='Post']",
-                ],
-                timeout=20,
-            )
-            driver.execute_script("arguments[0].click();", post_button)
-            time.sleep(2)
+            if not self._upload_dialog_present():
+                try:
+                    post_button = self._find_first(
+                        [
+                            "//span[normalize-space()='Post']/ancestor::*[self::a or self::button or self::div[@role='button']]",
+                            "//span[normalize-space()='Post']",
+                        ],
+                        timeout=12,
+                    )
+                    driver.execute_script("arguments[0].click();", post_button)
+                    time.sleep(2)
+                except Exception:
+                    if not self._upload_dialog_present():
+                        raise
 
+            WebDriverWait(driver, 30).until(
+                lambda d: d.find_elements(By.XPATH, "//input[@type='file']")
+            )
             self._upload_video()
 
             self._dismiss_reels_dialog(timeout=10)
