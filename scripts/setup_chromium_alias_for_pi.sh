@@ -61,14 +61,19 @@ mkdir -p "$HOME/chromium_dev_session_logs" "$HOME/chromium_dev_session_5003" "$H
   "$HOME/chromium_dev_session_5005" "$HOME/chromium_dev_session_5006" "$HOME/chromium_dev_session_5007" \
   "$HOME/chromium_dev_session_9222" 2>/dev/null || true
 
+CHROMIUM_BIN="${CHROMIUM_BIN:-$(command -v chromium-browser 2>/dev/null || command -v chromium 2>/dev/null)}"
 CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage"
 
-alias start_chromium_xhs='DISPLAY=:1 chromium-browser $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir="$HOME/chromium_dev_session_5003" https://creator.xiaohongshu.com/creator/post > "$HOME/chromium_dev_session_logs/chromium_xhs.log" 2>&1'
-alias start_chromium_douyin='DISPLAY=:1 chromium-browser $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir="$HOME/chromium_dev_session_5004" https://creator.douyin.com/creator-micro/content/upload > "$HOME/chromium_dev_session_logs/chromium_douyin.log" 2>&1'
-alias start_chromium_bilibili='DISPLAY=:1 chromium-browser $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir="$HOME/chromium_dev_session_5005" https://member.bilibili.com/platform/upload/video/frame > "$HOME/chromium_dev_session_logs/chromium_bilibili.log" 2>&1'
-alias start_chromium_shipinhao='DISPLAY=:1 chromium-browser $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir="$HOME/chromium_dev_session_5006" https://channels.weixin.qq.com/post/create > "$HOME/chromium_dev_session_logs/chromium_shipinhao.log" 2>&1'
-alias start_chromium_instagram='DISPLAY=:1 chromium-browser $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5007 --user-data-dir="$HOME/chromium_dev_session_5007" https://www.instagram.com > "$HOME/chromium_dev_session_logs/chromium_instagram.log" 2>&1'
-alias start_chromium_youtube='DISPLAY=:1 chromium-browser $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir="$HOME/chromium_dev_session_9222" https://youtube.com/upload > "$HOME/chromium_dev_session_logs/chromium_youtube.log" 2>&1'
+if [ -z "$CHROMIUM_BIN" ]; then
+  echo "Chromium not found. Install with: sudo apt-get install -y chromium" >&2
+else
+  alias start_chromium_xhs='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir="$HOME/chromium_dev_session_5003" https://creator.xiaohongshu.com/creator/post > "$HOME/chromium_dev_session_logs/chromium_xhs.log" 2>&1'
+  alias start_chromium_douyin='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir="$HOME/chromium_dev_session_5004" https://creator.douyin.com/creator-micro/content/upload > "$HOME/chromium_dev_session_logs/chromium_douyin.log" 2>&1'
+  alias start_chromium_bilibili='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir="$HOME/chromium_dev_session_5005" https://member.bilibili.com/platform/upload/video/frame > "$HOME/chromium_dev_session_logs/chromium_bilibili.log" 2>&1'
+  alias start_chromium_shipinhao='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir="$HOME/chromium_dev_session_5006" https://channels.weixin.qq.com/post/create > "$HOME/chromium_dev_session_logs/chromium_shipinhao.log" 2>&1'
+  alias start_chromium_instagram='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5007 --user-data-dir="$HOME/chromium_dev_session_5007" https://www.instagram.com > "$HOME/chromium_dev_session_logs/chromium_instagram.log" 2>&1'
+  alias start_chromium_youtube='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir="$HOME/chromium_dev_session_9222" https://youtube.com/upload > "$HOME/chromium_dev_session_logs/chromium_youtube.log" 2>&1'
+fi
 alias start_chromium_without_y2b='start_chromium_xhs & start_chromium_douyin & start_chromium_bilibili'
 alias start_chromium_all='start_chromium_xhs & start_chromium_douyin & start_chromium_bilibili & start_chromium_shipinhao & start_chromium_instagram & start_chromium_youtube'
 EOF
