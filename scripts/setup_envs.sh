@@ -251,4 +251,29 @@ fi
 chown "${TARGET_USER}:${TARGET_USER}" "$BASHRC_FILE"
 chown "${TARGET_USER}:${TARGET_USER}" "$EXT_FILE"
 
+ENV_FILE="${REPO_DIR}/.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  touch "$ENV_FILE"
+fi
+
+for key in \
+  FROM_EMAIL \
+  TO_EMAIL \
+  SENDGRID_API_KEY \
+  APP_PASSWORD \
+  SMTP_TEST_FROM_EMAIL \
+  SMTP_TEST_TO_EMAIL \
+  SMTP_TEST_APP_PASSWORD \
+  APIKEY_2CAPTCHA \
+  TULING_USERNAME \
+  TULING_PASSWORD \
+  TULING_ID; do
+  if ! grep -q "^${key}=" "$ENV_FILE"; then
+    echo "${key}=" >> "$ENV_FILE"
+  fi
+done
+
+chown "${TARGET_USER}:${TARGET_USER}" "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
 echo "Virtual env created at $VENV_DIR"
