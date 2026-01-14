@@ -21,8 +21,7 @@ fi
 cat > "$SERVICE_PATH" <<SERVICE
 [Unit]
 Description=AutoPublish tmux service
-After=network.target virtual-desktop.service
-Wants=virtual-desktop.service
+After=network.target
 
 [Service]
 Type=oneshot

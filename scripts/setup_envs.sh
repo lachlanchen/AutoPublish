@@ -209,4 +209,15 @@ chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/.config" "/home/$
 
 chown -R "${TARGET_USER}:${TARGET_USER}" "/home/${TARGET_USER}/venvs"
 
+VNC_DIR="/home/${TARGET_USER}/.vnc"
+mkdir -p "$VNC_DIR"
+cat > "$VNC_DIR/xstartup" <<'EOF'
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+exec dbus-launch --exit-with-session openbox-session
+EOF
+chmod 755 "$VNC_DIR/xstartup"
+chown -R "${TARGET_USER}:${TARGET_USER}" "$VNC_DIR"
+
 echo "Virtual env created at $VENV_DIR"

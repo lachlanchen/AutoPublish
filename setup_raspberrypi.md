@@ -67,7 +67,15 @@ export AUTOPUB_REPO=/home/<USERNAME>/Projects/autopub
 sudo -E ./scripts/setup_autopub_pipeline.sh
 ```
 
-Optional VNC password and port:
+By default, the pipeline will **skip** the custom `x11vnc` desktop if `vncserver-virtual` (RealVNC) is installed.
+To force the custom desktop anyway:
+
+```bash
+export AUTOPUB_VNC_MODE=x11vnc
+sudo -E ./scripts/setup_autopub_pipeline.sh
+```
+
+Optional (only for the custom `x11vnc` desktop): VNC password and ports:
 
 ```bash
 sudoedit /etc/default/autopub
@@ -183,9 +191,13 @@ sudo ss -ltnp | grep 590
 
 Connect from RealVNC Viewer:
 
-- Host: `lazyingart:5901` (or `lazyingart::5901`), and optionally `lazyingart:5900`.
-- This VNC server is `x11vnc` and RealVNC Viewer may warn that the connection is not encrypted. If you want encryption, use an SSH tunnel.
-- Set a VNC password in `/etc/default/autopub`, then restart:
+- Preferred (encrypted): RealVNC virtual desktop
+  - Start it: `vncserver-virtual :1` (port `5901`)
+  - If you get a blank desktop, ensure `~/.vnc/xstartup` exists (created by `scripts/setup_envs.sh`) and restart the virtual session.
+
+- Fallback (not encrypted): custom `x11vnc` desktop
+  - Host: `lazyingart:5901` (or `lazyingart::5901`), and optionally `lazyingart:5900`
+  - Set a VNC password in `/etc/default/autopub`, then restart:
 
 ```bash
 sudoedit /etc/default/autopub
