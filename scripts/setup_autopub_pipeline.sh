@@ -19,6 +19,8 @@ fi
 "$SCRIPT_DIR/download_and_setup_driver.sh"
 "$SCRIPT_DIR/setup_autopub_service.sh"
 
+rm -rf "/home/${AUTOPUB_USER}/.vnc"
+
 echo "AutoPublish pipeline setup complete."
 echo ""
 echo "Next steps:"
