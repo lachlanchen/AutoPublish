@@ -10,7 +10,7 @@ from selenium.common.exceptions import NoSuchElementException, NoSuchWindowExcep
 from selenium.common.exceptions import WebDriverException
 
 
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_douyin import DouyinLogin
 
 import traceback
@@ -53,10 +53,12 @@ class DouyinPublisher:
                 time.sleep(10)
 
                 bring_to_front(["抖音"])  # This should be defined somewhere in your code
+                close_extra_tabs(driver)
 
                 # Uploading the video
                 print("Uploading video...")
                 time.sleep(3)
+                bring_to_front(["抖音"])
                 driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
 
                 # Monitor upload status

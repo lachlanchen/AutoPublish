@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException
 import time
 
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_xiaohongshu import XiaoHongShuLogin
 
 import traceback
@@ -69,12 +69,14 @@ class XiaoHongShuPublisher:
                 time.sleep(10)
                 
                 bring_to_front(["小红书", "你访问的页面不见了"])
+                close_extra_tabs(driver)
 
                 WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//input[@type="file"]')))
                 print("Video upload field is present.")
 
                 print(f"Uploading video from path: {path_mp4}")
                 time.sleep(3)
+                bring_to_front(["小红书", "你访问的页面不见了"])
                 driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
 
                 # Monitor upload status

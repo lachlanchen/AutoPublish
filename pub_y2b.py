@@ -9,7 +9,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.common.exceptions import NoAlertPresentException
 import traceback
 
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, close_extra_tabs
 # from utils import dismiss_alert, bring_to_front
 #   This assumes you have a 'utils.py' containing these functions. 
 #   If not, just define them in this file as needed:
@@ -92,9 +92,11 @@ class YouTubePublisher:
             time.sleep(10)  # Wait a bit longer for upload page elements
 
             bring_to_front(["YouTube"])
+            close_extra_tabs(self.driver)
             
             # Upload the video file
             absolute_video_path = str(Path.cwd() / self.video_path)
+            bring_to_front(["YouTube"])
             self.driver.find_element(By.XPATH, "//input[@type='file']").send_keys(absolute_video_path)
             print('Attached video {}'.format(self.video_path))
         except Exception as e:

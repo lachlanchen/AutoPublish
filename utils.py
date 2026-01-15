@@ -186,3 +186,28 @@ def bring_to_front(window_name_pattern):
     except subprocess.CalledProcessError as e:
         print(f"Error: {e.output.decode()}")
         traceback.print_exc()
+
+
+def close_extra_tabs(driver):
+    try:
+        handles = driver.window_handles
+    except Exception:
+        return
+    if not handles or len(handles) <= 1:
+        return
+    try:
+        keep = driver.current_window_handle
+    except Exception:
+        keep = handles[0]
+    for handle in handles:
+        if handle == keep:
+            continue
+        try:
+            driver.switch_to.window(handle)
+            driver.close()
+        except Exception:
+            continue
+    try:
+        driver.switch_to.window(keep)
+    except Exception:
+        pass

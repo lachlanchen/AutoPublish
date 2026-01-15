@@ -10,7 +10,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 # from webdriver_manager.chrome import ChromeDriverManager
 
-from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front
+from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front, close_extra_tabs
 
 import traceback
 
@@ -304,10 +304,12 @@ class BilibiliPublisher:
                 time.sleep(10)
 
                 bring_to_front(["哔哩哔哩"])
+                close_extra_tabs(driver)
                 
                 print(f"Uploading video from path: {path_mp4}")
                 upload_input_xpath = '//input[@type="file" and contains(@accept,"mp4")]'
                 time.sleep(3)        
+                bring_to_front(["哔哩哔哩"])
                 driver.find_element(By.XPATH, upload_input_xpath).send_keys(path_mp4)
 
                 print("Waiting for the video to be uploaded...")

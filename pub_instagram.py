@@ -11,7 +11,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
 
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_instagram import InstagramLogin
 
 
@@ -324,6 +324,7 @@ class InstagramPublisher:
             dismiss_alert(driver)
             time.sleep(2)
             bring_to_front(["Instagram"])
+            close_extra_tabs(driver)
 
             create_button = self._find_first(
                 [
@@ -353,6 +354,7 @@ class InstagramPublisher:
             WebDriverWait(driver, 30).until(
                 lambda d: d.find_elements(By.XPATH, "//input[@type='file']")
             )
+            bring_to_front(["Instagram"])
             self._upload_video()
 
             self._dismiss_reels_dialog(timeout=10)

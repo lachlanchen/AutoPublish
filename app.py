@@ -228,8 +228,12 @@ def stop_and_start_chromium_sessions(
         try:
             # Commands to stop existing Chromium and ChromeDriver processes
             try:
-                subprocess.run(f"echo {password} | sudo -S pkill chromium-browse", shell=True, check=True)
-                subprocess.run(f"echo {password} | sudo -S pkill chromedriver", shell=True, check=True)
+                subprocess.run(
+                    f"echo {password} | sudo -S pkill -f 'chromium-browser|chromium|google-chrome'",
+                    shell=True,
+                    check=True,
+                )
+                subprocess.run(f"echo {password} | sudo -S pkill -f chromedriver", shell=True, check=True)
             except:
                 pass
             
@@ -433,15 +437,6 @@ def _process_publish_job(job):
     except Exception as exc:
         print(f"Failed to restart Chromium sessions before publish: {exc}")
 
-    stop_and_start_chromium_sessions(
-        publish_xhs=publish_xhs,
-        publish_bilibili=publish_bilibili,
-        publish_douyin=publish_douyin,
-        publish_shipinhao=publish_shipinhao,
-        publish_y2b=publish_y2b,
-        publish_instagram=publish_instagram,
-    )
-
     filename = job.get("filename")
     transcription_dir = job.get("transcription_dir")
     transcription_path = job.get("zip_path")
@@ -502,13 +497,13 @@ def _process_publish_job(job):
         elif name == 'Bilibili':
             bring_to_front(["哔哩哔哩"])
         elif name == 'ShiPinHao':
-            bring_to_front(["视频号助手"])
+            bring_to_front(["视频号", "视频号助手"])
         elif name == 'Instagram':
             bring_to_front(["Instagram"])
         elif name == 'YouTube':
             bring_to_front(["YouTube"])
 
-        publisher.publish()
+        publish_platform(publisher, name)
 
 def _publish_worker():
     global is_publishing

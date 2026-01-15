@@ -1,6 +1,7 @@
 import time
 import json
 import traceback
+import os
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, NoAlertPresentException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -8,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_shipinhao import ShiPinHaoLogin
 import traceback
 
@@ -232,12 +233,14 @@ class ShiPinHaoPublisher:
                 time.sleep(10)
 
                 bring_to_front(["视频号"])
+                close_extra_tabs(driver)
 
                 wait_for_element(driver, "//span[contains(text(), '发表动态')]", 30)
                 dismiss_alert(driver)
                 time.sleep(3)
 
                 # Upload video
+                bring_to_front(["视频号"])
                 video_upload_input = wait_for_element(driver, '//input[@type="file"]', 30)
                 video_upload_input.send_keys(video_path)
                 print("Video uploading...")
@@ -281,7 +284,10 @@ class ShiPinHaoPublisher:
                 # hku_option.click()
                 # time.sleep(3)
 
-                self.set_location(driver)
+                if os.environ.get("AUTOPUB_SHIPINHAO_LOCATION", "0") == "1":
+                    self.set_location(driver)
+                else:
+                    print("Skipping location selection for ShiPinHao.")
 
                 # Set playlist
                 collection_dropdown = wait_for_element_clickable(
