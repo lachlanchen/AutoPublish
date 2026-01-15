@@ -4,6 +4,7 @@ import traceback
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, NoAlertPresentException, TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -21,13 +22,28 @@ import re
 #     except NoAlertPresentException:
 #         print("No alert present.")
 
-def is_delete_button_present(driver):
-    try:
-        driver.find_element(By.XPATH, '//*[contains(text(), "删除")]')
-        print("Delete button found, upload likely complete.")
-        return True
-    except NoSuchElementException:
-        return False
+UPLOAD_COMPLETE_XPATHS = [
+    '//*[contains(text(), "删除")]',
+    '//*[contains(text(), "重新上传")]',
+    '//*[contains(text(), "替换")]',
+    '//*[contains(text(), "上传成功")]',
+    '//*[contains(text(), "上传完成")]',
+    '//*[contains(text(), "转码中")]',
+    '//div[contains(@class, "ant-upload-list-item") and (contains(@class, "done") or contains(@class, "success"))]',
+    '//div[contains(@class, "ant-upload-list-item")]',
+    '//div[contains(@class, "post-upload-wrap")]//video',
+]
+
+def is_upload_complete_indicator_present(driver):
+    for xpath in UPLOAD_COMPLETE_XPATHS:
+        try:
+            element = driver.find_element(By.XPATH, xpath)
+            if element and element.is_displayed():
+                print(f"Upload indicator found ({xpath}), upload likely complete.")
+                return True
+        except NoSuchElementException:
+            continue
+    return False
 
 def wait_for_element(driver, xpath, duration=30):
     return WebDriverWait(driver, duration).until(EC.presence_of_element_located((By.XPATH, xpath)))
@@ -35,6 +51,27 @@ def wait_for_element(driver, xpath, duration=30):
 def wait_for_element_clickable(driver, xpath, duration=30):
     return WebDriverWait(driver, duration).until(EC.element_to_be_clickable((By.XPATH, xpath)))
 
+def wait_for_element_visible(driver, xpath, duration=30):
+    return WebDriverWait(driver, duration).until(EC.visibility_of_element_located((By.XPATH, xpath)))
+
+def safe_click(driver, element):
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+    try:
+        element.click()
+    except Exception:
+        driver.execute_script("arguments[0].click();", element)
+
+def dismiss_overlays(driver):
+    try:
+        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+    except Exception:
+        pass
+    try:
+        driver.execute_script(
+            "document.querySelectorAll('.feed-cover').forEach(el => el.style.pointerEvents='none');"
+        )
+    except Exception:
+        pass
 
 class ShiPinHaoPublisher:
     def __init__(self, driver, video_path, thumbnail_path, metadata, test=False):
@@ -136,28 +173,33 @@ class ShiPinHaoPublisher:
         
         for location_input_text, _ in location_options:
             try:
-                if location_input_text:
-                    # Click on the position display wrapper
-                    position_display_wrap = wait_for_element(driver, '//*[@class="position-display-wrap"]', 30)
-                    position_display_wrap.click()
-                    time.sleep(3)
+                dismiss_overlays(driver)
+                # Click on the position display wrapper
+                position_display_wrap = wait_for_element(driver, '//div[contains(@class, "position-display-wrap")]', 30)
+                safe_click(driver, position_display_wrap)
+                time.sleep(3)
 
+                if location_input_text:
                     # Enter location in the search box
                     location_input = wait_for_element(driver, '//input[@placeholder="搜索附近位置"]', 30)
                     self.clear_and_type(location_input, location_input_text)
                     time.sleep(3)
 
                     # Click the search button if needed
-                    search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-icon-btn weui-desktop-search__btn")]', 30)
-                    search_button.click()
+                    search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-search__btn")]', 30)
+                    safe_click(driver, search_button)
                     time.sleep(3)
 
                 click_successful = False
                 for _, location_click_text in location_options:
                     try:
                         # Try clicking on the specified location
-                        location_option = wait_for_element_clickable(driver, f"//div[contains(@class, 'location-item-info')]//div[text()='{location_click_text}']", 30)
-                        location_option.click()
+                        location_option = wait_for_element_visible(
+                            driver,
+                            f"//div[contains(@class, 'location-item-info')]//div[contains(@class, 'name') and normalize-space()='{location_click_text}']",
+                            30,
+                        )
+                        safe_click(driver, location_option)
                         time.sleep(3)
                         print(f"Clicked on location: {location_click_text}")
                         click_successful = True
@@ -202,15 +244,15 @@ class ShiPinHaoPublisher:
 
                 start_time = time.time()
                 timeout = 3600  # 3600 seconds timeout
-                while not is_delete_button_present(driver):
+                while not is_upload_complete_indicator_present(driver):
                     if time.time() - start_time > timeout:
-                        raise Exception("Timeout reached while waiting for video to be uploaded or for the delete button to appear.")
-                    print("Waiting for the video to upload or for the delete button to appear...")
+                        raise Exception("Timeout reached while waiting for video to be uploaded.")
+                    print("Waiting for the video to upload or for completion indicators to appear...")
                     dismiss_alert(driver)
                     time.sleep(5)
 
                 time.sleep(10)  # Wait for 10 seconds after detecting the delete button
-                print("Video uploaded or delete button detected!")
+                print("Video uploaded or completion indicator detected!")
 
                 # Upload and confirm cover
                 self.upload_and_confirm_cover()
@@ -242,13 +284,25 @@ class ShiPinHaoPublisher:
                 self.set_location(driver)
 
                 # Set playlist
-                collection_dropdown = wait_for_element_clickable(driver, "//div[@class='post-album-display-wrap']//div[@class='display-text' and contains(text(), '选择合集')]", 30)
-                collection_dropdown.click()
+                collection_dropdown = wait_for_element_clickable(
+                    driver,
+                    "//div[contains(@class, 'post-album-display-wrap')]//div[contains(@class, 'display-text') and contains(text(), '选择合集')]",
+                    30,
+                )
+                safe_click(driver, collection_dropdown)
                 time.sleep(3)
 
-                simple_life_collection = wait_for_element_clickable(driver, "//div[@class='common-option-list-wrap option-list-wrap']//div[@class='item']//div[@class='name' and text()='简单生活']", 30)
-                simple_life_collection.click()
-                time.sleep(3)
+                try:
+                    simple_life_collection = wait_for_element_visible(
+                        driver,
+                        "//div[contains(@class,'common-option-list-wrap') and contains(@class,'option-list-wrap')]"
+                        "//div[contains(@class,'option-item')]//div[contains(@class,'name') and normalize-space()='简单生活']",
+                        30,
+                    )
+                    safe_click(driver, simple_life_collection)
+                    time.sleep(3)
+                except Exception as e:
+                    print(f"Collection '简单生活' not found or not clickable: {e}")
 
                 # Set short title
                 title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]

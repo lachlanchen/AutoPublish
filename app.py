@@ -420,6 +420,19 @@ def _process_publish_job(job):
         print("No publish targets selected. Skipping job.")
         return
 
+    try:
+        print("Closing existing Chromium sessions before publishing...")
+        stop_and_start_chromium_sessions(
+            publish_xhs=publish_xhs,
+            publish_bilibili=publish_bilibili,
+            publish_douyin=publish_douyin,
+            publish_shipinhao=publish_shipinhao,
+            publish_y2b=publish_y2b,
+            publish_instagram=publish_instagram,
+        )
+    except Exception as exc:
+        print(f"Failed to restart Chromium sessions before publish: {exc}")
+
     stop_and_start_chromium_sessions(
         publish_xhs=publish_xhs,
         publish_bilibili=publish_bilibili,
