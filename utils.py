@@ -101,6 +101,9 @@ class SendMail:
         self.to_email = to_email
 
     def send_email(self, subject, content, attachment_path, attachment_name):
+        if not self.sendgrid_api_key or not self.from_email or not self.to_email:
+            print("SendGrid not configured. Skipping email send.")
+            return False
         sg = SendGridAPIClient(self.sendgrid_api_key)
         mail = Mail(from_email=Email(self.from_email), to_emails=To(self.to_email), subject=subject)
 
@@ -127,8 +130,14 @@ class SendMail:
         mail.add_attachment(attachment)
 
         # Send the email
-        response = sg.send(mail)
-        print(f"Email sent, status code: {response.status_code}")
+        try:
+            response = sg.send(mail)
+            print(f"Email sent, status code: {response.status_code}")
+            return True
+        except Exception as exc:
+            print(f"Failed to send email via SendGrid: {exc}")
+            traceback.print_exc()
+            return False
 
 
 def dismiss_alert(driver, dismiss=False):
@@ -211,3 +220,26 @@ def close_extra_tabs(driver):
         driver.switch_to.window(keep)
     except Exception:
         pass
+
+
+def log_html_snapshot(driver, platform, label="error"):
+    try:
+        html = driver.page_source
+    except Exception as exc:
+        print(f"Failed to capture HTML for {platform}: {exc}")
+        return None
+    logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    safe_platform = str(platform).lower()
+    log_path = os.path.join(logs_dir, f"selenium-{safe_platform}.log")
+    try:
+        with open(log_path, "a", encoding="utf-8") as handle:
+            handle.write(f"\n===== {timestamp} {label} =====\n")
+            handle.write(html)
+            handle.write("\n===== END =====\n")
+        print(f"Saved HTML snapshot to {log_path}")
+        return log_path
+    except Exception as exc:
+        print(f"Failed to write HTML snapshot for {platform}: {exc}")
+        return None

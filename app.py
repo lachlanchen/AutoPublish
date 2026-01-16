@@ -28,7 +28,7 @@ from selenium.webdriver.chrome.service import Service
 
 import subprocess
 
-from utils import bring_to_front
+from utils import bring_to_front, log_html_snapshot
 
 import argparse
 import itertools
@@ -407,6 +407,17 @@ def publish_platform(publisher, platform_name):
     except Exception as e:
         print(f"Failed to publish on {platform_name}: {e}")
         traceback.print_exc()
+        platform_key = {
+            "XiaoHongShu": "xhs",
+            "ShiPinHao": "shipinhao",
+            "Instagram": "ins",
+            "YouTube": "y2b",
+            "Douyin": "douyin",
+            "Bilibili": "bilibili",
+        }.get(platform_name, str(platform_name).lower())
+        driver = getattr(publisher, "driver", None)
+        if driver:
+            log_html_snapshot(driver, platform_key, "publish_error")
         return 0
 
 def _process_publish_job(job):

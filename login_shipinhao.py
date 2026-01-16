@@ -12,9 +12,10 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 import os
 import base64
+import traceback
 
 from utils import SendMail
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, log_html_snapshot
 
 # class SendMail:
 #     # Set defaults within the class, but allow them to be overridden
@@ -60,6 +61,21 @@ class ShiPinHaoLogin:
         driver = webdriver.Chrome(options=options)
         return driver
 
+    def is_login_iframe_present(self):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        try:
+            iframe = self.driver.find_element(By.CSS_SELECTOR, "iframe.display")
+            src = iframe.get_attribute("src") or ""
+            if "login-for-iframe" in src:
+                print("Login iframe detected.")
+                return True
+        except Exception:
+            return False
+        return False
+
     # def find_lazying_art(self):
     #     try:
     #         # Search for the span element containing the specific text
@@ -79,6 +95,10 @@ class ShiPinHaoLogin:
                 self.driver.switch_to.default_content()
             except Exception as e:
                 print(f"Error switching to default content: {e}")
+
+            if self.is_login_iframe_present():
+                print("Login iframe is present; not logged in yet.")
+                return False
                 
             # Try multiple selector strategies for better reliability
             selectors = [
@@ -112,6 +132,7 @@ class ShiPinHaoLogin:
             debug_path = '/tmp/debug-screenshot.png'
             self.driver.save_screenshot(debug_path)
             print(f"Saved debug screenshot to {debug_path}")
+            log_html_snapshot(self.driver, "shipinhao", "login_check")
             
             print("Did not find '陈苗LazyingArt懒人艺术' after trying multiple approaches.")
             return False
@@ -140,6 +161,8 @@ class ShiPinHaoLogin:
             print("Already logged in. ")
             return
 
+        if self.is_login_iframe_present():
+            log_html_snapshot(self.driver, "shipinhao", "login_required")
 
         try:
             WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
@@ -221,12 +244,18 @@ class ShiPinHaoLogin:
     def take_screenshot_and_send_email(self):
         screenshot_path = '/tmp/shipinhao-screenshot.png'
         self.driver.save_screenshot(screenshot_path)
-        self.mailer.send_email(
-            'Shipinhao Login Required',
-            'Login is required. Please see the attached screenshot.',
-            screenshot_path,
-            'shipinhao-screenshot.png'
-        )
+        try:
+            sent = self.mailer.send_email(
+                'Shipinhao Login Required',
+                'Login is required. Please see the attached screenshot.',
+                screenshot_path,
+                'shipinhao-screenshot.png'
+            )
+            if not sent:
+                print("Login email was not sent (SendGrid not configured or failed).")
+        except Exception as exc:
+            print(f"Failed to send login email: {exc}")
+            traceback.print_exc()
 
 if __name__ == "__main__":
     import argparse
