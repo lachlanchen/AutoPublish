@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1c2a33" />
+    <title>AutoPublish Studio</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <div class="backdrop" aria-hidden="true"></div>
+    <header class="topbar">
+      <div class="brand">
+        <img src="icons/logo.png" alt="LazyEdit logo" class="brand-logo" />
+        <div>
+          <p class="brand-title">AutoPublish Studio</p>
+          <p class="brand-subtitle">Preview, verify, and launch publishing jobs</p>
+        </div>
+      </div>
+      <div class="controls">
+        <label class="input-label" for="api-base">API Base</label>
+        <input id="api-base" class="text-input" type="url" placeholder="http://lazyingart:8081" />
+        <button id="refresh-queue" class="button ghost">Refresh Queue</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Incoming Jobs</h2>
+          <span id="queue-status" class="status-pill">Idle</span>
+        </div>
+        <div id="queue-list" class="queue-list">
+          <p class="muted">Waiting for queue data...</p>
+        </div>
+        <div class="panel-footer">
+          <div class="stat">
+            <span class="stat-label">Publishing</span>
+            <span id="publishing-flag" class="stat-value">No</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Queue size</span>
+            <span id="queue-size" class="stat-value">0</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel preview">
+        <div class="panel-header">
+          <h2>Zip Preview</h2>
+          <span id="zip-status" class="status-pill warn">No file loaded</span>
+        </div>
+        <div id="dropzone" class="dropzone">
+          <input id="file-input" type="file" accept=".zip" />
+          <div>
+            <p class="drop-title">Drop a LazyEdit ZIP bundle</p>
+            <p class="muted">or click to browse</p>
+          </div>
+        </div>
+        <div class="preview-grid">
+          <div class="preview-cover">
+            <img id="cover-image" src="" alt="Cover preview" />
+            <p id="cover-fallback" class="muted">Cover image appears here.</p>
+          </div>
+          <div class="metadata">
+            <div class="metadata-header">
+              <h3>Metadata</h3>
+              <button id="clear-preview" class="button ghost">Clear</button>
+            </div>
+            <div id="metadata-fields" class="metadata-fields">
+              <p class="muted">Load a ZIP to inspect metadata JSON.</p>
+            </div>
+          </div>
+        </div>
+        <div class="publish-options">
+          <div>
+            <h3>Publish Targets</h3>
+            <p class="muted">Toggle destinations before sending the job.</p>
+          </div>
+          <div class="toggle-grid">
+            <label class="toggle"><input type="checkbox" data-platform="xhs" />XiaoHongShu</label>
+            <label class="toggle"><input type="checkbox" data-platform="douyin" />Douyin</label>
+            <label class="toggle"><input type="checkbox" data-platform="bilibili" />Bilibili</label>
+            <label class="toggle"><input type="checkbox" data-platform="shipinhao" />ShiPinHao</label>
+            <label class="toggle"><input type="checkbox" data-platform="y2b" />YouTube</label>
+            <label class="toggle"><input type="checkbox" data-platform="instagram" />Instagram</label>
+            <label class="toggle"><input type="checkbox" data-platform="test" />Test mode</label>
+          </div>
+        </div>
+        <div class="panel-footer actions">
+          <button id="publish-btn" class="button primary" disabled>Publish Zip</button>
+          <button id="open-file" class="button ghost">Select Zip</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>AutoPublish Studio is a standalone PWA front end for the AutoPublish backend.</p>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="vendor/jszip.min.js"></script>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
