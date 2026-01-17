@@ -10,6 +10,11 @@ import time
 import os
 import base64
 import traceback
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 # import cv2
 import numpy as np
@@ -18,9 +23,6 @@ from qreader import QReader
 # import os
 import cv2
 import base64
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content, HtmlContent, Attachment
-from sendgrid.helpers.mail import FileContent, FileName, FileType, Disposition
 
 
 # class SendMail:
@@ -95,47 +97,70 @@ class QRCodeProcessor:
         return None
 
 class SendMail:
-    def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email=os.environ.get('FROM_EMAIL'), to_email=os.environ.get('TO_EMAIL')):
-        self.sendgrid_api_key = sendgrid_api_key
+    def __init__(
+        self,
+        sendgrid_api_key=os.environ.get("SENDGRID_API_KEY"),
+        from_email=os.environ.get("FROM_EMAIL"),
+        to_email=os.environ.get("TO_EMAIL"),
+        app_password=os.environ.get("APP_PASSWORD"),
+        smtp_server="smtp.gmail.com",
+        smtp_port=587,
+    ):
         self.from_email = from_email
         self.to_email = to_email
+        self.app_password = app_password or sendgrid_api_key
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
 
     def send_email(self, subject, content, attachment_path, attachment_name):
-        if not self.sendgrid_api_key or not self.from_email or not self.to_email:
-            print("SendGrid not configured. Skipping email send.")
+        if not self.from_email or not self.to_email or not self.app_password:
+            print("SMTP not configured. Skipping email send.")
             return False
-        sg = SendGridAPIClient(self.sendgrid_api_key)
-        mail = Mail(from_email=Email(self.from_email), to_emails=To(self.to_email), subject=subject)
 
-        # Add plain text content
-        mail.add_content(Content("text/plain", content))
+        msg = MIMEMultipart("mixed")
+        msg["From"] = self.from_email
+        msg["To"] = self.to_email
+        msg["Subject"] = subject
 
-        # Process the image to possibly crop the QR code with a margin
+        body = MIMEMultipart("alternative")
+        body.attach(MIMEText(content, "plain"))
+
         cropped_image = QRCodeProcessor.find_and_crop_qr_code(attachment_path)
         if cropped_image is not None:
-            _, buffer = cv2.imencode('.png', cropped_image)
+            _, buffer = cv2.imencode(".png", cropped_image)
             encoded_cropped = base64.b64encode(buffer).decode()
-            html_content = f"<img src='data:image/png;base64,{encoded_cropped}' alt='Cropped QR Code'>"
-            mail.add_content(HtmlContent(f"<html><body><p>{content}</p>{html_content}</body></html>"))
+            html_content = (
+                f"<html><body><p>{content}</p>"
+                f"<img src='data:image/png;base64,{encoded_cropped}' "
+                f"alt='Cropped QR Code'></body></html>"
+            )
+            body.attach(MIMEText(html_content, "html"))
 
-        # Attach the original image
-        with open(attachment_path, 'rb') as f:
-            data = f.read()
-            encoded_file = base64.b64encode(data).decode()
-        attachment = Attachment()
-        attachment.file_content = FileContent(encoded_file)
-        attachment.file_type = FileType('image/png')
-        attachment.file_name = FileName(attachment_name)
-        attachment.disposition = Disposition('attachment')
-        mail.add_attachment(attachment)
+        msg.attach(body)
 
-        # Send the email
         try:
-            response = sg.send(mail)
-            print(f"Email sent, status code: {response.status_code}")
+            with open(attachment_path, "rb") as attachment:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename={attachment_name}",
+            )
+            msg.attach(part)
+        except Exception as exc:
+            print(f"Warning: Could not attach file {attachment_path}: {exc}")
+
+        try:
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.from_email, self.app_password)
+            server.sendmail(self.from_email, self.to_email, msg.as_string())
+            server.quit()
+            print(f"Email sent successfully to {self.to_email}")
             return True
         except Exception as exc:
-            print(f"Failed to send email via SendGrid: {exc}")
+            print(f"Failed to send email via SMTP: {exc}")
             traceback.print_exc()
             return False
 

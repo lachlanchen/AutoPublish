@@ -70,7 +70,7 @@ sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" 
 
 | Variable | Description |
 | --- | --- |
-| `SENDGRID_API_KEY`, `FROM_EMAIL`, `TO_EMAIL` | SendGrid credentials used by QR-code mailers in `utils.SendMail`. |
+| `FROM_EMAIL`, `TO_EMAIL`, `APP_PASSWORD` | SMTP credentials used by QR-code mailers in `utils.SendMail` (Gmail app password). |
 | `APIKEY_2CAPTCHA` | API key for 2Captcha (remove the hard-coded fallback in `solve_captcha_2captcha.py` before pushing code publicly). |
 | `TULING_USERNAME`, `TULING_PASSWORD`, `TULING_ID` | Credentials for the Turing captcha solver used inside `solve_captcha_turing.py`. |
 | Platform logins | Manually log into XiaoHongShu, Douyin, Bilibili, etc. once per Chromium profile; the automation reuses those sessions. |
@@ -78,9 +78,9 @@ sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" 
 Add these to `~/.bashrc` (or the shell profile you actually use) so `load_env.py` can import them:
 
 ```bash
-export SENDGRID_API_KEY="..."
 export FROM_EMAIL="notifications@example.com"
 export TO_EMAIL="me@example.com"
+export APP_PASSWORD="your_app_password"
 export APIKEY_2CAPTCHA="..."
 export TULING_USERNAME="..."
 # ...
