@@ -4,11 +4,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-
-
-# from sendgrid import SendGridAPIClient
-# from sendgrid.helpers.mail import Mail, Email, To, Content, Attachment
-# from sendgrid.helpers.mail import FileContent, FileName, FileType, Disposition
 import time
 import os
 import base64
@@ -16,39 +11,14 @@ import base64
 from utils import SendMail
 from utils import dismiss_alert, bring_to_front
 
-# class SendMail:
-#     def __init__(self, sendgrid_api_key=os.environ.get('SENDGRID_API_KEY'), from_email=os.environ.get('FROM_EMAIL'), to_email=os.environ.get('TO_EMAIL')):
-#         self.sendgrid_api_key = sendgrid_api_key
-#         self.from_email = from_email
-#         self.to_email = to_email
-
-#     def send_email(self, subject, content, attachment_path, attachment_name):
-#         sg = SendGridAPIClient(self.sendgrid_api_key)
-#         mail = Mail(
-#             from_email=Email(self.from_email),
-#             to_emails=To(self.to_email),
-#             subject=subject,
-#             plain_text_content=content
-#         )
-
-#         with open(attachment_path, 'rb') as f:
-#             data = f.read()
-#             encoded_file = base64.b64encode(data).decode()
-
-#         attachment = Attachment()
-#         attachment.file_content = FileContent(encoded_file)
-#         attachment.file_type = FileType('image/png')
-#         attachment.file_name = FileName(attachment_name)
-#         attachment.disposition = Disposition('attachment')
-#         mail.add_attachment(attachment)
-
-#         response = sg.send(mail)
-#         print(f"Email sent, status code: {response.status_code}")
-
 class XiaoHongShuLogin:
     def __init__(self, driver=None, port="5003"):
         print("Initializing XiaoHongShuLogin class...")
-        self.mailer = SendMail()  # Using default parameters
+        self.mailer = SendMail(
+            sendgrid_api_key=None,
+            smtp_server="smtp.gmail.com",
+            smtp_port=587,
+        )
         self.port = port
         self.driver = driver if driver else self.create_new_driver()
         self.refresh_count = 0
