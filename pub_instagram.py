@@ -276,40 +276,67 @@ class InstagramPublisher:
 
     def _set_crop_original(self, timeout=20):
         driver = self.driver
+        print("Attempting to set crop to Original...")
         original_xpaths = [
-            "//span[normalize-space()='Original']/ancestor::*[@role='button'][1]",
-            "//div[@role='button' and .//span[normalize-space()='Original']]",
+            "//div[@role='dialog']//span[normalize-space()='Original']/ancestor::*[self::button or self::div[@role='button']][1]",
+            "//span[normalize-space()='Original']/ancestor::*[self::button or self::div[@role='button']][1]",
+        ]
+        selected_original_xpaths = [
+            "//div[@role='dialog']//span[normalize-space()='Original']"
+            "/ancestor::*[@aria-checked='true' or @aria-selected='true'][1]",
         ]
         crop_button_xpaths = [
-            "//button[.//svg[@aria-label='Select Crop']]",
-            "//div[@role='button' and .//svg[@aria-label='Select Crop']]",
+            "//div[@role='dialog']//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
+            "//div[@role='dialog']//title[normalize-space()='Select Crop']"
+            "/ancestor::*[self::button or self::div[@role='button']][1]",
+            "//div[@role='dialog']//svg[contains(translate(@aria-label,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'crop')]"
+            "/ancestor::*[self::button or self::div[@role='button']][1]",
             "//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
         ]
         end_time = time.time() + timeout
+        opened_crop = False
         while time.time() < end_time:
             self._dismiss_reels_dialog(timeout=2)
+            for xpath in selected_original_xpaths:
+                if driver.find_elements(By.XPATH, xpath):
+                    print("Crop already set to Original.")
+                    return True
             for xpath in original_xpaths:
                 buttons = driver.find_elements(By.XPATH, xpath)
                 if buttons and self._safe_click(buttons[0]):
-                    time.sleep(1)
+                    print("Selected crop: Original.")
+                    time.sleep(0.5)
+                    for close_xpath in crop_button_xpaths:
+                        close_buttons = driver.find_elements(By.XPATH, close_xpath)
+                        if close_buttons and self._safe_click(close_buttons[0]):
+                            time.sleep(0.5)
+                            break
                     return True
             for xpath in crop_button_xpaths:
                 buttons = driver.find_elements(By.XPATH, xpath)
                 if buttons and self._safe_click(buttons[0]):
+                    if not opened_crop:
+                        print("Opened crop menu.")
+                        opened_crop = True
                     time.sleep(1)
                     break
             time.sleep(1)
+        print("Failed to set crop to Original (timeout).")
         return False
 
     def _click_next_until_caption(self, max_clicks=2):
         driver = self.driver
-        for _ in range(max_clicks):
+        for idx in range(max_clicks):
             self._dismiss_reels_dialog(timeout=4)
+            self._set_crop_original(timeout=8)
             if self._caption_present():
+                print("Caption screen detected.")
                 return
             try:
+                print(f"Clicking Next ({idx + 1}/{max_clicks})...")
                 self._click_xpath("//div[@role='button' and normalize-space()='Next']", timeout=20)
             except Exception:
+                print(f"Clicking Next (button) ({idx + 1}/{max_clicks})...")
                 self._click_xpath("//button[normalize-space()='Next']", timeout=20)
             time.sleep(2)
 
@@ -404,12 +431,14 @@ class InstagramPublisher:
             self._upload_video()
 
             self._dismiss_reels_dialog(timeout=10)
-            self._set_crop_original(timeout=25)
+            crop_set = self._set_crop_original(timeout=25)
+            print(f"Crop set to Original: {crop_set}")
 
             self._click_next_until_caption(max_clicks=2)
 
             caption = self._build_caption()
             if caption:
+                print(f"Adding caption ({len(caption)} chars)...")
                 try:
                     caption_box = WebDriverWait(driver, 30).until(
                         EC.presence_of_element_located((By.XPATH, "//div[@aria-label='Write a caption...']"))
@@ -422,9 +451,13 @@ class InstagramPublisher:
                     )
                     caption_box.click()
                     caption_box.send_keys(caption)
+            else:
+                print("No caption found in metadata.")
 
+            print("Clicking Share...")
             self._click_share_button()
 
+            print("Waiting for publish confirmation...")
             if self._wait_for_publish_complete():
                 print("Instagram publish confirmed.")
             else:
