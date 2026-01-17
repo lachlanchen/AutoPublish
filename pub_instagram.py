@@ -87,6 +87,25 @@ class InstagramPublisher:
             driver.execute_script("arguments[0].click();", element)
         return element
 
+    def _safe_click(self, element):
+        driver = self.driver
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        except Exception:
+            pass
+        try:
+            element.click()
+            return True
+        except ElementClickInterceptedException:
+            self._dismiss_reels_dialog(timeout=6)
+        except Exception:
+            pass
+        try:
+            driver.execute_script("arguments[0].click();", element)
+            return True
+        except Exception:
+            return False
+
     def _find_first(self, xpaths, timeout=10):
         driver = self.driver
         end_time = time.time() + timeout
@@ -255,6 +274,33 @@ class InstagramPublisher:
             raise TimeoutException("Upload input not found")
         target.send_keys(self.path_mp4)
 
+    def _set_crop_original(self, timeout=20):
+        driver = self.driver
+        original_xpaths = [
+            "//span[normalize-space()='Original']/ancestor::*[@role='button'][1]",
+            "//div[@role='button' and .//span[normalize-space()='Original']]",
+        ]
+        crop_button_xpaths = [
+            "//button[.//svg[@aria-label='Select Crop']]",
+            "//div[@role='button' and .//svg[@aria-label='Select Crop']]",
+            "//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
+        ]
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            self._dismiss_reels_dialog(timeout=2)
+            for xpath in original_xpaths:
+                buttons = driver.find_elements(By.XPATH, xpath)
+                if buttons and self._safe_click(buttons[0]):
+                    time.sleep(1)
+                    return True
+            for xpath in crop_button_xpaths:
+                buttons = driver.find_elements(By.XPATH, xpath)
+                if buttons and self._safe_click(buttons[0]):
+                    time.sleep(1)
+                    break
+            time.sleep(1)
+        return False
+
     def _click_next_until_caption(self, max_clicks=2):
         driver = self.driver
         for _ in range(max_clicks):
@@ -358,6 +404,7 @@ class InstagramPublisher:
             self._upload_video()
 
             self._dismiss_reels_dialog(timeout=10)
+            self._set_crop_original(timeout=25)
 
             self._click_next_until_caption(max_clicks=2)
 
