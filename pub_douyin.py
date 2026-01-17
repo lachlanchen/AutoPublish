@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, NoSuchWindowException, TimeoutException, NoAlertPresentException
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, ElementClickInterceptedException, StaleElementReferenceException
 
 
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
@@ -32,6 +32,122 @@ class DouyinPublisher:
 
         douyin_login = DouyinLogin(driver)
         douyin_login.check_and_act()
+
+    def _find_first(self, xpaths, timeout=20, visible=True):
+        condition = EC.visibility_of_element_located if visible else EC.presence_of_element_located
+        last_exc = None
+        for xpath in xpaths:
+            try:
+                return WebDriverWait(self.driver, timeout).until(condition((By.XPATH, xpath)))
+            except Exception as exc:
+                last_exc = exc
+        if last_exc:
+            raise last_exc
+
+    def _find_any(self, xpaths, timeout=5, visible=True):
+        for xpath in xpaths:
+            try:
+                condition = EC.visibility_of_element_located if visible else EC.presence_of_element_located
+                WebDriverWait(self.driver, timeout).until(condition((By.XPATH, xpath)))
+                return True
+            except Exception:
+                continue
+        return False
+
+    def _safe_click(self, element):
+        try:
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        except Exception:
+            pass
+        try:
+            element.click()
+            return True
+        except (ElementClickInterceptedException, StaleElementReferenceException):
+            try:
+                self.driver.execute_script("arguments[0].click();", element)
+                return True
+            except Exception:
+                return False
+
+    def _click_first(self, xpaths, timeout=20):
+        element = self._find_first(xpaths, timeout=timeout)
+        if not self._safe_click(element):
+            raise WebDriverException("Failed to click element.")
+
+    def _set_input_value(self, element, text):
+        try:
+            element.clear()
+        except Exception:
+            try:
+                element.send_keys(Keys.CONTROL, "a")
+                element.send_keys(Keys.BACKSPACE)
+            except Exception:
+                pass
+        element.send_keys(text)
+
+    def _set_text(self, element, text):
+        tag_name = ""
+        try:
+            tag_name = element.tag_name.lower()
+        except Exception:
+            pass
+        if tag_name in ("input", "textarea"):
+            self._set_input_value(element, text)
+            return
+        try:
+            self.driver.execute_script(
+                """
+                const el = arguments[0];
+                const value = arguments[1];
+                el.focus();
+                if (document.execCommand) {
+                    document.execCommand('selectAll', false, null);
+                    document.execCommand('insertText', false, value);
+                } else {
+                    el.textContent = value;
+                }
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                """,
+                element,
+                text,
+            )
+        except Exception:
+            try:
+                element.click()
+                element.send_keys(text)
+            except Exception:
+                pass
+
+    def _add_topics(self, tags):
+        if not tags:
+            return False
+        try:
+            topic_input = self._find_first(
+                [
+                    '//input[contains(@placeholder,"话题")]',
+                    '//div[@data-placeholder="添加话题" and @contenteditable="true"]',
+                    '//div[contains(@class,"topic") and @contenteditable="true"]',
+                    '//*[contains(text(),"话题")]/..//input',
+                ],
+                timeout=3,
+                visible=False,
+            )
+        except Exception:
+            return False
+        for tag in tags:
+            cleaned = tag.strip().lstrip("#")
+            if not cleaned:
+                continue
+            try:
+                topic_input.click()
+                topic_input.send_keys(f"#{cleaned}")
+                time.sleep(0.5)
+                topic_input.send_keys(Keys.ENTER)
+                time.sleep(0.5)
+            except Exception:
+                continue
+        return True
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)  # your actual implementation
@@ -59,14 +175,30 @@ class DouyinPublisher:
                 print("Uploading video...")
                 time.sleep(3)
                 bring_to_front(["抖音"])
-                driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
+                video_input = self._find_first(
+                    [
+                        '//input[@type="file" and contains(@accept,"video")]',
+                        '//input[@type="file" and contains(@accept,"mp4")]',
+                        '//input[@type="file"]',
+                    ],
+                    timeout=30,
+                    visible=False,
+                )
+                video_input.send_keys(path_mp4)
 
                 # Monitor upload status
                 print("Waiting for the video to be uploaded...")
-                reupload_xpath = '//*[text()="重新上传"]'
-                # reupload_xpath = '//*[contains(text(),"重新上传")]'
-                failure_xpath = '//*[text()="上传失败，重新上传"]'
-                # failure_xpath = '//*[contains(text(),"上传失败")]'
+                reupload_xpaths = [
+                    '//*[text()="重新上传"]',
+                    '//*[contains(text(),"替换视频")]',
+                    '//*[contains(text(),"重新上传")]',
+                    '//*[contains(text(),"上传完成")]',
+                ]
+                failure_xpaths = [
+                    '//*[text()="上传失败，重新上传"]',
+                    '//*[contains(text(),"上传失败")]',
+                    '//*[contains(text(),"上传异常")]',
+                ]
                 time.sleep(3)
                 # WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="重新上传"]')))
                 start_time = time.time()
@@ -76,50 +208,53 @@ class DouyinPublisher:
                     if time.time() - start_time > timeout:
                         raise Exception("Timeout reached while waiting for video to be uploaded or for a failure message.")
 
-                    try:
-                        # Wait until the "重新上传" element is present
-                        element = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, reupload_xpath)))
-                        print("Video upload prompt for 'Re-upload' detected, indicating upload completion.")
+                    if self._find_any(reupload_xpaths, timeout=5, visible=False):
+                        print("Video upload prompt detected, indicating upload completion.")
                         break
-                    except:
-                        pass  # Ignore TimeoutException here
 
-                    # try:
-                    #     # Wait until the "上传失败" element is present
-                    #     WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, failure_xpath)))
-                    #     print("Upload failed! Raising an error to initiate retry...")
-                    #     raise Exception("Video upload failed.")
-                    # except:
-                    #     pass  # Ignore TimeoutException here
-
-                    try:
-                        # Wait until the "上传失败" element is present
-                        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, failure_xpath)))
+                    if self._find_any(failure_xpaths, timeout=2, visible=False):
                         print("Upload failed! Raising an error to initiate retry...")
                         raise UploadFailedException("Upload failed due to presence of failure indicator.")
-                    except TimeoutException:
-                        # Ignore TimeoutException
-                        pass
-                    except UploadFailedException as e:
-                        # Re-raise the specific UploadFailedException
-                        raise e
-                    except Exception:
-                        # Ignore all other exceptions
-                        pass
 
 
                     time.sleep(5)  # Wait a bit before checking again
 
                 print("Adding cover...")
                 time.sleep(3)
-                # wait_for_element_to_be_clickable(driver, '//*[text()="选择封面"]')
-                driver.find_element(By.XPATH, '//*[text()="选择封面"]').click()
+                self._click_first(
+                    [
+                        '//button[.//*[contains(text(),"选择封面")] or contains(text(),"选择封面")]',
+                        '//*[text()="选择封面"]',
+                        '//*[contains(text(),"编辑封面")]',
+                        '//*[contains(text(),"更换封面")]',
+                    ],
+                    timeout=30,
+                )
                 time.sleep(3)
-                # wait_for_element_to_be_clickable(driver, '//div[text()="上传封面"]')
-                driver.find_element(By.XPATH, '//div[text()="上传封面"]').click()
+                try:
+                    self._click_first(
+                        [
+                            '//*[@role="dialog"]//*[contains(text(),"上传封面")]',
+                            '//*[@role="dialog"]//*[contains(text(),"上传图片")]',
+                            '//*[@role="dialog"]//*[contains(text(),"上传")]',
+                            '//*[contains(text(),"上传封面")]',
+                        ],
+                        timeout=10,
+                    )
+                except Exception:
+                    pass
                 time.sleep(3)
-                # wait_for_element_to_be_clickable(driver, '//*[text()="点击上传 或直接将图片文件拖入此区域"]/../../../..//input[@type="file"]')
-                driver.find_element(By.XPATH, '//*[text()="点击上传 或直接将图片文件拖入此区域"]/../../../..//input[@type="file"]').send_keys(path_cover)
+                cover_input = self._find_first(
+                    [
+                        '//*[text()="点击上传 或直接将图片文件拖入此区域"]/../../../..//input[@type="file"]',
+                        '//*[@role="dialog"]//input[@type="file" and contains(@accept,"image")]',
+                        '//*[@role="dialog"]//input[@type="file" and (contains(@accept,"png") or contains(@accept,"jpg") or contains(@accept,"jpeg"))]',
+                        '//input[@type="file" and contains(@accept,"image")]',
+                    ],
+                    timeout=20,
+                    visible=False,
+                )
+                cover_input.send_keys(path_cover)
 
                 
 
@@ -143,14 +278,23 @@ class DouyinPublisher:
                 }
                 """
 
-                # Execute the script
-                button_clicked = driver.execute_script(click_finish_button_script)
-
-                # Handle the result
-                if button_clicked:
+                try:
+                    self._click_first(
+                        [
+                            '//button[contains(text(),"完成")]',
+                            '//button[.//*[contains(text(),"完成")]]',
+                            '//button[contains(text(),"确定")]',
+                            '//button[.//*[contains(text(),"确定")]]',
+                        ],
+                        timeout=15,
+                    )
                     print("Clicked the '完成' button successfully.")
-                else:
-                    print("Could not find the '完成' button.")
+                except Exception:
+                    button_clicked = driver.execute_script(click_finish_button_script)
+                    if button_clicked:
+                        print("Clicked the '完成' button successfully.")
+                    else:
+                        print("Could not find the '完成' button.")
 
                 time.sleep(5)
 
@@ -193,26 +337,42 @@ class DouyinPublisher:
 
                  # Entering the title
                 print("Entering the title...")
-                title_input_xpath = '//input[@placeholder="好的作品标题可获得更多浏览"]'
-                time.sleep(3)
-                # wait_for_element_to_be_clickable(driver, title_input_xpath)
-                title_input_element = driver.find_element(By.XPATH, title_input_xpath)
-                time.sleep(3)
-                title_input_element.clear()  # Clearing any pre-filled text
-                # title_input_element.send_keys(describe.split(" #")[0])  # Using the first part of the 'describe' variable as the title
-                time.sleep(3)
-                title_input_element.send_keys(metadata["title"][:30])  # Using the first part of the 'describe' variable as the title
+                title_input_element = self._find_first(
+                    [
+                        '//input[@placeholder="好的作品标题可获得更多浏览"]',
+                        '//input[contains(@placeholder,"标题")]',
+                        '//div[contains(@class,"title") or contains(@class,"Title")]//input',
+                    ],
+                    timeout=30,
+                )
+                time.sleep(1)
+                title_text = (metadata.get("title") or "").strip()[:30]
+                self._set_input_value(title_input_element, title_text)
 
 
 
                 print("Entering video description...")
-                description_input_xpath = '//div[@data-placeholder="添加作品简介"]'
-                time.sleep(3)
-                # wait_for_element_to_be_clickable(driver, description_input_xpath)
-                description_input_element = driver.find_element(By.XPATH, description_input_xpath)
-                description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']]) + " #上热门 #dou上热门 #我要上热门"
-                time.sleep(3)
-                driver.execute_script("arguments[0].innerText = arguments[1];", description_input_element,  description_with_tags[:1000])
+                description_input_element = self._find_first(
+                    [
+                        '//div[@data-placeholder="添加作品简介"]',
+                        '//div[@contenteditable="true" and contains(@data-placeholder,"简介")]',
+                        '//textarea[contains(@placeholder,"简介")]',
+                        '//div[@contenteditable="true"]',
+                    ],
+                    timeout=30,
+                )
+                tags = [tag.strip().lstrip("#") for tag in metadata.get("tags", []) if tag and tag.strip()]
+                topics_added = self._add_topics(tags)
+                extra_tags = ["上热门", "dou上热门", "我要上热门"]
+                if topics_added:
+                    combined_tags = extra_tags
+                else:
+                    combined_tags = tags + extra_tags
+                description_text = (metadata.get("long_description") or metadata.get("brief_description") or "").strip()
+                tag_text = " ".join([f"#{tag}" for tag in combined_tags if tag])
+                description_with_tags = f"{description_text} {tag_text}".strip()
+                time.sleep(1)
+                self._set_text(description_input_element, description_with_tags[:1000])
 
 
                 try:
@@ -265,26 +425,26 @@ class DouyinPublisher:
                 if result['found']:
                     print("Found '原创内容' switch.")
                     print("Current state of '原创内容' switch:", result['currentState'])
-                    
-                    # If you want to toggle the switch and you are sure it's safe to do so
-                    toggle_script = """
-                    let elementsWithText = Array.from(document.querySelectorAll("div")).filter(el => el.textContent.includes('原创内容'));
-                    let targetSwitch;
 
-                    elementsWithText.forEach(el => {
-                        let switchElement = el.parentElement.querySelector("input[type='checkbox'][role='switch']");
-                        if (switchElement) {
-                            targetSwitch = switchElement;
+                    if result['currentState'] == "OFF":
+                        toggle_script = """
+                        let elementsWithText = Array.from(document.querySelectorAll("div")).filter(el => el.textContent.includes('原创内容'));
+                        let targetSwitch;
+
+                        elementsWithText.forEach(el => {
+                            let switchElement = el.parentElement.querySelector("input[type='checkbox'][role='switch']");
+                            if (switchElement) {
+                                targetSwitch = switchElement;
+                            }
+                        });
+
+                        if (targetSwitch) {
+                            targetSwitch.click();
                         }
-                    });
-
-                    if (targetSwitch) {
-                        targetSwitch.click();
-                    }
-                    """
-                    time.sleep(3)
-                    driver.execute_script(toggle_script)
-                    print("Toggled the '原创内容' switch.")
+                        """
+                        time.sleep(3)
+                        driver.execute_script(toggle_script)
+                        print("Enabled the '原创内容' switch.")
                 else:
                     print("Could not find '原创内容' switch.")
 
@@ -296,7 +456,14 @@ class DouyinPublisher:
                 if user_input == 'yes':
                     print("Publishing the video...")
                     time.sleep(3)
-                    driver.find_element(By.XPATH, '//button[text()="发布"]').click()
+                    self._click_first(
+                        [
+                            '//button[.//*[contains(text(),"发布")]]',
+                            '//button[contains(text(),"发布")]',
+                            '//*[contains(text(),"发布")]/ancestor::button[1]',
+                        ],
+                        timeout=20,
+                    )
                     time.sleep(10)
                     dismiss_alert(driver)
                     time.sleep(3)
