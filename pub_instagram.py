@@ -274,6 +274,32 @@ class InstagramPublisher:
             raise TimeoutException("Upload input not found")
         target.send_keys(self.path_mp4)
 
+    def _open_crop_menu(self, timeout=10):
+        driver = self.driver
+        crop_button_xpaths = [
+            "//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
+            "//title[normalize-space()='Select Crop']/ancestor::*[name()='svg'][1]"
+            "/ancestor::*[self::button or self::div[@role='button']][1]",
+            "//svg[@aria-label='Select Crop']",
+        ]
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            for xpath in crop_button_xpaths:
+                buttons = driver.find_elements(By.XPATH, xpath)
+                if not buttons:
+                    continue
+                print(f"Found crop button(s) for xpath: {xpath} -> {len(buttons)}")
+                if self._safe_click(buttons[0]):
+                    return True
+                try:
+                    driver.execute_script("arguments[0].click();", buttons[0])
+                    return True
+                except Exception:
+                    pass
+            time.sleep(0.5)
+        print("Crop menu button not found.")
+        return False
+
     def _set_crop_original(self, timeout=20):
         driver = self.driver
         print("Attempting to set crop to Original...")
@@ -285,16 +311,7 @@ class InstagramPublisher:
             "//div[@role='dialog']//span[normalize-space()='Original']"
             "/ancestor::*[@aria-checked='true' or @aria-selected='true'][1]",
         ]
-        crop_button_xpaths = [
-            "//div[@role='dialog']//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
-            "//div[@role='dialog']//title[normalize-space()='Select Crop']"
-            "/ancestor::*[self::button or self::div[@role='button']][1]",
-            "//div[@role='dialog']//svg[contains(translate(@aria-label,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'crop')]"
-            "/ancestor::*[self::button or self::div[@role='button']][1]",
-            "//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
-        ]
         end_time = time.time() + timeout
-        opened_crop = False
         while time.time() < end_time:
             self._dismiss_reels_dialog(timeout=2)
             for xpath in selected_original_xpaths:
@@ -303,23 +320,15 @@ class InstagramPublisher:
                     return True
             for xpath in original_xpaths:
                 buttons = driver.find_elements(By.XPATH, xpath)
+                if buttons:
+                    print(f"Found Original option(s) for xpath: {xpath} -> {len(buttons)}")
                 if buttons and self._safe_click(buttons[0]):
                     print("Selected crop: Original.")
                     time.sleep(0.5)
-                    for close_xpath in crop_button_xpaths:
-                        close_buttons = driver.find_elements(By.XPATH, close_xpath)
-                        if close_buttons and self._safe_click(close_buttons[0]):
-                            time.sleep(0.5)
-                            break
                     return True
-            for xpath in crop_button_xpaths:
-                buttons = driver.find_elements(By.XPATH, xpath)
-                if buttons and self._safe_click(buttons[0]):
-                    if not opened_crop:
-                        print("Opened crop menu.")
-                        opened_crop = True
-                    time.sleep(1)
-                    break
+            if self._open_crop_menu(timeout=2):
+                print("Opened crop menu.")
+                time.sleep(1)
             time.sleep(1)
         print("Failed to set crop to Original (timeout).")
         return False
