@@ -276,6 +276,10 @@ class InstagramPublisher:
 
     def _open_crop_menu(self, timeout=10):
         driver = self.driver
+        video_xpaths = [
+            "//div[@role='dialog']//video",
+            "//video",
+        ]
         crop_button_xpaths = [
             "//svg[@aria-label='Select Crop']/ancestor::*[self::button or self::div[@role='button']][1]",
             "//title[normalize-space()='Select Crop']/ancestor::*[name()='svg'][1]"
@@ -284,6 +288,11 @@ class InstagramPublisher:
         ]
         end_time = time.time() + timeout
         while time.time() < end_time:
+            for xpath in video_xpaths:
+                videos = driver.find_elements(By.XPATH, xpath)
+                if videos:
+                    self._safe_click(videos[0])
+                    break
             for xpath in crop_button_xpaths:
                 buttons = driver.find_elements(By.XPATH, xpath)
                 if not buttons:
@@ -296,6 +305,23 @@ class InstagramPublisher:
                     return True
                 except Exception:
                     pass
+            try:
+                clicked = driver.execute_script(
+                    """
+                    const svgs = Array.from(document.querySelectorAll('svg[aria-label="Select Crop"]'));
+                    if (!svgs.length) return false;
+                    let svg = svgs.find(el => el.closest('[role="dialog"]')) || svgs[0];
+                    let button = svg.closest('button,[role="button"]') || svg.parentElement;
+                    if (!button) return false;
+                    button.click();
+                    return true;
+                    """
+                )
+                if clicked:
+                    print("Opened crop menu via JS querySelector.")
+                    return True
+            except Exception:
+                pass
             time.sleep(0.5)
         print("Crop menu button not found.")
         return False
