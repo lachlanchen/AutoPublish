@@ -88,6 +88,12 @@ class ShiPinHaoLogin:
     #         # If the element is not found, NoSuchElementException is caught
     #         print("Did not find '陈苗LazyingArt懒人艺术'.")
     #     return False
+    def _expected_account_names(self):
+        env_names = os.environ.get("SHIPINHAO_ACCOUNT_NAMES") or os.environ.get("SHIPINHAO_ACCOUNT_NAME")
+        if env_names:
+            return [name.strip() for name in env_names.split(",") if name.strip()]
+        return ["LazyingArt", "Lazyin", "陈苗", "懒人艺术", "懶人藝術"]
+
     def find_lazying_art(self):
         try:
             # First switch to default content in case we're in an iframe
@@ -111,7 +117,8 @@ class ShiPinHaoLogin:
                 # Try CSS selector approach
                 ".account-info .name"
             ]
-            
+
+            expected_names = self._expected_account_names()
             for selector in selectors:
                 try:
                     wait = WebDriverWait(self.driver, 5)
@@ -121,8 +128,14 @@ class ShiPinHaoLogin:
                         elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, selector)))
                     
                     for element in elements:
-                        if '陈苗' in element.text:
+                        text = (element.text or "").strip()
+                        if not text:
+                            continue
+                        if any(name in text for name in expected_names):
                             print(f"Found user element with text: '{element.text}' using selector: {selector}")
+                            return True
+                        if selector == ".account-info .name":
+                            print(f"Found account name element without match: '{text}'. Treating as logged in.")
                             return True
                 except Exception as e:
                     print(f"Selector {selector} failed: {e}")
