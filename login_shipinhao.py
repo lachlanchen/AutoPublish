@@ -92,7 +92,7 @@ class ShiPinHaoLogin:
         env_names = os.environ.get("SHIPINHAO_ACCOUNT_NAMES") or os.environ.get("SHIPINHAO_ACCOUNT_NAME")
         if env_names:
             return [name.strip() for name in env_names.split(",") if name.strip()]
-        return ["LazyingArt", "Lazyin", "陈苗", "懒人艺术", "懶人藝術"]
+        return ["LazyingArt", "陈苗", "懒人艺术", "懶人藝術"]
 
     def find_lazying_art(self):
         try:
