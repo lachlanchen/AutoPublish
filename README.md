@@ -1,8 +1,14 @@
+[English](README.md) · [العربية](i18n/README.ar.md) · [Español](i18n/README.es.md) · [Français](i18n/README.fr.md) · [日本語](i18n/README.ja.md) · [한국어](i18n/README.ko.md) · [Tiếng Việt](i18n/README.vi.md) · [中文 (简体)](i18n/README.zh-Hans.md) · [中文（繁體）](i18n/README.zh-Hant.md) · [Deutsch](i18n/README.de.md) · [Русский](i18n/README.ru.md)
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/lachlanchen/lachlanchen/main/logos/banner.png" alt="LazyingArt banner" />
 </p>
 
 # AutoPublish
+
+
+> 🌍 **Localization status (verified in this workspace on February 28, 2026):**
+> `i18n/` currently includes `README.ar.md` and `README.es.md`; `README.zh-CN.md` and `README.ja.md` are reserved targets for upcoming files.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#prerequisites)
 [![Selenium](https://img.shields.io/badge/Selenium-Automation-43B02A?logo=selenium&logoColor=white)](#system-overview)
@@ -11,13 +17,41 @@
 [![API Queue](https://img.shields.io/badge/Queue-Enabled-2563EB)](#running-the-tornado-service-apppy)
 [![PWA](https://img.shields.io/badge/Frontend-PWA-10B981)](#pwa-frontend-pwa)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lachlanchen)
+[![i18n](https://img.shields.io/badge/i18n-English%20%7C%20Arabic%20%7C%20Spanish-0EA5E9)](#table-of-contents)
+[![License](https://img.shields.io/badge/License-Not%20Declared-red)](#license)
 
 Automation toolkit for distributing short-form video content to multiple Chinese and international creator platforms. The project combines a Tornado-based service, Selenium automation bots, and a local file-watcher workflow so that dropping a video into a folder eventually results in uploads to XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram, and optionally YouTube.
 
 The repository is intentionally low-level: most configuration lives in Python files and shell scripts. This document is an operational manual that covers setup, runtime, and extension points.
 
-> ⚙️ **Operational philosophy**: this project favors explicit scripts and direct browser automation over hidden abstraction layers.  
+> ⚙️ **Operational philosophy**: this project favors explicit scripts and direct browser automation over hidden abstraction layers.
 > ✅ **Canonical policy for this README**: preserve technical detail, then improve readability and discoverability.
+
+## Start Here
+
+If you are new to this repo, use this sequence:
+
+1. Read [Prerequisites](#prerequisites) and [Installation](#installation).
+2. Configure secrets and absolute paths in [Configuration](#configuration).
+3. Prepare browser debug sessions in [Preparing Browser Sessions](#preparing-browser-sessions).
+4. Choose one runtime mode from [Usage](#usage): `autopub.py` (watcher) or `app.py` (API queue).
+5. Validate with commands from [Examples](#examples).
+
+## Overview
+
+AutoPublish currently supports two production runtime modes:
+
+1. **CLI watcher mode (`autopub.py`)** for folder-based ingestion and publishing.
+2. **API queue mode (`app.py`)** for ZIP-based publishing via HTTP (`/publish`, `/publish/queue`).
+
+It is designed for operators who prefer transparent, script-first workflows over abstract orchestration platforms.
+
+### Runtime Modes at a Glance
+
+| Mode | Entry point | Input | Best for | Output behavior |
+| --- | --- | --- | --- | --- |
+| CLI watcher | `autopub.py` | Files dropped into `videos/` | Local operator workflows and cron/service loops | Processes detected videos and publishes immediately to selected platforms |
+| API queue service | `app.py` | ZIP upload to `POST /publish` | Integrations with upstream systems and remote triggering | Accepts jobs, enqueues them, and executes publishing in worker order |
 
 ## Quick Snapshot
 
@@ -30,12 +64,23 @@ The repository is intentionally low-level: most configuration lives in Python fi
 | Current repo workspace path | `/home/lachlan/ProjectsLFS/AutoPublish` |
 | Ideal users | Creators/ops engineers managing multi-platform short video pipelines |
 
+### Operational Safety Snapshot
+
+| Topic | Current state | Action |
+| --- | --- | --- |
+| Hard-coded paths | Present in multiple modules/scripts | Update path constants per host before production runs |
+| Browser login state | Required | Keep persistent remote-debug profiles per platform |
+| Captcha handling | Optional integrations available | Configure 2Captcha/Turing credentials if needed |
+| License declaration | No top-level `LICENSE` file detected | Confirm usage terms with maintainer before redistribution |
+
 ---
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [System Overview](#system-overview)
 - [Features](#features)
+- [Project Structure](#project-structure)
 - [Repository Layout](#repository-layout)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -54,6 +99,7 @@ The repository is intentionally low-level: most configuration lives in Python fi
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
+- [Acknowledgements](#acknowledgements)
 - [Support AutoPublish](#support-autopublish)
 
 ---
@@ -78,16 +124,60 @@ Workflow at a glance:
 ✨ **Designed for pragmatic, script-first automation**:
 
 - Multi-platform publishing: XiaoHongShu, Douyin, Bilibili, ShiPinHao (WeChat Channels), Instagram, YouTube (optional).
-- Two operating modes:
-  - CLI watcher pipeline (`autopub.py`).
-  - API queue service (`app.py` + `/publish` + `/publish/queue`).
+- Two operating modes: CLI watcher pipeline (`autopub.py`) and API queue service (`app.py` + `/publish` + `/publish/queue`).
 - Per-platform temporary disable switches via `ignore_*` files.
 - Remote-debugging browser-session reuse with persistent profiles.
 - Optional QR/captcha automation and email notification helpers.
 - No frontend build requirement for the included PWA (`pwa/`) uploader UI.
 - Linux/Raspberry Pi automation scripts for service setup (`scripts/`).
 
+### Feature Matrix
+
+| Capability | CLI (`autopub.py`) | API (`app.py`) |
+| --- | --- | --- |
+| Input source | Local `videos/` watcher | Uploaded ZIP via `POST /publish` |
+| Queueing | Internal file-based progression | Explicit in-memory job queue |
+| Platform flags | CLI args (`--pub-*`) + `ignore_*` | Query args (`publish_*`) + `ignore_*` |
+| Best fit | Single-host operator workflow | External systems and remote triggering |
+
 ---
+
+## Project Structure
+
+High-level source/runtime layout:
+
+```text
+AutoPublish/
+├── README.md
+├── app.py
+├── autopub.py
+├── process_video.py
+├── load_env.py
+├── utils.py
+├── pub_*.py                  # platform publishers
+├── login_*.py                # platform login/session helpers
+├── solve_captcha_*.py
+├── smtp.py
+├── smtp_test_simple.py
+├── send_email_qreader.py
+├── requirements.txt
+├── requirements.autopub.txt
+├── .env.example
+├── setup_raspberrypi.md
+├── scripts/
+├── pwa/
+├── figs/
+├── .github/FUNDING.yml
+├── i18n/                     # multilingual READMEs (currently includes Arabic and Spanish)
+├── archived/
+├── videos/                   # runtime input artifacts
+├── logs/, logs-autopub/      # runtime logs
+├── temp/, temp_screenshot/   # runtime temp artifacts
+├── videos_db.csv
+└── processed.csv
+```
+
+Note: `transcription_data/` is used at runtime by processing/publishing flow and may appear after execution.
 
 ## Repository Layout
 
@@ -319,6 +409,13 @@ Start server:
 python app.py --refresh-time 1800 --port 8081
 ```
 
+API endpoint summary:
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/publish` | `POST` | Upload ZIP bytes and enqueue a publish job |
+| `/publish/queue` | `GET` | Inspect queue, job history, and publish state |
+
 ### `POST /publish`
 
 📤 **Queue a publish job** by uploading ZIP bytes directly.
@@ -383,6 +480,14 @@ PWA capabilities:
 ## Examples
 
 🧪 **Copy/paste smoke-test commands**:
+
+### Example 0: Load environment and start API server
+
+```bash
+source ~/.bashrc
+python load_env.py
+python app.py --refresh-time 1800 --port 8081
+```
 
 ### Example A: CLI publish run
 
@@ -503,6 +608,7 @@ These contain absolute `/Users/lachlan/...` paths and Conda assumptions. Keep th
 
 🛠️ **If something fails, start here first**.
 
+- **Path drift across machines**: if errors mention missing files under `/Users/lachlan/...` or `/home/lachlan/Projects/auto-publish`, align constants to your host path (`/home/lachlan/ProjectsLFS/AutoPublish` in this workspace).
 - **Secrets hygiene**: run `~/.local/bin/detect-secrets scan` before push. Rotate any leaked credentials.
 - **Processing backend errors**: if `process_video.py` prints “Failed to get the uploaded file path,” verify upload response JSON contains `file_path` and processing endpoint returns ZIP bytes.
 - **ChromeDriver mismatch**: if DevTools connection errors appear, align Chrome/Chromium and driver versions (or switch to `webdriver-manager`).
@@ -604,6 +710,14 @@ Recommended next action:
 - Add a top-level `LICENSE` (for example MIT/Apache-2.0/GPL-3.0) and update this section accordingly.
 
 > 📝 Until a license file is added, treat commercial/internal redistribution assumptions as unresolved and confirm directly with the maintainer.
+
+---
+
+## Acknowledgements
+
+- Maintainer and sponsor profile: [@lachlanchen](https://github.com/lachlanchen)
+- Funding configuration source: [`.github/FUNDING.yml`](.github/FUNDING.yml)
+- Ecosystem services referenced in this repo: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.
 
 ---
 
