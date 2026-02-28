@@ -3,12 +3,16 @@
 
 [![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
 
+<div align="center">
+
 # AutoPublish
 
 <p align="center">
   <strong>Script-first, browser-driven multi-platform short-video publishing.</strong><br/>
   <sub>Canonical operations manual for setup, runtime, queue mode, and platform automation workflows.</sub>
 </p>
+
+</div>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#prerequisites)
 [![Selenium](https://img.shields.io/badge/Selenium-Automation-43B02A?logo=selenium&logoColor=white)](#system-overview)
@@ -22,6 +26,10 @@
 [![Ops](https://img.shields.io/badge/Ops-Path%20Checks%20Required-orange)](#configuration)
 [![Security](https://img.shields.io/badge/Security-Env%20Secrets%20Required-critical)](#security--ops-checklist)
 [![Service](https://img.shields.io/badge/Linux-Service%20Scripts%20Included-1D4ED8)](#raspberry-pi--linux-service-setup)
+
+[![Workflow](https://img.shields.io/badge/Workflow-CLI%20%2F%20Queue-2563EB)](#usage)
+[![Browser Engine](https://img.shields.io/badge/Browser-Chromium%20Remote%20Debug-4F46E5)](#preparing-browser-sessions)
+[![Input Formats](https://img.shields.io/badge/Inputs-videos%20%26%20ZIP-0891B2)](#metadata--zip-format)
 
 | Jump to | Link |
 | --- | --- |
@@ -64,6 +72,14 @@ If you are new to this repo, use this sequence:
 
 AutoPublish currently supports two production runtime modes:
 
+<div align="center">
+
+![Overview](https://img.shields.io/badge/Overview-Multi--Platform%20Publishing-14B8A6?logo=googlesearchconsole&logoColor=white)
+![Modes](https://img.shields.io/badge/Modes-CLI%20%2B%20Queue-3B82F6?logo=python&logoColor=white)
+![Platforms](https://img.shields.io/badge/Platforms-XHS%20%7C%20Douyin%20%7C%20Bilibili-6366F1?logo=googlechrome&logoColor=white)
+
+</div>
+
 1. **CLI watcher mode (`autopub.py`)** for folder-based ingestion and publishing.
 2. **API queue mode (`app.py`)** for ZIP-based publishing via HTTP (`/publish`, `/publish/queue`).
 
@@ -89,14 +105,14 @@ It is designed for operators who prefer transparent, script-first workflows over
 
 ## Quick Snapshot
 
-| What | Value |
-| --- | --- |
-| Primary language | Python 3.10+ |
-| Main runtimes | CLI watcher (`autopub.py`) + Tornado queue service (`app.py`) |
-| Automation engine | Selenium + remote-debug Chromium sessions |
-| Input formats | Raw videos (`videos/`) and ZIP bundles (`/publish`) |
-| Current repo workspace path | `/home/lachlan/ProjectsLFS/AutoPublish` |
-| Ideal users | Creators/ops engineers managing multi-platform short video pipelines |
+| What | Value | Color cue |
+| --- | --- | --- |
+| Primary language | Python 3.10+ | ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white) |
+| Main runtimes | CLI watcher (`autopub.py`) + Tornado queue service (`app.py`) | ![Modes](https://img.shields.io/badge/Modes-CLI%20%2B%20API-2563EB) |
+| Automation engine | Selenium + remote-debug Chromium sessions | ![Engine](https://img.shields.io/badge/Engine-Selenium-43B02A?logo=selenium&logoColor=white) |
+| Input formats | Raw videos (`videos/`) and ZIP bundles (`/publish`) | ![Inputs](https://img.shields.io/badge/Inputs-videos%20%26%20ZIP-6B7280) |
+| Current repo workspace path | `/home/lachlan/ProjectsLFS/AutoPublish` | ![Workspace](https://img.shields.io/badge/Path-Verified-10B981) |
+| Ideal users | Creators/ops engineers managing multi-platform short video pipelines | ![Audience](https://img.shields.io/badge/Users-Operators-0F766E) |
 
 ### Operational Safety Snapshot
 
@@ -843,63 +859,8 @@ Before any production-like run:
 ## ❤️ Support
 
 | Donate | PayPal | Stripe |
-|---|---|---|
-| [![Donate](https://img.shields.io/badge/Donate-LazyingArt-0EA5E9?style=for-the-badge&logo=ko-fi&logoColor=white)](https://chat.lazying.art/donate) | [![PayPal](https://img.shields.io/badge/PayPal-RongzhouChen-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/RongzhouChen) | [![Stripe](https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |
-
-💖 Community support funds infra, reliability work, and new platform integrations.
-
-AutoPublish sits inside a broader effort to keep cross-platform creator tooling open and hackable. Donations help:
-
-- Keep the Selenium farm, processing API, and cloud GPUs online.
-- Ship new publishers (Kuaishou, Instagram Reels, etc.) plus reliability fixes for existing bots.
-- Share more documentation, starter datasets, and tutorials for independent creators.
-
-### Additional Donation Options
-
-<div align="center">
-<table style="margin:0 auto; text-align:center; border-collapse:collapse;">
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://chat.lazying.art/donate">https://chat.lazying.art/donate</a>
-    </td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://chat.lazying.art/donate"><img src="figs/donate_button.svg" alt="Donate" height="44"></a>
-    </td>
-  </tr>
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://paypal.me/RongzhouChen">
-        <img src="https://img.shields.io/badge/PayPal-Donate-003087?logo=paypal&logoColor=white" alt="Donate with PayPal">
-      </a>
-    </td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400">
-        <img src="https://img.shields.io/badge/Stripe-Donate-635bff?logo=stripe&logoColor=white" alt="Donate with Stripe">
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><strong>WeChat</strong></td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><strong>Alipay</strong></td>
-  </tr>
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><img alt="WeChat QR" src="figs/donate_wechat.png" width="240"/></td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><img alt="Alipay QR" src="figs/donate_alipay.png" width="240"/></td>
-  </tr>
-</table>
-</div>
-
-**支援 / Donate**
-
-- ご支援はクリエイター自動化の研究・開発・運用コストをまかなう大きな力になります。
-- 你的支持将用于服务器与研发，帮助作者持续开放改进跨平台发布工具链。
-- Your support keeps the pipelines alive so more independent studios can publish everywhere with less busywork.
-
-Also available via:
-- GitHub Sponsors: <https://github.com/sponsors/lachlanchen>
-- Project links: <https://lazying.art>, <https://chat.lazying.art>, <https://onlyideas.art>
-
----
+| --- | --- | --- |
+| [![Donate](https://camo.githubusercontent.com/24a4914f0b42c6f435f9e101621f1e52535b02c225764b2f6cc99416926004b7/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f6e6174652d4c617a79696e674172742d3045413545393f7374796c653d666f722d7468652d6261646765266c6f676f3d6b6f2d6669266c6f676f436f6c6f723d7768697465)](https://chat.lazying.art/donate) | [![PayPal](https://camo.githubusercontent.com/d0f57e8b016517a4b06961b24d0ca87d62fdba16e18bbdb6aba28e978dc0ea21/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50617950616c2d526f6e677a686f754368656e2d3030343537433f7374796c653d666f722d7468652d6261646765266c6f676f3d70617970616c266c6f676f436f6c6f723d7768697465)](https://paypal.me/RongzhouChen) | [![Stripe](https://camo.githubusercontent.com/1152dfe04b6943afe3a8d2953676749603fb9f95e24088c92c97a01a897b4942/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f5374726970652d446f6e6174652d3633354246463f7374796c653d666f722d7468652d6261646765266c6f676f3d737472697065266c6f676f436f6c6f723d7768697465)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |
 
 ## License
 
