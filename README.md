@@ -1,14 +1,14 @@
 [English](README.md) · [العربية](i18n/README.ar.md) · [Español](i18n/README.es.md) · [Français](i18n/README.fr.md) · [日本語](i18n/README.ja.md) · [한국어](i18n/README.ko.md) · [Tiếng Việt](i18n/README.vi.md) · [中文 (简体)](i18n/README.zh-Hans.md) · [中文（繁體）](i18n/README.zh-Hant.md) · [Deutsch](i18n/README.de.md) · [Русский](i18n/README.ru.md)
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/lachlanchen/lachlanchen/main/logos/banner.png" alt="LazyingArt banner" />
-</p>
+
+[![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
 
 # AutoPublish
 
-
-> 🌍 **Localization status (verified in this workspace on February 28, 2026):**
-> `i18n/` currently includes `README.ar.md` and `README.es.md`; `README.zh-CN.md` and `README.ja.md` are reserved targets for upcoming files.
+<p align="center">
+  <strong>Script-first, browser-driven multi-platform short-video publishing.</strong><br/>
+  <sub>Canonical operations manual for setup, runtime, queue mode, and platform automation workflows.</sub>
+</p>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#prerequisites)
 [![Selenium](https://img.shields.io/badge/Selenium-Automation-43B02A?logo=selenium&logoColor=white)](#system-overview)
@@ -17,8 +17,19 @@
 [![API Queue](https://img.shields.io/badge/Queue-Enabled-2563EB)](#running-the-tornado-service-apppy)
 [![PWA](https://img.shields.io/badge/Frontend-PWA-10B981)](#pwa-frontend-pwa)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lachlanchen)
-[![i18n](https://img.shields.io/badge/i18n-English%20%7C%20Arabic%20%7C%20Spanish-0EA5E9)](#table-of-contents)
+[![i18n](https://img.shields.io/badge/i18n-ar%20%7C%20de%20%7C%20es%20%7C%20fr%20%7C%20ja%20%7C%20ko%20%7C%20ru%20%7C%20vi%20%7C%20zh--Hans%20%7C%20zh--Hant-0EA5E9)](#table-of-contents)
 [![License](https://img.shields.io/badge/License-Not%20Declared-red)](#license)
+[![Ops](https://img.shields.io/badge/Ops-Path%20Checks%20Required-orange)](#configuration)
+[![Security](https://img.shields.io/badge/Security-Env%20Secrets%20Required-critical)](#security--ops-checklist)
+[![Service](https://img.shields.io/badge/Linux-Service%20Scripts%20Included-1D4ED8)](#raspberry-pi--linux-service-setup)
+
+| Jump to | Link |
+| --- | --- |
+| First-time setup | [Start Here](#start-here) |
+| Run with local watcher | [Running the CLI pipeline (`autopub.py`)](#running-the-cli-pipeline-autopubpy) |
+| Run via HTTP queue | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
+| Deploy as service | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
+| Support the project | [Support](#support-autopublish) |
 
 Automation toolkit for distributing short-form video content to multiple Chinese and international creator platforms. The project combines a Tornado-based service, Selenium automation bots, and a local file-watcher workflow so that dropping a video into a folder eventually results in uploads to XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram, and optionally YouTube.
 
@@ -26,6 +37,18 @@ The repository is intentionally low-level: most configuration lives in Python fi
 
 > ⚙️ **Operational philosophy**: this project favors explicit scripts and direct browser automation over hidden abstraction layers.
 > ✅ **Canonical policy for this README**: preserve technical detail, then improve readability and discoverability.
+> 🌍 **Localization status (verified in this workspace on February 28, 2026)**: `i18n/` currently includes Arabic, German, Spanish, French, Japanese, Korean, Russian, Vietnamese, Simplified Chinese, and Traditional Chinese variants.
+
+### Quick Navigation
+
+| I want to... | Go here |
+| --- | --- |
+| Run my first publish | [Quick Start Checklist](#quick-start-checklist) |
+| Compare runtime modes | [Runtime Modes at a Glance](#runtime-modes-at-a-glance) |
+| Configure credentials and paths | [Configuration](#configuration) |
+| Launch API mode and queue jobs | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
+| Validate with copy/paste commands | [Examples](#examples) |
+| Set up on Raspberry Pi/Linux | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
 
 ## Start Here
 
@@ -53,6 +76,17 @@ It is designed for operators who prefer transparent, script-first workflows over
 | CLI watcher | `autopub.py` | Files dropped into `videos/` | Local operator workflows and cron/service loops | Processes detected videos and publishes immediately to selected platforms |
 | API queue service | `app.py` | ZIP upload to `POST /publish` | Integrations with upstream systems and remote triggering | Accepts jobs, enqueues them, and executes publishing in worker order |
 
+### Platform Coverage Snapshot
+
+| Platform | Publisher module | Login helper | Control port | CLI mode | API mode |
+| --- | --- | --- | --- | --- | --- |
+| XiaoHongShu | `pub_xhs.py` | `login_xiaohongshu.py` | `5003` | ✅ | ✅ |
+| Douyin | `pub_douyin.py` | `login_douyin.py` | `5004` | ✅ | ✅ |
+| Bilibili | `pub_bilibili.py` | N/A | `5005` | ✅ | ✅ |
+| ShiPinHao (WeChat Channels) | `pub_shipinhao.py` | `login_shipinhao.py` | `5006` | Optional | ✅ |
+| Instagram | `pub_instagram.py` | `login_instagram.py` | `5007` | Optional | ✅ |
+| YouTube | `pub_y2b.py` | N/A | `9222` | Optional | ✅ |
+
 ## Quick Snapshot
 
 | What | Value |
@@ -73,11 +107,28 @@ It is designed for operators who prefer transparent, script-first workflows over
 | Captcha handling | Optional integrations available | Configure 2Captcha/Turing credentials if needed |
 | License declaration | No top-level `LICENSE` file detected | Confirm usage terms with maintainer before redistribution |
 
+### Compatibility & Assumptions
+
+| Item | Current assumption in this repo |
+| --- | --- |
+| Python | 3.10+ |
+| Runtime environment | Linux desktop/server with GUI display available to Chromium |
+| Browser control mode | Remote debugging sessions with persisted profile directories |
+| Primary API port | `8081` (`app.py --port`) |
+| Processing backend | `upload_url` + `process_url` must be reachable and return valid ZIP output |
+| Workspace used for this draft | `/home/lachlan/ProjectsLFS/AutoPublish` |
+
 ---
 
 ## Table of Contents
 
+- [Start Here](#start-here)
 - [Overview](#overview)
+- [Runtime Modes at a Glance](#runtime-modes-at-a-glance)
+- [Platform Coverage Snapshot](#platform-coverage-snapshot)
+- [Quick Snapshot](#quick-snapshot)
+- [Operational Safety Snapshot](#operational-safety-snapshot)
+- [Compatibility & Assumptions](#compatibility--assumptions)
 - [System Overview](#system-overview)
 - [Features](#features)
 - [Project Structure](#project-structure)
@@ -85,28 +136,43 @@ It is designed for operators who prefer transparent, script-first workflows over
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Configuration Verification Checklist](#configuration-verification-checklist)
 - [Preparing Browser Sessions](#preparing-browser-sessions)
 - [Usage](#usage)
 - [Examples](#examples)
 - [Metadata & ZIP Format](#metadata--zip-format)
+- [Data & Artifact Lifecycle](#data--artifact-lifecycle)
 - [Platform-Specific Notes](#platform-specific-notes)
 - [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup)
 - [Legacy macOS Scripts](#legacy-macos-scripts)
 - [Troubleshooting & Maintenance](#troubleshooting--maintenance)
+- [FAQ](#faq)
 - [Extending the System](#extending-the-system)
 - [Quick Start Checklist](#quick-start-checklist)
 - [Development Notes](#development-notes)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
+- [Security & Ops Checklist](#security--ops-checklist)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
-- [Support AutoPublish](#support-autopublish)
+- [Support](#support-autopublish)
 
 ---
 
 ## System Overview
 
 🎯 **End-to-end flow** from raw media to published posts:
+
+```mermaid
+flowchart LR
+    A[Video in videos/] --> B[autopub.py watcher]
+    B --> C[process_video.py]
+    C --> D[ZIP + metadata in transcription_data/]
+    D --> E[pub_*.py Selenium publishers]
+    F[POST /publish ZIP] --> G[app.py queue worker]
+    G --> E
+    E --> H[Platforms: XHS, Douyin, Bilibili, ShiPinHao, Instagram, YouTube]
+```
 
 Workflow at a glance:
 
@@ -168,8 +234,7 @@ AutoPublish/
 ├── pwa/
 ├── figs/
 ├── .github/FUNDING.yml
-├── i18n/                     # multilingual READMEs (currently includes Arabic and Spanish)
-├── archived/
+├── i18n/                     # multilingual READMEs
 ├── videos/                   # runtime input artifacts
 ├── logs/, logs-autopub/      # runtime logs
 ├── temp/, temp_screenshot/   # runtime temp artifacts
@@ -331,6 +396,18 @@ touch ignore_xhs ignore_douyin ignore_bilibili ignore_shipinhao ignore_instagram
 
 Remove the corresponding file to re-enable.
 
+### Configuration Verification Checklist
+
+Run this quick validation after setting `.env` and path constants:
+
+```bash
+python -c "import os;print('AUTOPUBLISH_BROWSER_BIN=', os.getenv('AUTOPUBLISH_BROWSER_BIN'));print('AUTOPUBLISH_CHROMEDRIVER=', os.getenv('AUTOPUBLISH_CHROMEDRIVER'));print('DISPLAY=', os.getenv('DISPLAY') or os.getenv('AUTOPUBLISH_DISPLAY'))"
+python -c "from load_env import load_env_from_bashrc; load_env_from_bashrc(); print('Environment load OK')"
+python -c "import os; p=os.getenv('AUTOPUBLISH_CHROMEDRIVER') or os.getenv('CHROMEDRIVER_PATH') or '/usr/bin/chromedriver'; print(p, 'exists=', os.path.exists(p))"
+```
+
+If any value is missing, update `.env`, `~/.bashrc`, or script-level constants before running publishers.
+
 ---
 
 ## Preparing Browser Sessions
@@ -475,6 +552,21 @@ PWA capabilities:
 - Publish-target toggles + test mode.
 - Submits to `/publish` and polls `/publish/queue`.
 
+### Command Palette
+
+🧷 **Most-used commands in one place**.
+
+| Task | Command |
+| --- | --- |
+| Install full dependencies | `python -m pip install -r requirements.txt` |
+| Install lightweight runtime dependencies | `python -m pip install -r requirements.autopub.txt` |
+| Load shell-based env vars | `source ~/.bashrc && python load_env.py` |
+| Start API queue server | `python app.py --refresh-time 1800 --port 8081` |
+| Start CLI watcher pipeline | `python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili` |
+| Submit ZIP to queue | `curl -X POST "http://localhost:8081/publish?filename=demo.zip" --data-binary @demo.zip -H "Content-Type: application/octet-stream"` |
+| Inspect queue status | `curl -s "http://localhost:8081/publish/queue"` |
+| Serve local PWA | `cd pwa && python -m http.server 5173` |
+
 ---
 
 ## Examples
@@ -540,6 +632,22 @@ Fields commonly used by modules:
 
 If you generate ZIPs externally, keep keys and filenames aligned with module expectations.
 
+## Data & Artifact Lifecycle
+
+The pipeline creates local artifacts that operators should retain, rotate, or clean up deliberately:
+
+| Artifact | Location | Produced by | Why it matters |
+| --- | --- | --- | --- |
+| Input videos | `videos/` | Manual drop or upstream sync | Source media for CLI watcher mode |
+| Processing ZIP output | `transcription_data/<stem>/<stem>.zip` | `process_video.py` | Reusable payload for `--use-cache` |
+| Extracted publish assets | `transcription_data/<stem>/...` | ZIP extraction in `autopub.py` / `app.py` | Publisher-ready files and metadata |
+| Publish logs | `logs/`, `logs-autopub/` | CLI/API runtime | Failure triage and audit trail |
+| Browser logs | `~/chromium_dev_session_logs/*.log` (or chrome prefix) | Browser startup scripts | Diagnose session/port/startup issues |
+| Tracking CSVs | `videos_db.csv`, `processed.csv` | CLI watcher | Prevent duplicate processing |
+
+Housekeeping recommendation:
+- Add a periodic cleanup/archival job for old `transcription_data/`, `temp/`, and old logs to prevent disk-pressure failures.
+
 ---
 
 ## Platform-Specific Notes
@@ -586,9 +694,12 @@ Run service manually in tmux:
 Validate services/ports:
 
 ```bash
-systemctl status autopub.service virtual-desktop.service
+systemctl status autopub.service autopub-vnc.service
 sudo ss -ltnp | grep 590
 ```
+
+Compatibility note:
+- Some older docs/scripts still refer to `virtual-desktop.service`; current setup scripts in this repository install `autopub-vnc.service`.
 
 ---
 
@@ -616,6 +727,23 @@ These contain absolute `/Users/lachlan/...` paths and Conda assumptions. Keep th
 - **Captcha interrupts**: configure 2Captcha/Turing credentials and integrate solver outputs where needed.
 - **Stale lock files**: if scheduled runs never start, verify process state and remove stale `autopub.lock` (legacy script flow).
 - **Logs to inspect**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, plus service journal logs.
+
+## FAQ
+
+**Q: Can I run API mode and CLI watcher mode at the same time?**  
+A: It is possible but not recommended unless you isolate inputs and browser sessions carefully. Both modes can compete for the same publishers, files, and ports.
+
+**Q: Why does `/publish` return queued but nothing appears published yet?**  
+A: `app.py` enqueues jobs first, then a background worker processes them serially. Check `/publish/queue`, `is_publishing`, and service logs.
+
+**Q: Do I need `load_env.py` if I already use `.env`?**  
+A: `start_autopub_tmux.sh` sources `.env` if present, while some direct runs rely on shell environment loading. Keeping both `.env` and shell exports consistent avoids surprises.
+
+**Q: What is the minimum ZIP contract for API uploads?**  
+A: A valid ZIP with `{stem}_metadata.json`, plus video and cover filenames that match metadata keys (`video_filename`, `cover_filename`).
+
+**Q: Is headless mode supported?**  
+A: Some modules expose headless-related variables, but this repository’s primary and documented operating mode is GUI-backed browser sessions with persistent profiles.
 
 ---
 
@@ -697,31 +825,26 @@ If introducing new publisher modules, wire all of the following:
 - `ignore_<platform>` toggle handling
 - README updates
 
----
+## Security & Ops Checklist
 
-## License
+Before any production-like run:
 
-No `LICENSE` file is currently present in this repository snapshot.
-
-Assumption for this draft:
-- Treat usage and redistribution as undefined until the maintainer adds an explicit license file.
-
-Recommended next action:
-- Add a top-level `LICENSE` (for example MIT/Apache-2.0/GPL-3.0) and update this section accordingly.
-
-> 📝 Until a license file is added, treat commercial/internal redistribution assumptions as unresolved and confirm directly with the maintainer.
+1. Confirm `.env` exists locally and is not tracked by git.
+2. Rotate/remove any credentials that may have been committed historically.
+3. Replace placeholder sensitive values in code paths (for example the sudo password placeholder in `app.py`).
+4. Verify platform `ignore_*` switches are intentional before batch runs.
+5. Ensure browser profiles are isolated per platform and least-privilege accounts are used.
+6. Confirm logs do not expose secrets before sharing issue reports.
+7. Run `detect-secrets` (or equivalent) before push.
 
 ---
 
-## Acknowledgements
+<a id="support-autopublish"></a>
+## ❤️ Support
 
-- Maintainer and sponsor profile: [@lachlanchen](https://github.com/lachlanchen)
-- Funding configuration source: [`.github/FUNDING.yml`](.github/FUNDING.yml)
-- Ecosystem services referenced in this repo: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.
-
----
-
-## Support AutoPublish
+| Donate | PayPal | Stripe |
+|---|---|---|
+| [![Donate](https://img.shields.io/badge/Donate-LazyingArt-0EA5E9?style=for-the-badge&logo=ko-fi&logoColor=white)](https://chat.lazying.art/donate) | [![PayPal](https://img.shields.io/badge/PayPal-RongzhouChen-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/RongzhouChen) | [![Stripe](https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |
 
 💖 Community support funds infra, reliability work, and new platform integrations.
 
@@ -731,7 +854,7 @@ AutoPublish sits inside a broader effort to keep cross-platform creator tooling 
 - Ship new publishers (Kuaishou, Instagram Reels, etc.) plus reliability fixes for existing bots.
 - Share more documentation, starter datasets, and tutorials for independent creators.
 
-### Donate
+### Additional Donation Options
 
 <div align="center">
 <table style="margin:0 auto; text-align:center; border-collapse:collapse;">
@@ -775,3 +898,25 @@ AutoPublish sits inside a broader effort to keep cross-platform creator tooling 
 Also available via:
 - GitHub Sponsors: <https://github.com/sponsors/lachlanchen>
 - Project links: <https://lazying.art>, <https://chat.lazying.art>, <https://onlyideas.art>
+
+---
+
+## License
+
+No `LICENSE` file is currently present in this repository snapshot.
+
+Assumption for this draft:
+- Treat usage and redistribution as undefined until the maintainer adds an explicit license file.
+
+Recommended next action:
+- Add a top-level `LICENSE` (for example MIT/Apache-2.0/GPL-3.0) and update this section accordingly.
+
+> 📝 Until a license file is added, treat commercial/internal redistribution assumptions as unresolved and confirm directly with the maintainer.
+
+---
+
+## Acknowledgements
+
+- Maintainer and sponsor profile: [@lachlanchen](https://github.com/lachlanchen)
+- Funding configuration source: [`.github/FUNDING.yml`](.github/FUNDING.yml)
+- Ecosystem services referenced in this repo: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.

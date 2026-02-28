@@ -1,14 +1,14 @@
 [English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [Français](README.fr.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Tiếng Việt](README.vi.md) · [中文 (简体)](README.zh-Hans.md) · [中文（繁體）](README.zh-Hant.md) · [Deutsch](README.de.md) · [Русский](README.ru.md)
 
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/lachlanchen/lachlanchen/main/logos/banner.png" alt="LazyingArt banner" />
-</p>
+[![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
 
 # AutoPublish
 
-> 🌍 **Trạng thái bản địa hóa (xác minh trong workspace này vào ngày February 28, 2026):**
-> `i18n/` hiện có `README.ar.md` và `README.es.md`; `README.zh-CN.md` và `README.ja.md` là các mục tiêu dự phòng cho những tệp sắp tới.
+<p align="center">
+  <strong>Công cụ đăng nội dung video ngắn đa nền tảng theo hướng script-first và điều khiển trình duyệt.</strong><br/>
+  <sub>Tài liệu vận hành chuẩn cho việc setup, chạy runtime, chế độ hàng đợi và quy trình tự động hóa trên nhiều nền tảng.</sub>
+</p>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#prerequisites)
 [![Selenium](https://img.shields.io/badge/Selenium-Automation-43B02A?logo=selenium&logoColor=white)](#system-overview)
@@ -17,24 +17,47 @@
 [![API Queue](https://img.shields.io/badge/Queue-Enabled-2563EB)](#running-the-tornado-service-apppy)
 [![PWA](https://img.shields.io/badge/Frontend-PWA-10B981)](#pwa-frontend-pwa)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lachlanchen)
-[![i18n](https://img.shields.io/badge/i18n-English%20%7C%20Arabic%20%7C%20Spanish-0EA5E9)](#table-of-contents)
+[![i18n](https://img.shields.io/badge/i18n-ar%20%7C%20de%20%7C%20es%20%7C%20fr%20%7C%20ja%20%7C%20ko%20%7C%20ru%20%7C%20vi%20%7C%20zh--Hans%20%7C%20zh--Hant-0EA5E9)](#table-of-contents)
 [![License](https://img.shields.io/badge/License-Not%20Declared-red)](#license)
+[![Ops](https://img.shields.io/badge/Ops-Path%20Checks%20Required-orange)](#configuration)
+[![Security](https://img.shields.io/badge/Security-Env%20Secrets%20Required-critical)](#security--ops-checklist)
+[![Service](https://img.shields.io/badge/Linux-Service%20Scripts%20Included-1D4ED8)](#raspberry-pi--linux-service-setup)
 
-Bộ công cụ tự động hóa để phân phối nội dung video ngắn lên nhiều nền tảng sáng tạo của Trung Quốc và quốc tế. Dự án kết hợp service Tornado, bot Selenium, và workflow theo dõi thư mục cục bộ để khi thả video vào thư mục, hệ thống sẽ lần lượt tải lên XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram và tùy chọn YouTube.
+| Jump to | Link |
+| --- | --- |
+| First-time setup | [Start Here](#start-here) |
+| Run with local watcher | [Running the CLI pipeline (`autopub.py`)](#running-the-cli-pipeline-autopubpy) |
+| Run via HTTP queue | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
+| Deploy as service | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
+| Support the project | [Support](#support-autopublish) |
 
-Kho mã này có chủ đích ở mức low-level: phần lớn cấu hình nằm trong file Python và script shell. Tài liệu này là sổ tay vận hành bao phủ setup, runtime, và các điểm mở rộng.
+Bộ công cụ tự động hóa để phân phối nội dung video ngắn lên nhiều nền tảng sáng tạo của Trung Quốc và quốc tế. Dự án kết hợp một service dựa trên Tornado, các bot Selenium và quy trình theo dõi thư mục cục bộ, để khi bạn bỏ video vào thư mục, nó sẽ cuối cùng được upload lên XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram và tùy chọn YouTube.
 
-> ⚙️ **Triết lý vận hành**: dự án ưu tiên script tường minh và tự động hóa trình duyệt trực tiếp thay vì các lớp trừu tượng ẩn.
-> ✅ **Chính sách chuẩn cho README này**: giữ nguyên chi tiết kỹ thuật, sau đó cải thiện khả năng đọc và khả năng tra cứu.
+Kho mã này được thiết kế theo hướng low-level: phần lớn cấu hình nằm trong các file Python và shell script. Tài liệu này là sổ tay vận hành chính thức, bao phủ phần setup, runtime và các điểm mở rộng.
+
+> ⚙️ **Triết lý vận hành**: dự án ưu tiên script rõ ràng và tự động hóa trình duyệt trực tiếp hơn là các lớp trừu tượng ẩn.
+> ✅ **Chính sách chuẩn cho README**: giữ nguyên chi tiết kỹ thuật rồi mới tối ưu tính dễ đọc và khả năng khám phá.
+> 🌍 **Tình trạng bản địa hóa (đã kiểm chứng tại workspace vào ngày 28 tháng 2, 2026)**: `i18n/` hiện có bản tiếng Ả Rập, Đức, Tây Ban Nha, Pháp, Nhật, Hàn, Nga, Việt, Trung giản thể và Trung phồn thể.
+
+### Quick Navigation
+
+| Tôi muốn... | Đi đến |
+| --- | --- |
+| Chạy lần đầu tiên | [Quick Start Checklist](#quick-start-checklist) |
+| So sánh chế độ chạy | [Runtime Modes at a Glance](#runtime-modes-at-a-glance) |
+| Cấu hình credentials và đường dẫn | [Configuration](#configuration) |
+| Khởi chạy chế độ API và queue jobs | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
+| Kiểm tra nhanh bằng lệnh copy/paste | [Examples](#examples) |
+| Thiết lập trên Raspberry Pi/Linux | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
 
 ## Start Here
 
-Nếu bạn mới dùng repo này, hãy đi theo thứ tự sau:
+Nếu bạn mới dùng repo này, hãy làm theo thứ tự:
 
 1. Đọc [Prerequisites](#prerequisites) và [Installation](#installation).
 2. Cấu hình secrets và đường dẫn tuyệt đối trong [Configuration](#configuration).
-3. Chuẩn bị các browser debug session trong [Preparing Browser Sessions](#preparing-browser-sessions).
-4. Chọn một chế độ chạy trong [Usage](#usage): `autopub.py` (watcher) hoặc `app.py` (API queue).
+3. Chuẩn bị browser debug sessions trong [Preparing Browser Sessions](#preparing-browser-sessions).
+4. Chọn một chế độ runtime trong [Usage](#usage): `autopub.py` (watcher) hoặc `app.py` (API queue).
 5. Xác thực bằng các lệnh trong [Examples](#examples).
 
 ## Overview
@@ -42,16 +65,27 @@ Nếu bạn mới dùng repo này, hãy đi theo thứ tự sau:
 AutoPublish hiện hỗ trợ hai chế độ runtime production:
 
 1. **CLI watcher mode (`autopub.py`)** cho ingest và publish theo thư mục.
-2. **API queue mode (`app.py`)** cho publish qua HTTP bằng ZIP (`/publish`, `/publish/queue`).
+2. **API queue mode (`app.py`)** cho publish theo ZIP qua HTTP (`/publish`, `/publish/queue`).
 
-Hệ thống được thiết kế cho operator thích quy trình minh bạch, script-first thay vì nền tảng orchestration trừu tượng.
+Hệ thống hướng tới người vận hành thích workflow minh bạch, script-first thay vì các nền tảng orchestration trừu tượng.
 
 ### Runtime Modes at a Glance
 
 | Mode | Entry point | Input | Best for | Output behavior |
 | --- | --- | --- | --- | --- |
-| CLI watcher | `autopub.py` | Files dropped into `videos/` | Local operator workflows and cron/service loops | Processes detected videos and publishes immediately to selected platforms |
-| API queue service | `app.py` | ZIP upload to `POST /publish` | Integrations with upstream systems and remote triggering | Accepts jobs, enqueues them, and executes publishing in worker order |
+| CLI watcher | `autopub.py` | File được thả vào `videos/` | Workflow vận hành local và vòng cron/service | Xử lý video phát hiện được và publish ngay đến các nền tảng đã chọn |
+| API queue service | `app.py` | Upload ZIP tới `POST /publish` | Tích hợp với hệ thống upstream và trigger từ xa | Nhận job, đưa vào hàng đợi, rồi chạy publish theo thứ tự worker |
+
+### Platform Coverage Snapshot
+
+| Platform | Publisher module | Login helper | Control port | CLI mode | API mode |
+| --- | --- | --- | --- | --- | --- |
+| XiaoHongShu | `pub_xhs.py` | `login_xiaohongshu.py` | `5003` | ✅ | ✅ |
+| Douyin | `pub_douyin.py` | `login_douyin.py` | `5004` | ✅ | ✅ |
+| Bilibili | `pub_bilibili.py` | N/A | `5005` | ✅ | ✅ |
+| ShiPinHao (WeChat Channels) | `pub_shipinhao.py` | `login_shipinhao.py` | `5006` | Optional | ✅ |
+| Instagram | `pub_instagram.py` | `login_instagram.py` | `5007` | Optional | ✅ |
+| YouTube | `pub_y2b.py` | N/A | `9222` | Optional | ✅ |
 
 ## Quick Snapshot
 
@@ -60,24 +94,41 @@ Hệ thống được thiết kế cho operator thích quy trình minh bạch, s
 | Primary language | Python 3.10+ |
 | Main runtimes | CLI watcher (`autopub.py`) + Tornado queue service (`app.py`) |
 | Automation engine | Selenium + remote-debug Chromium sessions |
-| Input formats | Raw videos (`videos/`) and ZIP bundles (`/publish`) |
+| Input formats | Raw videos (`videos/`) và ZIP bundles (`/publish`) |
 | Current repo workspace path | `/home/lachlan/ProjectsLFS/AutoPublish` |
-| Ideal users | Creators/ops engineers managing multi-platform short video pipelines |
+| Ideal users | Creators/ops engineers quản lý pipeline video ngắn đa nền tảng |
 
 ### Operational Safety Snapshot
 
 | Topic | Current state | Action |
 | --- | --- | --- |
-| Hard-coded paths | Present in multiple modules/scripts | Update path constants per host before production runs |
-| Browser login state | Required | Keep persistent remote-debug profiles per platform |
-| Captcha handling | Optional integrations available | Configure 2Captcha/Turing credentials if needed |
-| License declaration | No top-level `LICENSE` file detected | Confirm usage terms with maintainer before redistribution |
+| Hard-coded paths | Có ở nhiều module/script | Cập nhật hằng số path theo host trước khi chạy production |
+| Browser login state | Bắt buộc | Giữ remote-debug profiles persistence cho từng nền tảng |
+| Captcha handling | Có tích hợp tùy chọn | Cấu hình credentials 2Captcha/Turing khi cần |
+| License declaration | Chưa thấy `LICENSE` ở root | Xác nhận lại điều khoản dùng lại với maintainer trước khi tái phân phối |
+
+### Compatibility & Assumptions
+
+| Item | Current assumption in this repo |
+| --- | --- |
+| Python | 3.10+ |
+| Runtime environment | Linux desktop/server có GUI display cho Chromium |
+| Browser control mode | Remote debugging sessions với profile thư mục persistent |
+| Primary API port | `8081` (`app.py --port`) |
+| Processing backend | `upload_url` + `process_url` phải truy cập được và trả về ZIP hợp lệ |
+| Workspace used for this draft | `/home/lachlan/ProjectsLFS/AutoPublish` |
 
 ---
 
 ## Table of Contents
 
+- [Start Here](#start-here)
 - [Overview](#overview)
+- [Runtime Modes at a Glance](#runtime-modes-at-a-glance)
+- [Platform Coverage Snapshot](#platform-coverage-snapshot)
+- [Quick Snapshot](#quick-snapshot)
+- [Operational Safety Snapshot](#operational-safety-snapshot)
+- [Compatibility & Assumptions](#compatibility--assumptions)
 - [System Overview](#system-overview)
 - [Features](#features)
 - [Project Structure](#project-structure)
@@ -85,66 +136,81 @@ Hệ thống được thiết kế cho operator thích quy trình minh bạch, s
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Configuration Verification Checklist](#configuration-verification-checklist)
 - [Preparing Browser Sessions](#preparing-browser-sessions)
 - [Usage](#usage)
 - [Examples](#examples)
 - [Metadata & ZIP Format](#metadata--zip-format)
+- [Data & Artifact Lifecycle](#data--artifact-lifecycle)
 - [Platform-Specific Notes](#platform-specific-notes)
 - [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup)
 - [Legacy macOS Scripts](#legacy-macos-scripts)
 - [Troubleshooting & Maintenance](#troubleshooting--maintenance)
+- [FAQ](#faq)
 - [Extending the System](#extending-the-system)
 - [Quick Start Checklist](#quick-start-checklist)
 - [Development Notes](#development-notes)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
+- [Security & Ops Checklist](#security--ops-checklist)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
-- [Support AutoPublish](#support-autopublish)
+- [Support](#support-autopublish)
 
 ---
 
 ## System Overview
 
-🎯 **Luồng end-to-end** từ media thô đến bài đã đăng:
+🎯 **Dòng chảy end-to-end** từ media thô đến bài đã đăng:
 
-Tổng quan workflow:
+```mermaid
+flowchart LR
+    A[Video in videos/] --> B[autopub.py watcher]
+    B --> C[process_video.py]
+    C --> D[ZIP + metadata in transcription_data/]
+    D --> E[pub_*.py Selenium publishers]
+    F[POST /publish ZIP] --> G[app.py queue worker]
+    G --> E
+    E --> H[Platforms: XHS, Douyin, Bilibili, ShiPinHao, Instagram, YouTube]
+```
 
-1. **Nhận footage thô**: đặt video vào `videos/`. Watcher (hoặc `autopub.py` hoặc scheduler/service) phát hiện file mới bằng `videos_db.csv` và `processed.csv`.
-2. **Sinh asset**: `process_video.VideoProcessor` upload file lên content-processing server (`upload_url` và `process_url`) và nhận lại gói ZIP chứa:
-   - video đã biên tập/mã hóa (`<stem>.mp4`),
-   - ảnh cover,
-   - `{stem}_metadata.json` với tiêu đề, mô tả, tag theo ngôn ngữ, v.v.
-3. **Publish**: metadata điều khiển các Selenium publisher trong `pub_*.py`. Mỗi publisher gắn vào phiên Chromium/Chrome đang chạy sẵn bằng remote debugging port và user-data directory bền vững.
-4. **Web control plane (tùy chọn)**: `app.py` mở `/publish`, nhận ZIP dựng sẵn, giải nén, và xếp hàng publish đến cùng các publisher. Nó cũng có thể refresh browser session và gọi login helper (`login_*.py`).
-5. **Module hỗ trợ**: `load_env.py` nạp secrets từ `~/.bashrc`, `utils.py` cung cấp helper (focus cửa sổ, xử lý QR, helper mail), và `solve_captcha_*.py` tích hợp Turing/2Captcha khi gặp captcha.
+Quy trình nhanh:
+
+1. **Raw footage intake**: đặt video vào `videos/`. Watcher (là `autopub.py` hoặc scheduler/service) sẽ phát hiện file mới thông qua `videos_db.csv` và `processed.csv`.
+2. **Asset generation**: `process_video.VideoProcessor` upload file lên content-processing server (`upload_url` và `process_url`) và nhận về gói ZIP gồm:
+   - video đã chỉnh sửa/mã hóa (`<stem>.mp4`),
+   - ảnh bìa,
+   - `{stem}_metadata.json` với title, description, tags theo ngôn ngữ local.
+3. **Publishing**: metadata điều khiển các publisher trong `pub_*.py`. Mỗi publisher sẽ gắn vào phiên Chromium/Chrome đang chạy sẵn qua remote-debug port và thư mục user-data persistent.
+4. **Web control plane (tùy chọn)**: `app.py` expose `/publish`, nhận trước ZIP đã build, giải nén và đẩy jobs publish vào queue cho cùng các publisher. Nó cũng có thể refresh browser session và trigger login helpers (`login_*.py`).
+5. **Support modules**: `load_env.py` nạp secrets từ `~/.bashrc`, `utils.py` cung cấp helper (đưa cửa sổ lên trên, xử lý QR, helper gửi mail), và `solve_captcha_*.py` tích hợp Turing/2Captcha khi gặp captcha.
 
 ## Features
 
-✨ **Thiết kế cho tự động hóa thực dụng, script-first**:
+✨ **Thiết kế cho automation thực dụng, ưu tiên script-first**:
 
 - Publish đa nền tảng: XiaoHongShu, Douyin, Bilibili, ShiPinHao (WeChat Channels), Instagram, YouTube (tùy chọn).
-- Hai chế độ vận hành: CLI watcher pipeline (`autopub.py`) và API queue service (`app.py` + `/publish` + `/publish/queue`).
+- Hai chế độ hoạt động: CLI watcher pipeline (`autopub.py`) và API queue service (`app.py` + `/publish` + `/publish/queue`).
 - Công tắc tắt tạm thời theo nền tảng qua file `ignore_*`.
-- Tái sử dụng browser-session remote-debugging với profile bền vững.
-- Tùy chọn tự động hóa QR/captcha và helper thông báo email.
-- Không cần frontend build cho uploader UI PWA đi kèm (`pwa/`).
+- Tái sử dụng remote-debug browser-session với profile persistent.
+- Tự động hóa QR/captcha tùy chọn và helper thông báo email.
+- Không cần build frontend cho PWA uploader UI đi kèm (`pwa/`).
 - Script tự động hóa Linux/Raspberry Pi cho service setup (`scripts/`).
 
 ### Feature Matrix
 
 | Capability | CLI (`autopub.py`) | API (`app.py`) |
 | --- | --- | --- |
-| Input source | Local `videos/` watcher | Uploaded ZIP via `POST /publish` |
-| Queueing | Internal file-based progression | Explicit in-memory job queue |
+| Nguồn đầu vào | Local `videos/` watcher | Upload ZIP qua `POST /publish` |
+| Queueing | Tiến trình nội bộ theo file | In-memory job queue rõ ràng |
 | Platform flags | CLI args (`--pub-*`) + `ignore_*` | Query args (`publish_*`) + `ignore_*` |
-| Best fit | Single-host operator workflow | External systems and remote triggering |
+| Mức phù hợp | Workflow người vận hành single-host | Tích hợp hệ thống ngoài và trigger từ xa |
 
 ---
 
 ## Project Structure
 
-Bố cục mã nguồn/runtime ở mức cao:
+Sơ đồ source/runtime cấp cao:
 
 ```text
 AutoPublish/
@@ -168,8 +234,7 @@ AutoPublish/
 ├── pwa/
 ├── figs/
 ├── .github/FUNDING.yml
-├── i18n/                     # multilingual READMEs (currently includes Arabic and Spanish)
-├── archived/
+├── i18n/                     # multilingual READMEs
 ├── videos/                   # runtime input artifacts
 ├── logs/, logs-autopub/      # runtime logs
 ├── temp/, temp_screenshot/   # runtime temp artifacts
@@ -177,7 +242,7 @@ AutoPublish/
 └── processed.csv
 ```
 
-Lưu ý: `transcription_data/` được dùng trong luồng xử lý/publish lúc chạy và có thể xuất hiện sau khi thực thi.
+Lưu ý: `transcription_data/` được dùng trong luồng xử lý/publish và có thể xuất hiện sau khi chạy.
 
 ## Repository Layout
 
@@ -185,31 +250,31 @@ Lưu ý: `transcription_data/` được dùng trong luồng xử lý/publish lú
 
 | Path | Purpose |
 | --- | --- |
-| `app.py` | Tornado service mở `/publish` và `/publish/queue`, có publish queue nội bộ và worker thread. |
-| `autopub.py` | CLI watcher: quét `videos/`, xử lý file mới, rồi gọi publisher song song. |
-| `process_video.py` | Upload video lên backend xử lý và lưu các ZIP bundle trả về. |
-| `pub_xhs.py`, `pub_douyin.py`, `pub_bilibili.py`, `pub_shipinhao.py`, `pub_instagram.py`, `pub_y2b.py` | Module tự động hóa Selenium theo từng nền tảng. |
-| `login_xiaohongshu.py`, `login_douyin.py`, `login_shipinhao.py`, `login_instagram.py` | Kiểm tra session và luồng login QR. |
-| `utils.py` | Helper dùng chung cho automation (focus cửa sổ, QR/mail utilities, helper chẩn đoán). |
-| `load_env.py` | Nạp biến môi trường từ shell profile (`~/.bashrc`) và che log nhạy cảm. |
+| `app.py` | Tornado service expose `/publish` và `/publish/queue`, có publish queue nội bộ + worker thread. |
+| `autopub.py` | CLI watcher: quét `videos/`, xử lý file mới, và gọi các publisher song song. |
+| `process_video.py` | Upload video lên backend processing và lưu ZIP bundle trả về. |
+| `pub_xhs.py`, `pub_douyin.py`, `pub_bilibili.py`, `pub_shipinhao.py`, `pub_instagram.py`, `pub_y2b.py` | Module Selenium automation theo từng nền tảng. |
+| `login_xiaohongshu.py`, `login_douyin.py`, `login_shipinhao.py`, `login_instagram.py` | Kiểm tra session và flow đăng nhập QR. |
+| `utils.py` | Helper dùng chung cho automation (window focus, QR helper, mail helper, diagnostics). |
+| `load_env.py` | Nạp biến môi trường từ shell profile (`~/.bashrc`) và mask log nhạy cảm. |
 | `smtp.py`, `smtp_test_simple.py`, `send_email_qreader.py` | Helper SMTP/SendGrid và script test. |
 | `solve_captcha_2captcha.py`, `solve_captcha_turing.py` | Tích hợp giải captcha. |
-| `scripts/` | Script setup service và vận hành (Raspberry Pi/Linux + automation cũ). |
-| `pwa/` | PWA tĩnh để preview ZIP và gửi publish. |
+| `scripts/` | Script setup và vận hành service (Raspberry Pi/Linux + legacy automation). |
+| `pwa/` | PWA tĩnh để preview ZIP và submit publish. |
 | `setup_raspberrypi.md` | Hướng dẫn provisioning Raspberry Pi từng bước. |
-| `.env.example` | Mẫu biến môi trường (credentials, paths, captcha keys). |
+| `.env.example` | Template biến môi trường (credentials, paths, captcha keys). |
 | `.github/FUNDING.yml` | Cấu hình tài trợ/funding. |
-| `logs/`, `logs-autopub/`, `temp/`, `temp_screenshot/`, `videos/` | Artifact và log runtime (nhiều mục được gitignore). |
+| `logs/`, `logs-autopub/`, `temp/`, `temp_screenshot/`, `videos/` | Artefact và logs runtime (đa phần gitignored). |
 
 ---
 
 ## Prerequisites
 
-🧰 **Cài các thành phần này trước lần chạy đầu tiên**.
+🧰 **Cài các thứ này trước khi chạy lần đầu**.
 
 ### Operating system and tools
 
-- Linux desktop/server có phiên X (`DISPLAY=:1` thường được dùng trong script mẫu).
+- Linux desktop/server có X session (`DISPLAY=:1` thường gặp trong script mẫu).
 - Chromium/Chrome và ChromeDriver tương thích.
 - Công cụ GUI/media: `xdotool`, `ffmpeg`, `zip`, `unzip`.
 - Python 3.10+ (venv hoặc Conda).
@@ -222,13 +287,13 @@ Bộ runtime tối thiểu:
 pip install selenium tornado requests requests-toolbelt sendgrid qreader opencv-python webdriver-manager
 ```
 
-Đồng bộ theo repo:
+Đồng bộ với repo:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Với bản cài service nhẹ (mặc định được dùng bởi setup scripts):
+Cho cài service nhẹ (mặc định setup scripts dùng):
 
 ```bash
 python -m pip install -r requirements.autopub.txt
@@ -247,7 +312,7 @@ sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" 
 
 ## Installation
 
-🚀 **Thiết lập từ máy sạch**:
+🚀 **Setup từ máy sạch**:
 
 1. Clone repository:
 
@@ -265,65 +330,65 @@ python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-3. Chuẩn bị biến môi trường:
+3. Chuẩn bị env vars:
 
 ```bash
 cp .env.example .env
-# fill values in .env (do not commit)
+# điền giá trị trong .env (đừng commit)
 ```
 
-4. Nạp biến cho các script đọc giá trị từ shell profile:
+4. Nạp biến cho các script đọc từ shell profile:
 
 ```bash
 source ~/.bashrc
 python load_env.py
 ```
 
-Lưu ý: `load_env.py` được thiết kế xoay quanh `~/.bashrc`; nếu bạn dùng shell profile khác, hãy điều chỉnh tương ứng.
+Ghi chú: `load_env.py` được viết cho `~/.bashrc`; nếu môi trường của bạn dùng profile khác, hãy chỉnh tương ứng.
 
 ---
 
 ## Configuration
 
-🔐 **Đặt credentials, sau đó kiểm tra đường dẫn theo từng host**.
+🔐 **Set credentials, rồi xác nhận path theo host**.
 
 ### Environment variables
 
-Dự án cần credentials và (tùy chọn) browser/runtime path từ biến môi trường. Bắt đầu từ `.env.example`:
+Dự án đọc credentials và (tùy chọn) browser/runtime paths từ environment variables. Bắt đầu từ `.env.example`:
 
 | Variable | Description |
 | --- | --- |
-| `FROM_EMAIL`, `TO_EMAIL`, `APP_PASSWORD` | Thông tin SMTP cho thông báo QR/login. |
-| `SENDGRID_API_KEY` | Khóa SendGrid cho các luồng email dùng API SendGrid. |
+| `FROM_EMAIL`, `TO_EMAIL`, `APP_PASSWORD` | Credentials SMTP cho thông báo QR/login. |
+| `SENDGRID_API_KEY` | Khóa SendGrid cho luồng email dùng SendGrid APIs. |
 | `APIKEY_2CAPTCHA` | Khóa API 2Captcha. |
-| `TULING_USERNAME`, `TULING_PASSWORD`, `TULING_ID` | Thông tin captcha Turing. |
-| `DOUYIN_LOGIN_PASSWORD` | Helper cho xác minh lớp hai của Douyin. |
+| `TULING_USERNAME`, `TULING_PASSWORD`, `TULING_ID` | Credentials captcha Turing. |
+| `DOUYIN_LOGIN_PASSWORD` | Trợ giúp xác minh 2FA của Douyin. |
 | `INSTAGRAM_*`, `CHROME_*`, `CHROMEDRIVER_PATH` | Ghi đè Instagram/browser driver. |
-| `AUTOPUBLISH_BROWSER_BIN`, `AUTOPUBLISH_CHROMEDRIVER`, `AUTOPUBLISH_DISPLAY` | Ghi đè browser/driver/display toàn cục ưu tiên trong `app.py`. |
+| `AUTOPUBLISH_BROWSER_BIN`, `AUTOPUBLISH_CHROMEDRIVER`, `AUTOPUBLISH_DISPLAY` | Ghi đè browser/driver/display global trong `app.py`. |
 
 ### Path constants (important)
 
-📌 **Lỗi khởi động phổ biến nhất**: đường dẫn tuyệt đối hard-code không khớp.
+📌 **Vấn đề startup thường gặp nhất**: hard-coded absolute path chưa tương thích host.
 
-Nhiều module vẫn chứa đường dẫn hard-code. Hãy cập nhật theo host của bạn:
+Nhiều module vẫn còn hard-coded paths. Cập nhật theo host của bạn:
 
 | File | Constant(s) | Meaning |
 | --- | --- | --- |
-| `app.py` | `logs_folder_root`, `autopublish_folder_root`, `videos_db_path`, `processed_path`, `transcription_root`, `upload_url`, `process_url`. | Root của API service và endpoint backend. |
-| `autopub.py` | `logs_folder_path`, `autopublish_folder_path`, `videos_db_path`, `processed_path`, `transcription_path`, `upload_url`, `process_url`, `chromedriver_path`. | Root của CLI watcher và endpoint backend. |
-| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Đường dẫn tuyệt đối đến Python/Conda/repo/log. | Wrapper cũ thiên về macOS. |
-| `utils.py` | Giả định đường dẫn FFmpeg trong helper xử lý cover. | Tương thích đường dẫn media tooling. |
+| `app.py` | `logs_folder_root`, `autopublish_folder_root`, `videos_db_path`, `processed_path`, `transcription_root`, `upload_url`, `process_url`. | Gốc của API service và endpoint backend. |
+| `autopub.py` | `logs_folder_path`, `autopublish_folder_path`, `videos_db_path`, `processed_path`, `transcription_path`, `upload_url`, `process_url`, `chromedriver_path`. | Gốc của CLI watcher và endpoint backend. |
+| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Các đường dẫn tuyệt đối tới Python/Conda/repo/log. | Wrapper cũ thiên hướng macOS. |
+| `utils.py` | Giả định path FFmpeg trong helper xử lý cover. | Tương thích path cho media tooling. |
 
-Ghi chú quan trọng cho repository:
-- Đường dẫn repo hiện tại trong workspace này là `/home/lachlan/ProjectsLFS/AutoPublish`.
-- Một số code và script vẫn tham chiếu `/home/lachlan/Projects/auto-publish` hoặc `/Users/lachlan/...`.
-- Hãy giữ và chỉnh lại các đường dẫn này tại máy cục bộ trước khi chạy production.
+Ghi chú repo quan trọng:
+- Đường dẫn repo trong workspace hiện tại là `/home/lachlan/ProjectsLFS/AutoPublish`.
+- Một vài code/script vẫn tham chiếu `/home/lachlan/Projects/auto-publish` hoặc `/Users/lachlan/...`.
+- Giữ và điều chỉnh các đường dẫn này cục bộ trước khi chạy production.
 
 ### Platform toggles via `ignore_*`
 
-🧩 **Công tắc an toàn nhanh**: tạo file `ignore_*` để tắt publisher mà không sửa code.
+🧩 **Nút dừng nhanh**: chỉ cần chạm file `ignore_*` là tắt publisher mà không sửa code.
 
-Các cờ publish cũng bị chặn bởi ignore file. Tạo file rỗng để tắt một nền tảng:
+Các flag publish cũng chịu tác động của ignore file. Tạo file rỗng để disable một nền tảng:
 
 ```bash
 touch ignore_xhs ignore_douyin ignore_bilibili ignore_shipinhao ignore_instagram ignore_y2b
@@ -331,11 +396,23 @@ touch ignore_xhs ignore_douyin ignore_bilibili ignore_shipinhao ignore_instagram
 
 Xóa file tương ứng để bật lại.
 
+### Configuration Verification Checklist
+
+Chạy kiểm tra nhanh sau khi set `.env` và path constants:
+
+```bash
+python -c "import os;print('AUTOPUBLISH_BROWSER_BIN=', os.getenv('AUTOPUBLISH_BROWSER_BIN'));print('AUTOPUBLISH_CHROMEDRIVER=', os.getenv('AUTOPUBLISH_CHROMEDRIVER'));print('DISPLAY=', os.getenv('DISPLAY') or os.getenv('AUTOPUBLISH_DISPLAY'))"
+python -c "from load_env import load_env_from_bashrc; load_env_from_bashrc(); print('Environment load OK')"
+python -c "import os; p=os.getenv('AUTOPUBLISH_CHROMEDRIVER') or os.getenv('CHROMEDRIVER_PATH') or '/usr/bin/chromedriver'; print(p, 'exists=', os.path.exists(p))"
+```
+
+Nếu thiếu giá trị nào, hãy update `.env`, `~/.bashrc` hoặc hằng số ở cấp script trước khi chạy publish.
+
 ---
 
 ## Preparing Browser Sessions
 
-🌐 **Bắt buộc dùng session persistence** để publish Selenium ổn định.
+🌐 **Session persistence bắt buộc** để Selenium publish đáng tin cậy.
 
 1. Tạo thư mục profile riêng:
 
@@ -356,7 +433,7 @@ DISPLAY=:1 chromium-browser \
 
 3. Đăng nhập thủ công một lần cho từng nền tảng/profile.
 
-4. Xác minh Selenium có thể attach:
+4. Kiểm tra Selenium có thể attach:
 
 ```python
 from selenium import webdriver
@@ -367,41 +444,41 @@ print(driver.title)
 driver.quit()
 ```
 
-Lưu ý bảo mật:
-- `app.py` hiện có placeholder mật khẩu sudo hard-code (`password = "1"`) được dùng trong logic restart browser. Hãy thay thế trước khi triển khai thực tế.
+Ghi chú bảo mật:
+- `app.py` hiện có placeholder mật khẩu sudo hard-code (`password = "1"`) dùng trong logic restart browser. Thay thế trước khi triển khai thật.
 
 ---
 
 ## Usage
 
-▶️ **Có hai chế độ runtime**: CLI watcher và API queue service.
+▶️ **Có hai runtime mode**: CLI watcher và API queue service.
 
 ### Running the CLI pipeline (`autopub.py`)
 
-1. Đặt video nguồn vào thư mục theo dõi (`videos/` hoặc `autopublish_folder_path` mà bạn đã cấu hình).
+1. Đặt video nguồn vào thư mục watch (`videos/` hoặc `autopublish_folder_path` bạn cấu hình).
 2. Chạy:
 
 ```bash
 python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili
 ```
 
-Flags:
+Các flag:
 
 | Flag | Meaning |
 | --- | --- |
-| `--pub-xhs`, `--pub-douyin`, `--pub-bilibili` | Giới hạn publish theo nền tảng chọn. Nếu không truyền cờ nào, mặc định bật cả ba. |
-| `--test` | Test mode truyền xuống publisher (hành vi khác nhau theo từng module nền tảng). |
+| `--pub-xhs`, `--pub-douyin`, `--pub-bilibili` | Giới hạn publish theo các nền tảng đã chọn. Nếu không truyền flag nào, mặc định bật cả ba. |
+| `--test` | Chế độ test truyền vào publisher (hành vi tùy module). |
 | `--use-cache` | Tái sử dụng `transcription_data/<video>/<video>.zip` nếu có. |
 
-Luồng CLI cho mỗi video:
-- Upload/xử lý qua `process_video.py`.
+Luồng CLI cho từng video:
+- Upload/process qua `process_video.py`.
 - Giải nén ZIP vào `transcription_data/<video>/`.
-- Chạy publisher đã chọn qua `ThreadPoolExecutor`.
+- Gọi publisher đã chọn qua `ThreadPoolExecutor`.
 - Ghi trạng thái theo dõi vào `videos_db.csv` và `processed.csv`.
 
 ### Running the Tornado service (`app.py`)
 
-🛰️ **API mode** phù hợp cho hệ thống bên ngoài tạo ZIP bundle.
+🛰️ **API mode** hữu ích cho hệ thống ngoài tạo ZIP bundle.
 
 Khởi chạy server:
 
@@ -409,16 +486,16 @@ Khởi chạy server:
 python app.py --refresh-time 1800 --port 8081
 ```
 
-Tóm tắt endpoint API:
+Tóm tắt endpoint:
 
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
-| `/publish` | `POST` | Upload ZIP bytes và xếp hàng một publish job |
-| `/publish/queue` | `GET` | Xem queue, lịch sử job, và trạng thái publish |
+| `/publish` | `POST` | Upload ZIP bytes và enqueue publish job |
+| `/publish/queue` | `GET` | Xem queue, lịch sử job, trạng thái publish |
 
 ### `POST /publish`
 
-📤 **Xếp một publish job** bằng cách upload trực tiếp ZIP bytes.
+📤 **Đẩy publish job vào hàng đợi** bằng cách upload trực tiếp ZIP bytes.
 
 - Header: `Content-Type: application/octet-stream`
 - Query/form arg bắt buộc: `filename` (tên file ZIP)
@@ -433,53 +510,68 @@ curl -X POST "http://localhost:8081/publish?filename=demo.zip&publish_xhs=true&p
   -H "Content-Type: application/octet-stream"
 ```
 
-Hành vi hiện tại trong code:
-- Request được chấp nhận và đưa vào queue.
-- Phản hồi tức thì trả JSON gồm `status: queued`, `job_id`, và `queue_size`.
-- Worker thread xử lý tuần tự các job trong queue.
+Hành vi thực tế trong code:
+- Request được chấp nhận và vào queue.
+- Response ngay lập tức trả về JSON gồm `status: queued`, `job_id`, `queue_size`.
+- Worker thread xử lý tuần tự các job.
 
 ### `GET /publish/queue`
 
-📊 **Theo dõi sức khỏe queue và job đang chạy**.
+📊 **Theo dõi sức khỏe queue và jobs đang chạy**.
 
-Trả JSON trạng thái/lịch sử queue:
+Lấy JSON trạng thái/lịch sử queue:
 
 ```bash
 curl "http://localhost:8081/publish/queue"
 ```
 
-Trường phản hồi gồm:
+Các trường trả về gồm:
 - `status`, `jobs`, `queue_size`, `is_publishing`.
 
 ### Browser refresh thread
 
-♻️ Luồng refresh trình duyệt định kỳ giúp giảm lỗi session cũ khi chạy uptime dài.
+♻️ Thread refresh định kỳ giảm lỗi session stale trong thời gian chạy dài.
 
-`app.py` chạy một background refresh thread theo chu kỳ `--refresh-time` và có hook login checks. Thời gian sleep refresh có thêm độ trễ ngẫu nhiên.
+`app.py` chạy background refresh thread theo khoảng `--refresh-time` và gắn hook login checks. Thời gian sleep có hành vi random delay.
 
 ### PWA frontend (`pwa/`)
 
-🖥️ UI tĩnh nhẹ cho upload ZIP thủ công và theo dõi queue.
+🖥️ Giao diện web tĩnh nhẹ để upload ZIP thủ công và quan sát queue.
 
-Chạy UI tĩnh cục bộ:
+Chạy UI local:
 
 ```bash
 cd pwa
 python -m http.server 5173
 ```
 
-Mở `http://localhost:5173` và đặt backend base URL (ví dụ `http://lazyingart:8081`).
+Mở `http://localhost:5173` và set backend base URL (ví dụ `http://lazyingart:8081`).
 
 Khả năng của PWA:
 - Preview ZIP bằng kéo/thả.
-- Bật/tắt đích publish + test mode.
+- Bật/tắt nền tảng publish + test mode.
 - Gửi lên `/publish` và poll `/publish/queue`.
+
+### Command Palette
+
+🧷 **Những lệnh dùng nhiều nhất gộp lại**.
+
+| Task | Command |
+| --- | --- |
+| Install full dependencies | `python -m pip install -r requirements.txt` |
+| Install lightweight runtime dependencies | `python -m pip install -r requirements.autopub.txt` |
+| Load shell-based env vars | `source ~/.bashrc && python load_env.py` |
+| Start API queue server | `python app.py --refresh-time 1800 --port 8081` |
+| Start CLI watcher pipeline | `python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili` |
+| Submit ZIP to queue | `curl -X POST "http://localhost:8081/publish?filename=demo.zip" --data-binary @demo.zip -H "Content-Type: application/octet-stream"` |
+| Inspect queue status | `curl -s "http://localhost:8081/publish/queue"` |
+| Serve local PWA | `cd pwa && python -m http.server 5173` |
 
 ---
 
 ## Examples
 
-🧪 **Các lệnh smoke-test có thể copy/paste**:
+🧪 **Lệnh smoke-test có thể copy/paste**:
 
 ### Example 0: Load environment and start API server
 
@@ -520,9 +612,9 @@ python smtp_test_simple.py
 
 ## Metadata & ZIP Format
 
-📦 **Hợp đồng ZIP rất quan trọng**: giữ tên file và khóa metadata khớp kỳ vọng của publisher.
+📦 **Hợp đồng ZIP rất quan trọng**: giữ đúng tên file và metadata keys theo đúng publisher expectations.
 
-Nội dung ZIP kỳ vọng (tối thiểu):
+Nội dung ZIP tối thiểu:
 
 ```text
 <stem>_metadata.json
@@ -530,40 +622,56 @@ Nội dung ZIP kỳ vọng (tối thiểu):
 <cover_filename>.jpg
 ```
 
-`metadata` điều khiển các publisher CN; `metadata["english_version"]` (tùy chọn) cấp dữ liệu cho publisher YouTube.
+`metadata` dùng cho publisher Trung Quốc; `metadata["english_version"]` (tùy chọn) cấp cho publisher YouTube.
 
-Các trường thường được module dùng:
+Các field thường dùng trong module:
 - `title`, `brief_description`, `middle_description`, `long_description`
 - `tags` (danh sách hashtag)
 - `video_filename`, `cover_filename`
-- các trường riêng theo nền tảng được implement trong từng `pub_*.py`
+- các field riêng từng nền tảng trong từng file `pub_*.py`
 
-Nếu bạn tạo ZIP từ hệ thống bên ngoài, hãy giữ keys và filenames đúng như module mong đợi.
+Nếu bạn tạo ZIP từ bên ngoài, giữ nguyên keys và tên file đúng với kỳ vọng của module.
+
+## Data & Artifact Lifecycle
+
+Pipeline tạo các artifact local mà operator cần giữ, xoay vòng hoặc dọn dẹp có chủ đích:
+
+| Artifact | Location | Produced by | Why it matters |
+| --- | --- | --- | --- |
+| Input videos | `videos/` | Drop thủ công hoặc đồng bộ upstream | Nguồn media cho CLI watcher mode |
+| Processing ZIP output | `transcription_data/<stem>/<stem>.zip` | `process_video.py` | Payload tái sử dụng cho `--use-cache` |
+| Extracted publish assets | `transcription_data/<stem>/...` | Giải nén ZIP trong `autopub.py` / `app.py` | File và metadata sẵn cho publisher |
+| Publish logs | `logs/`, `logs-autopub/` | Runtime CLI/API | Truy vết lỗi và audit trail |
+| Browser logs | `~/chromium_dev_session_logs/*.log` (hoặc chrome prefix) | Script khởi động browser | Chẩn đoán session/port/startup |
+| Tracking CSVs | `videos_db.csv`, `processed.csv` | CLI watcher | Tránh xử lý trùng |
+
+Khuyến nghị housekeeping:
+- Đặt job dọn dẹp/archive định kỳ cho `transcription_data/`, `temp/`, và logs cũ để tránh đầy ổ đĩa.
 
 ---
 
 ## Platform-Specific Notes
 
-🧭 **Bản đồ cổng + module phụ trách** cho từng publisher.
+🧭 **Port map + ownership module** cho từng publisher.
 
 | Platform | Port | Module(s) | Notes |
 | --- | --- | --- | --- |
-| XiaoHongShu | 5003 | `pub_xhs.py`, `login_xiaohongshu.py` | Luồng đăng nhập lại bằng QR; tiêu đề và hashtag lấy từ metadata. |
-| Douyin | 5004 | `pub_douyin.py`, `login_douyin.py` | Kiểm tra upload hoàn tất và retry khá mong manh theo nền tảng; cần theo dõi log sát. |
+| XiaoHongShu | 5003 | `pub_xhs.py`, `login_xiaohongshu.py` | Có flow re-login bằng QR; title sanitize và hashtag lấy từ metadata. |
+| Douyin | 5004 | `pub_douyin.py`, `login_douyin.py` | Kiểm tra upload hoàn tất và retry path khá dễ vỡ theo nền tảng; nên theo dõi log sát. |
 | Bilibili | 5005 | `pub_bilibili.py` | Có hook captcha qua `solve_captcha_2captcha.py` và `solve_captcha_turing.py`. |
-| ShiPinHao (WeChat Channels) | 5006 | `pub_shipinhao.py`, `login_shipinhao.py` | Duyệt QR nhanh rất quan trọng để refresh session ổn định. |
-| Instagram | 5007 | `pub_instagram.py`, `login_instagram.py` | Điều khiển trong API mode bằng `publish_instagram=true`; env vars có sẵn trong `.env.example`. |
-| YouTube | 9222 | `pub_y2b.py` | Dùng khối metadata `english_version`; tắt bằng `ignore_y2b`. |
+| ShiPinHao (WeChat Channels) | 5006 | `pub_shipinhao.py`, `login_shipinhao.py` | Duyệt QR nhanh giúp session refresh ổn định hơn. |
+| Instagram | 5007 | `pub_instagram.py`, `login_instagram.py` | Kiểm soát trong API mode bằng `publish_instagram=true`; biến env có trong `.env.example`. |
+| YouTube | 9222 | `pub_y2b.py` | Dùng metadata block `english_version`; tắt bằng `ignore_y2b`. |
 
 ---
 
 ## Raspberry Pi / Linux Service Setup
 
-🐧 **Khuyến nghị cho host chạy liên tục (always-on)**.
+🐧 **Khuyến nghị cho host chạy liên tục**.
 
-Để bootstrap đầy đủ một host, làm theo [`setup_raspberrypi.md`](setup_raspberrypi.md).
+Để bootstrap host đầy đủ, theo [setup_raspberrypi.md](setup_raspberrypi.md).
 
-Thiết lập pipeline nhanh:
+Setup pipeline nhanh:
 
 ```bash
 export AUTOPUB_USER=<USERNAME>
@@ -583,155 +691,168 @@ Chạy service thủ công trong tmux:
 ./scripts/start_autopub_tmux.sh
 ```
 
-Xác thực service/cổng:
+Validate services/ports:
 
 ```bash
-systemctl status autopub.service virtual-desktop.service
+systemctl status autopub.service autopub-vnc.service
 sudo ss -ltnp | grep 590
 ```
+
+Ghi chú tương thích:
+- Một số tài liệu/script cũ vẫn nói đến `virtual-desktop.service`; script setup hiện tại của repo cài `autopub-vnc.service`.
 
 ---
 
 ## Legacy macOS Scripts
 
-🍎 Các wrapper cũ vẫn được giữ để tương thích với môi trường local trước đây.
+🍎 Wrapper legacy vẫn được giữ để tương thích với workflow local cũ.
 
-Repository vẫn bao gồm các wrapper cũ thiên về macOS:
+Repo vẫn còn các wrapper kiểu macOS:
 - `scripts/run_autopub.sh`
 - `scripts/setup_autopub.sh`
 
-Các file này chứa đường dẫn tuyệt đối `/Users/lachlan/...` và giả định Conda. Hãy giữ nếu bạn còn dùng workflow đó, nhưng cần cập nhật paths/venv/tooling theo host của bạn.
+Trong đó có các path tuyệt đối `/Users/lachlan/...` và giả định Conda. Giữ lại nếu bạn vẫn dùng flow đó, nhưng phải cập nhật path/venv/tooling theo host.
 
 ---
 
 ## Troubleshooting & Maintenance
 
-🛠️ **Nếu có lỗi, bắt đầu kiểm tra từ đây**.
+🛠️ **Nếu gặp lỗi, bắt đầu check tại đây**.
 
-- **Path drift giữa các máy**: nếu lỗi báo thiếu file dưới `/Users/lachlan/...` hoặc `/home/lachlan/Projects/auto-publish`, hãy đồng bộ constants theo đường dẫn host của bạn (`/home/lachlan/ProjectsLFS/AutoPublish` trong workspace này).
-- **Secrets hygiene**: chạy `~/.local/bin/detect-secrets scan` trước khi push. Rotate mọi credential bị lộ.
-- **Lỗi processing backend**: nếu `process_video.py` in “Failed to get the uploaded file path,” hãy xác minh JSON phản hồi upload có `file_path` và endpoint xử lý trả về ZIP bytes.
-- **ChromeDriver mismatch**: nếu xuất hiện lỗi kết nối DevTools, hãy đồng bộ phiên bản Chrome/Chromium và driver (hoặc chuyển sang `webdriver-manager`).
-- **Vấn đề focus trình duyệt**: `bring_to_front` phụ thuộc vào khớp tiêu đề cửa sổ (khác biệt tên Chromium/Chrome có thể làm hỏng).
-- **Captcha làm gián đoạn**: cấu hình credential 2Captcha/Turing và tích hợp output của solver khi cần.
-- **Stale lock files**: nếu tác vụ định kỳ không bao giờ chạy, kiểm tra trạng thái process và xóa `autopub.lock` cũ (luồng script legacy).
-- **Logs cần xem**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, và service journal logs.
+- **Path drift giữa máy**: nếu lỗi báo thiếu file trong `/Users/lachlan/...` hoặc `/home/lachlan/Projects/auto-publish`, hãy chỉnh constants theo host path (`/home/lachlan/ProjectsLFS/AutoPublish` trong workspace này).
+- **Secrets hygiene**: chạy `~/.local/bin/detect-secrets scan` trước khi push. Rotate bất kỳ credential nào đã lộ.
+- **Lỗi processing backend**: nếu `process_video.py` in `Failed to get the uploaded file path`, kiểm tra JSON trả về upload có `file_path` và endpoint processing trả ZIP bytes.
+- **ChromeDriver mismatch**: nếu gặp lỗi kết nối DevTools, đồng bộ phiên bản Chrome/Chromium và driver (hoặc đổi sang `webdriver-manager`).
+- **Browser focus issues**: `bring_to_front` phụ thuộc khớp title cửa sổ (tên Chromium/Chrome khác nhau có thể làm fail).
+- **Captcha ngắt luồng**: cấu hình credentials 2Captcha/Turing và tích hợp output solver khi cần.
+- **Stale lock files**: nếu lịch chạy không bao giờ start, kiểm tra process state và xóa `autopub.lock` cũ (flow script legacy).
+- **Logs cần inspect**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, cùng journal logs của service.
+
+## FAQ
+
+**Q: Tôi có thể chạy API mode và CLI watcher cùng lúc không?**  
+A: Có thể làm được, nhưng không khuyến nghị nếu chưa isolate inputs và browser sessions. Cả hai mode có thể tranh chấp cùng publisher, file và ports.
+
+**Q: Vì sao `/publish` trả về queued nhưng chưa thấy gì published?**  
+A: `app.py` enqueue jobs trước, sau đó worker nền xử lý tuần tự. Kiểm tra `/publish/queue`, `is_publishing`, và logs service.
+
+**Q: Tôi có cần `load_env.py` nếu đã dùng `.env` rồi không?**  
+A: `start_autopub_tmux.sh` sẽ source `.env` nếu có, còn một số run trực tiếp lại dựa vào shell exports. Giữ cho cả `.env` và shell exports nhất quán để tránh surprise.
+
+**Q: Hợp đồng ZIP tối thiểu cho API upload là gì?**  
+A: Một ZIP hợp lệ gồm `{stem}_metadata.json` và tên video/cover trùng với metadata keys (`video_filename`, `cover_filename`).
+
+**Q: Có hỗ trợ headless mode không?**  
+A: Một số module có biến liên quan headless, nhưng chế độ vận hành chủ đạo và được tài liệu hóa là GUI-backed browser sessions với profile persistent.
 
 ---
 
 ## Extending the System
 
-🧱 **Điểm mở rộng** để thêm nền tảng mới và vận hành an toàn hơn.
+🧱 **Các điểm mở rộng** cho nền tảng mới và vận hành an toàn hơn.
 
-- **Thêm nền tảng mới**: sao chép một module `pub_*.py`, cập nhật selector/flow, thêm `login_*.py` nếu cần QR re-auth, sau đó nối cờ và queue handling trong `app.py` và wiring CLI trong `autopub.py`.
-- **Trừu tượng hóa config**: chuyển các hằng số rải rác sang config có cấu trúc (`config.yaml`/`.env` + typed model) để chạy đa host.
-- **Tăng cường lưu trữ credential**: thay luồng hard-code hoặc lộ qua shell bằng secret management an toàn (`sudo -A`, keychain, vault/secret manager).
-- **Containerization**: đóng gói Chromium/ChromeDriver + Python runtime + virtual display thành một đơn vị triển khai cho cloud/server.
+- **Thêm platform mới**: copy module `pub_*.py`, cập nhật selector/flow, thêm `login_*.py` nếu cần QR re-auth, rồi nối flags và queue handling trong `app.py` và wiring CLI trong `autopub.py`.
+- **Trừu tượng hóa config**: gom các constant rải rác sang config có cấu trúc (`config.yaml`/`.env` + typed model) cho multi-host.
+- **Mở khóa lưu trữ credential an toàn hơn**: thay các luồng hard-coded hoặc lộ qua shell bằng secret management an toàn (`sudo -A`, keychain, vault/secret manager).
+- **Containerization**: đóng gói Chromium/ChromeDriver + Python runtime + virtual display thành một đơn vị triển khai dùng được cho cloud/server.
 
 ---
 
 ## Quick Start Checklist
 
-✅ **Đường ngắn nhất để publish thành công lần đầu**.
+✅ **Con đường nhanh nhất để publish thành công lần đầu**.
 
-1. Clone repository này và cài dependencies (`pip install -r requirements.txt` hoặc bản nhẹ `requirements.autopub.txt`).
-2. Cập nhật các path constant hard-code trong `app.py`, `autopub.py`, và mọi script bạn sẽ chạy.
-3. Export credential cần thiết trong shell profile hoặc `.env`; chạy `python load_env.py` để xác minh nạp thành công.
-4. Tạo thư mục profile browser remote-debug và khởi chạy mỗi session nền tảng cần dùng ít nhất một lần.
-5. Đăng nhập thủ công vào từng nền tảng đích trong profile tương ứng.
-6. Khởi chạy API mode (`python app.py --port 8081`) hoặc CLI mode (`python autopub.py --use-cache ...`).
-7. Gửi một ZIP mẫu (API mode) hoặc một file video mẫu (CLI mode) và kiểm tra `logs/`.
+1. Clone repo và cài dependencies (`pip install -r requirements.txt` hoặc bản nhẹ `requirements.autopub.txt`).
+2. Cập nhật các constant hard-coded trong `app.py`, `autopub.py`, và script bạn sẽ chạy.
+3. Export credentials cần thiết trong shell profile hoặc `.env`; chạy `python load_env.py` để xác thực.
+4. Tạo thư mục profile remote-debug browser và khởi chạy từng phiên nền tảng cần thiết ít nhất 1 lần.
+5. Đăng nhập thủ công trên mỗi nền tảng đích trong profile tương ứng.
+6. Start API mode (`python app.py --port 8081`) hoặc CLI mode (`python autopub.py --use-cache ...`).
+7. Đẩy một ZIP mẫu (API mode) hoặc một file video mẫu (CLI mode) rồi xem `logs/`.
 8. Chạy secrets scanning trước mỗi lần push.
 
 ---
 
 ## Development Notes
 
-🧬 **Mốc phát triển hiện tại** (format thủ công + smoke test).
+🧬 **Baseline phát triển hiện tại** (format thủ công + smoke testing).
 
-- Style Python theo chuẩn sẵn có: indent 4 spaces và format thủ công.
-- Hiện chưa có bộ test tự động chính thức; hãy dùng smoke test:
+- Style Python theo 4-space indentation và format thủ công hiện tại.
+- Chưa có test suite tự động chính thức; dựa vào smoke test:
   - xử lý một video mẫu qua `autopub.py`;
-  - gửi một ZIP lên `/publish` và theo dõi `/publish/queue`;
-  - xác nhận thủ công từng nền tảng mục tiêu.
-- Khi thêm script mới, thêm entrypoint nhỏ `if __name__ == "__main__":` để dry-run nhanh.
-- Cố gắng cô lập thay đổi theo nền tảng (`pub_*`, `login_*`, toggle `ignore_*`).
-- Runtime artifacts (`videos/*`, `logs*/*`, `transcription_data/*`, `ignore_*`) được kỳ vọng là cục bộ và đa phần bị gitignore.
+  - post một ZIP tới `/publish` và theo dõi `/publish/queue`;
+  - xác minh thủ công từng nền tảng mục tiêu.
+- Thêm entrypoint nhỏ `if __name__ == "__main__":` khi thêm script mới để tiện dry-run.
+- Cô lập thay đổi theo nền tảng càng nhiều càng tốt (`pub_*`, `login_*`, `ignore_*`).
+- Runtime artifacts (`videos/*`, `logs*/*`, `transcription_data/*`, `ignore_*`) kỳ vọng ở local và phần lớn bị gitignore.
 
 ---
 
 ## Roadmap
 
-🗺️ **Các cải tiến ưu tiên phản ánh giới hạn hiện tại của code**.
+🗺️ **Các cải tiến ưu tiên theo ràng buộc mã hiện tại**.
 
-Các cải tiến dự kiến/mong muốn (dựa trên cấu trúc mã hiện tại và ghi chú sẵn có):
+Các cải tiến mong muốn (dựa trên cấu trúc code và ghi chú hiện tại):
 
-1. Thay các path hard-code rải rác bằng config trung tâm (`.env`/YAML + typed models).
-2. Loại bỏ pattern hard-code mật khẩu sudo và chuyển kiểm soát tiến trình sang cơ chế an toàn hơn.
-3. Tăng độ tin cậy publish bằng retry mạnh hơn và nhận diện UI-state tốt hơn theo từng nền tảng.
-4. Mở rộng hỗ trợ nền tảng (ví dụ Kuaishou hoặc các nền tảng creator khác).
-5. Đóng gói runtime thành đơn vị triển khai có thể tái lập (container + virtual display profile).
-6. Bổ sung kiểm tra tích hợp tự động cho ZIP contract và queue execution.
+1. Thay thế hard-coded path rải rác bằng config trung tâm (`.env`/YAML + typed models).
+2. Loại bỏ mẫu password sudo hard-coded và chuyển control process sang cơ chế an toàn hơn.
+3. Tăng độ tin cậy publish với retry mạnh hơn và detection UI-state tốt hơn theo từng nền tảng.
+4. Mở rộng nền tảng (ví dụ Kuaishou hoặc các creator platforms khác).
+5. Đóng gói runtime thành đơn vị triển khai tái lập (container + virtual display profile).
+6. Thêm kiểm tra tích hợp tự động cho ZIP contract và queue execution.
 
 ---
 
 ## Contributing
 
-🤝 Giữ PR tập trung, tái lập được, và nêu rõ giả định runtime.
+🤝 Giữ PR tập trung, có thể reproduce, và nêu rõ giả định runtime.
 
-Mọi đóng góp đều được chào đón.
+Đóng góp luôn được hoan nghênh.
 
 1. Fork và tạo branch tập trung.
-2. Giữ commit nhỏ, dùng câu mệnh lệnh (phong cách ví dụ trong lịch sử: “Wait for YouTube checks before publishing”).
-3. Thêm ghi chú xác minh thủ công trong PR:
-   - giả định môi trường,
-   - thao tác restart browser/session,
-   - log/screenshot liên quan cho thay đổi luồng UI.
-4. Không commit secrets thật (`.env` bị ignore; chỉ dùng `.env.example` làm khuôn dạng).
+2. Giữ commit nhỏ, chủ động (ví dụ trong lịch sử: “Wait for YouTube checks before publishing”).
+3. Ghi chú xác thực thủ công trong PR:
+   - assumptions môi trường,
+   - restart browser/session,
+   - logs/screenshot liên quan cho thay đổi UI flow.
+4. Không commit secret thật (`.env` đã gitignore; dùng `.env.example` để tham chiếu cấu trúc).
 
-Nếu thêm module publisher mới, hãy nối đủ các phần sau:
+Nếu thêm module publisher mới, cần nối đủ:
 - `pub_<platform>.py`
 - `login_<platform>.py` (tùy chọn)
-- API flags và queue handling trong `app.py`
-- wiring CLI trong `autopub.py` (nếu cần)
-- xử lý toggle `ignore_<platform>`
+- API flags + queue handling trong `app.py`
+- CLI wiring trong `autopub.py` (nếu cần)
+- xử lý `ignore_<platform>` toggle
 - cập nhật README
 
----
+## Security & Ops Checklist
 
-## License
+Trước khi chạy production-like:
 
-Hiện chưa có file `LICENSE` trong snapshot repository này.
+1. Xác nhận `.env` tồn tại local và không bị track bởi git.
+2. Rotate/remove mọi credentials có thể đã từng được commit.
+3. Thay placeholder nhạy cảm trong code paths (ví dụ placeholder password sudo trong `app.py`).
+4. Kiểm tra các switch `ignore_*` có chủ đích trước batch run.
+5. Đảm bảo browser profile được tách theo nền tảng và dùng tài khoản ít quyền.
+6. Kiểm tra logs không lộ secrets trước khi chia sẻ issue report.
+7. Chạy `detect-secrets` (hoặc tương đương) trước push.
 
-Giả định cho bản nháp này:
-- Xem quyền sử dụng và phân phối lại là chưa xác định cho tới khi maintainer thêm file license rõ ràng.
+<a id="support-autopublish"></a>
+## ❤️ Support
 
-Hành động tiếp theo được khuyến nghị:
-- Thêm `LICENSE` ở cấp root (ví dụ MIT/Apache-2.0/GPL-3.0) và cập nhật lại mục này.
+| Donate | PayPal | Stripe |
+|---|---|---|
+| [![Donate](https://img.shields.io/badge/Donate-LazyingArt-0EA5E9?style=for-the-badge&logo=ko-fi&logoColor=white)](https://chat.lazying.art/donate) | [![PayPal](https://img.shields.io/badge/PayPal-RongzhouChen-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/RongzhouChen) | [![Stripe](https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |
 
-> 📝 Cho đến khi có file license, hãy coi các giả định về phân phối lại thương mại/nội bộ là chưa rõ và xác nhận trực tiếp với maintainer.
+💖 Support từ cộng đồng giúp duy trì hạ tầng, tăng độ ổn định, và phát triển nền tảng mới.
 
----
+AutoPublish nằm trong nỗ lực rộng hơn để giữ bộ công cụ creator đa nền tảng mở và dễ tùy biến. Quyên góp giúp:
 
-## Acknowledgements
+- Giữ cho Selenium farm, processing API, và cloud GPUs hoạt động.
+- Phát hành thêm các publisher mới (Kuaishou, Instagram Reels, v.v.) cùng fix độ ổn định cho bot hiện có.
+- Chia sẻ thêm tài liệu, bộ dữ liệu khởi đầu và hướng dẫn cho creator độc lập.
 
-- Trang maintainer và sponsor: [@lachlanchen](https://github.com/lachlanchen)
-- Nguồn cấu hình funding: [`.github/FUNDING.yml`](.github/FUNDING.yml)
-- Dịch vụ hệ sinh thái được nhắc tới trong repo này: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.
-
----
-
-## Support AutoPublish
-
-💖 Hỗ trợ từ cộng đồng giúp chi trả hạ tầng, cải thiện độ ổn định, và tích hợp nền tảng mới.
-
-AutoPublish nằm trong nỗ lực rộng hơn nhằm giữ bộ công cụ creator đa nền tảng luôn mở và dễ tùy biến. Quyên góp giúp:
-
-- Duy trì cụm Selenium, processing API, và cloud GPUs hoạt động.
-- Phát hành publisher mới (Kuaishou, Instagram Reels, v.v.) cùng các bản vá độ ổn định cho bot hiện có.
-- Chia sẻ thêm tài liệu, bộ dữ liệu khởi đầu, và tutorial cho creator độc lập.
-
-### Donate
+### Additional Donation Options
 
 <div align="center">
 <table style="margin:0 auto; text-align:center; border-collapse:collapse;">
@@ -775,3 +896,25 @@ AutoPublish nằm trong nỗ lực rộng hơn nhằm giữ bộ công cụ crea
 Also available via:
 - GitHub Sponsors: <https://github.com/sponsors/lachlanchen>
 - Project links: <https://lazying.art>, <https://chat.lazying.art>, <https://onlyideas.art>
+
+---
+
+## License
+
+Hiện không có file `LICENSE` trong snapshot repository này.
+
+Giả định cho bản nháp:
+- Xử lý/redistribution cho tới khi maintainer thêm file license rõ ràng vẫn chưa được định nghĩa.
+
+Đề xuất tiếp theo:
+- Thêm file `LICENSE` ở mức root (ví dụ MIT/Apache-2.0/GPL-3.0) và cập nhật lại phần này.
+
+> 📝 Cho đến khi có file license, coi các giả định về phân phối thương mại/nội bộ là chưa xác thực và cần xác nhận trực tiếp với maintainer.
+
+---
+
+## Acknowledgements
+
+- Người duy trì và profile tài trợ: [@lachlanchen](https://github.com/lachlanchen)
+- Nguồn cấu hình funding: [`.github/FUNDING.yml`](.github/FUNDING.yml)
+- Các dịch vụ hệ sinh thái được nhắc đến trong repo: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.

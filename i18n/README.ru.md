@@ -1,14 +1,14 @@
 [English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [Français](README.fr.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Tiếng Việt](README.vi.md) · [中文 (简体)](README.zh-Hans.md) · [中文（繁體）](README.zh-Hant.md) · [Deutsch](README.de.md) · [Русский](README.ru.md)
 
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/lachlanchen/lachlanchen/main/logos/banner.png" alt="LazyingArt banner" />
-</p>
+[![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
 
 # AutoPublish
 
-> 🌍 **Статус локализации (проверено в этом workspace 28 февраля 2026):**
-> `i18n/` сейчас содержит `README.ar.md` и `README.es.md`; `README.zh-CN.md` и `README.ja.md` зарезервированы для следующих файлов.
+<p align="center">
+  <strong>Автоматизация публикации коротких видео для нескольких платформ с акцентом на скрипты и управление через браузер.</strong><br/>
+  <sub>Единое операционное руководство по настройке, запуску, очереди и рабочим процессам автоматизации платформ.</sub>
+</p>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#prerequisites)
 [![Selenium](https://img.shields.io/badge/Selenium-Automation-43B02A?logo=selenium&logoColor=white)](#system-overview)
@@ -17,67 +17,118 @@
 [![API Queue](https://img.shields.io/badge/Queue-Enabled-2563EB)](#running-the-tornado-service-apppy)
 [![PWA](https://img.shields.io/badge/Frontend-PWA-10B981)](#pwa-frontend-pwa)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lachlanchen)
-[![i18n](https://img.shields.io/badge/i18n-English%20%7C%20Arabic%20%7C%20Spanish-0EA5E9)](#table-of-contents)
+[![i18n](https://img.shields.io/badge/i18n-ar%20%7C%20de%20%7C%20es%20%7C%20fr%20%7C%20ja%20%7C%20ko%20%7C%20ru%20%7C%20vi%20%7C%20zh--Hans%20%7C%20zh--Hant-0EA5E9)](#table-of-contents)
 [![License](https://img.shields.io/badge/License-Not%20Declared-red)](#license)
+[![Ops](https://img.shields.io/badge/Ops-Path%20Checks%20Required-orange)](#configuration)
+[![Security](https://img.shields.io/badge/Security-Env%20Secrets%20Required-critical)](#security--ops-checklist)
+[![Service](https://img.shields.io/badge/Linux-Service%20Scripts%20Included-1D4ED8)](#raspberry-pi--linux-service-setup)
 
-Набор инструментов автоматизации для публикации коротких видео на нескольких китайских и международных платформах для авторов. Проект сочетает сервис на Tornado, Selenium-ботов и локальный workflow с наблюдением за папкой, чтобы добавление видео в каталог в итоге приводило к загрузке на XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram и, при необходимости, YouTube.
+| Перейти | Ссылка |
+| --- | --- |
+| Первый запуск | [Начните здесь](#start-here) |
+| Запуск через локальный watcher | [CLI pipeline (`autopub.py`)](#running-the-cli-pipeline-autopubpy) |
+| Запуск через HTTP-очередь | [Запуск Tornado сервиса (`app.py`)](#running-the-tornado-service-apppy) |
+| Поднять как сервис | [Настройка Raspberry Pi / Linux Service](#raspberry-pi--linux-service-setup) |
+| Поддержка проекта | [Поддержать](#support-autopublish) |
 
-Репозиторий намеренно остаётся низкоуровневым: большая часть конфигурации находится в Python-файлах и shell-скриптах. Этот документ — операционное руководство по настройке, запуску и точкам расширения.
+Инструментарий для автоматической публикации короткого видео на несколько китайских и международных платформ для авторов. Проект сочетает сервис на Tornado, Selenium-боты и локальный workflow по наблюдению за каталогом, чтобы добавление видео в папку приводило к его публикации на XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram и при необходимости YouTube.
 
-> ⚙️ **Операционная философия**: проект делает ставку на явные скрипты и прямую автоматизацию браузера вместо скрытых слоёв абстракции.
-> ✅ **Каноническая политика для этого README**: сохранять технические детали и повышать читаемость/находимость.
+Репозиторий намеренно остается низкоуровневым: основная конфигурация находится в Python-файлах и shell-скриптах. Этот документ — операционное руководство по установке, запуску и расширению.
 
-## Начните здесь
+> ⚙️ **Операционная философия**: этот проект отдает приоритет явным скриптам и прямой автоматизации браузера вместо скрытых абстракций.
+> ✅ **Канон для этого README**: сохранить технические детали, затем повысить удобство чтения и находчивость.
+> 🌍 **Статус локализации (проверено в рабочем пространстве на 2026-02-28)**: в `i18n/` сейчас есть версии Arabic, German, Spanish, French, Japanese, Korean, Russian, Vietnamese, Simplified Chinese и Traditional Chinese.
 
-Если вы впервые в этом репозитории, используйте такую последовательность:
+### Быстрая навигация
+
+| Я хочу... | Перейти |
+| --- | --- |
+| Сделать первую публикацию | [Чеклист быстрого старта](#quick-start-checklist) |
+| Сравнить режимы запуска | [Режимы запуска за одну страницу](#runtime-modes-at-a-glance) |
+| Настроить секреты и пути | [Configuration](#configuration) |
+| Запустить API и очередь | [Запуск Tornado сервиса (`app.py`)](#running-the-tornado-service-apppy) |
+| Проверить командами | [Примеры](#examples) |
+| Настроить на Raspberry Pi/Linux | [Настройка Raspberry Pi / Linux Service](#raspberry-pi--linux-service-setup) |
+
+## <a id="start-here"></a> Начало работы
+
+Если вы впервые в этом репозитории, действуйте в такой последовательности:
 
 1. Прочитайте [Prerequisites](#prerequisites) и [Installation](#installation).
 2. Настройте секреты и абсолютные пути в [Configuration](#configuration).
-3. Подготовьте сессии браузера в [Preparing Browser Sessions](#preparing-browser-sessions).
-4. Выберите один режим запуска из [Usage](#usage): `autopub.py` (watcher) или `app.py` (API queue).
-5. Проверьте работу командами из [Examples](#examples).
+3. Подготовьте браузерные сессии в [Preparing Browser Sessions](#preparing-browser-sessions).
+4. Выберите режим запуска в [Usage](#usage): `autopub.py` (watcher) или `app.py` (API queue).
+5. Протестируйте с командами из [Examples](#examples).
 
-## Обзор
+## <a id="overview"></a> Обзор
 
-Сейчас AutoPublish поддерживает два рабочих режима исполнения:
+AutoPublish на данный момент поддерживает два рабочих режима:
 
-1. **Режим CLI watcher (`autopub.py`)** для приёма файлов из папки и публикации.
-2. **Режим API queue (`app.py`)** для публикации ZIP через HTTP (`/publish`, `/publish/queue`).
+1. **CLI watcher mode (`autopub.py`)** для приёма файлов из папки и публикации.
+2. **API queue mode (`app.py`)** для публикации ZIP через HTTP (`/publish`, `/publish/queue`).
 
-Проект ориентирован на операторов, которым важен прозрачный script-first workflow вместо абстрактных платформ оркестрации.
+Решение ориентировано на операторов, которым нужны прозрачные скриптовые процессы вместо абстрактных оркестраторов.
 
-### Кратко о режимах запуска
+### <a id="runtime-modes-at-a-glance"></a> Режимы запуска с одного взгляда
 
-| Режим | Точка входа | Вход | Лучшее применение | Поведение на выходе |
+| Режим | Точка входа | Входные данные | Лучшее применение | Поведение вывода |
 | --- | --- | --- | --- | --- |
-| CLI watcher | `autopub.py` | Файлы, помещённые в `videos/` | Локальные operator workflow и циклы cron/service | Обрабатывает найденные видео и сразу публикует на выбранные платформы |
-| API queue service | `app.py` | Загрузка ZIP в `POST /publish` | Интеграции с upstream-системами и удалённый триггер | Принимает задания, ставит их в очередь и выполняет публикацию в порядке worker |
+| CLI watcher | `autopub.py` | Файлы, помещённые в `videos/` | Локальные рабочие процессы оператора и cron/service циклы | Обрабатывает найденные видео и сразу публикует на выбранные платформы |
+| API queue service | `app.py` | ZIP-загрузка в `POST /publish` | Интеграции с апстрим-системами и удалённым триггером | Принимает задания, ставит их в очередь и выполняет публикацию в порядке очереди worker |
 
-## Быстрый снимок
+### <a id="platform-coverage-snapshot"></a> Поддерживаемые платформы
 
-| Что | Значение |
+| Платформа | Модуль публикации | Помощник входа | Порт управления | Режим CLI | Режим API |
+| --- | --- | --- | --- | --- | --- |
+| XiaoHongShu | `pub_xhs.py` | `login_xiaohongshu.py` | `5003` | ✅ | ✅ |
+| Douyin | `pub_douyin.py` | `login_douyin.py` | `5004` | ✅ | ✅ |
+| Bilibili | `pub_bilibili.py` | N/A | `5005` | ✅ | ✅ |
+| ShiPinHao (WeChat Channels) | `pub_shipinhao.py` | `login_shipinhao.py` | `5006` | Optional | ✅ |
+| Instagram | `pub_instagram.py` | `login_instagram.py` | `5007` | Optional | ✅ |
+| YouTube | `pub_y2b.py` | N/A | `9222` | Optional | ✅ |
+
+### <a id="quick-snapshot"></a> Краткий срез
+
+| Параметр | Значение |
 | --- | --- |
 | Основной язык | Python 3.10+ |
-| Основные runtime | CLI watcher (`autopub.py`) + Tornado queue service (`app.py`) |
-| Движок автоматизации | Selenium + remote-debug Chromium sessions |
-| Форматы входа | Raw video (`videos/`) и ZIP-бандлы (`/publish`) |
-| Текущий путь репозитория в workspace | `/home/lachlan/ProjectsLFS/AutoPublish` |
-| Идеальные пользователи | Creator/ops-инженеры, управляющие multi-platform short video pipelines |
+| Основные среды | CLI watcher (`autopub.py`) + Tornado queue service (`app.py`) |
+| Ядро автоматизации | Selenium + remote-debug Chromium session |
+| Форматы входа | Исходные видео (`videos/`) и ZIP-пакеты (`/publish`) |
+| Текущий путь репозитория | `/home/lachlan/ProjectsLFS/AutoPublish` |
+| Целевая аудитория | Создатели и ops-инженеры, управляющие мультиплатформенными short-video пайплайнами |
 
-### Снимок по операционной безопасности
+### <a id="operational-safety-snapshot"></a> Снимок по операционной безопасности
 
 | Тема | Текущее состояние | Действие |
 | --- | --- | --- |
-| Жёстко заданные пути | Есть в нескольких модулях/скриптах | Обновите константы путей под хост перед production-запуском |
-| Состояние логина в браузере | Обязательно | Храните постоянные remote-debug профили по платформам |
-| Работа с captcha | Доступны опциональные интеграции | Настройте 2Captcha/Turing credentials при необходимости |
-| Декларация лицензии | Не обнаружен top-level файл `LICENSE` | Уточните условия использования у maintainer перед распространением |
+| Жёстко зафиксированные пути | Присутствуют в нескольких модулях/скриптах | Обновите константы путей под хост перед продакшн-запуском |
+| Состояние сессии в браузере | Обязательно | Храните постоянные remote-debug профили по платформам |
+| Обработка captcha | Доступны optional-интеграции | Настройте учётные данные 2Captcha/Turing при необходимости |
+| Лицензия | Файл `LICENSE` на верхнем уровне не найден | Согласуйте условия использования с мейнтейнером перед переиспользованием |
+
+### <a id="compatibility--assumptions"></a> Совместимость и допущения
+
+| Пункт | Текущее допущение в репозитории |
+| --- | --- |
+| Python | 3.10+ |
+| Среда выполнения | Linux desktop/server с доступным GUI для Chromium |
+| Режим управления браузером | Сессии remote-debug с сохранёнными директориями профилей |
+| Основной API-порт | `8081` (`app.py --port`) |
+| Бэкенд обработки | `upload_url` + `process_url` должны быть доступны и возвращать корректный ZIP |
+| Рабочий путь для этого черновика | `/home/lachlan/ProjectsLFS/AutoPublish` |
 
 ---
 
-## Содержание
+## <a id="table-of-contents"></a> Оглавление
 
+- [Start Here](#start-here)
 - [Overview](#overview)
+- [Runtime Modes at a Glance](#runtime-modes-at-a-glance)
+- [Platform Coverage Snapshot](#platform-coverage-snapshot)
+- [Quick Snapshot](#quick-snapshot)
+- [Operational Safety Snapshot](#operational-safety-snapshot)
+- [Compatibility & Assumptions](#compatibility--assumptions)
 - [System Overview](#system-overview)
 - [Features](#features)
 - [Project Structure](#project-structure)
@@ -85,66 +136,81 @@
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Configuration Verification Checklist](#configuration-verification-checklist)
 - [Preparing Browser Sessions](#preparing-browser-sessions)
 - [Usage](#usage)
 - [Examples](#examples)
 - [Metadata & ZIP Format](#metadata--zip-format)
+- [Data & Artifact Lifecycle](#data--artifact-lifecycle)
 - [Platform-Specific Notes](#platform-specific-notes)
 - [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup)
 - [Legacy macOS Scripts](#legacy-macos-scripts)
 - [Troubleshooting & Maintenance](#troubleshooting--maintenance)
+- [FAQ](#faq)
 - [Extending the System](#extending-the-system)
 - [Quick Start Checklist](#quick-start-checklist)
 - [Development Notes](#development-notes)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
+- [Security & Ops Checklist](#security--ops-checklist)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
-- [Support AutoPublish](#support-autopublish)
+- [Support](#support-autopublish)
 
 ---
 
-## Обзор системы
+## <a id="system-overview"></a> Обзор системы
 
-🎯 **Сквозной поток** от исходных медиа до опубликованных постов:
+🎯 **Полный путь** от сырого медиа до опубликованных постов:
 
-Workflow в целом:
+```mermaid
+flowchart LR
+    A[Video in videos/] --> B[autopub.py watcher]
+    B --> C[process_video.py]
+    C --> D[ZIP + metadata in transcription_data/]
+    D --> E[pub_*.py Selenium publishers]
+    F[POST /publish ZIP] --> G[app.py queue worker]
+    G --> E
+    E --> H[Platforms: XHS, Douyin, Bilibili, ShiPinHao, Instagram, YouTube]
+```
 
-1. **Приём сырого видео**: Поместите видео в `videos/`. Watcher (либо `autopub.py`, либо scheduler/service) замечает новые файлы с помощью `videos_db.csv` и `processed.csv`.
-2. **Генерация ассетов**: `process_video.VideoProcessor` загружает файл на сервер обработки контента (`upload_url` и `process_url`), который возвращает ZIP-пакет с:
+Схема в двух словах:
+
+1. **Приём исходного материала**: разместите видео в `videos/`. Сборщик (`autopub.py` или планировщик/сервис) обнаруживает новые файлы через `videos_db.csv` и `processed.csv`.
+2. **Подготовка ассетов**: `process_video.VideoProcessor` отправляет файл на сервер обработки контента (`upload_url` и `process_url`), который возвращает ZIP-пакет с:
    - отредактированным/перекодированным видео (`<stem>.mp4`),
    - обложкой,
-   - `{stem}_metadata.json` с локализованными заголовками, описаниями, тегами и т.д.
-3. **Публикация**: Метаданные управляют Selenium-паблишерами в `pub_*.py`. Каждый паблишер подключается к уже запущенному Chromium/Chrome через порты remote debugging и постоянные user-data директории.
-4. **Web control plane (опционально)**: `app.py` открывает `/publish`, принимает заранее собранные ZIP-бандлы, распаковывает их и ставит задания публикации в очередь к тем же паблишерам. Также может обновлять browser sessions и запускать login helpers (`login_*.py`).
-5. **Вспомогательные модули**: `load_env.py` подтягивает секреты из `~/.bashrc`, `utils.py` содержит helpers (фокус окна, QR handling, mail utility helpers), а `solve_captcha_*.py` интегрируется с Turing/2Captcha при появлении captcha.
+   - `{stem}_metadata.json` с локализованными заголовками, описаниями, тегами и т. д.
+3. **Публикация**: метаданные управляют Selenium-публикаторами в `pub_*.py`. Каждый публикатор подключается к уже запущенному Chromium/Chrome через remote-debugging port и постоянные каталоги пользовательских данных.
+4. **Веб-плоскость управления (необязательно)**: `app.py` открывает `/publish`, принимает заранее собранные ZIP-пакеты, распаковывает их и отправляет задачи публикации тем же публикаторам. Он также может перезапускать browser sessions и вызывать login helpers (`login_*.py`).
+5. **Вспомогательные модули**: `load_env.py` подгружает секреты из `~/.bashrc`, `utils.py` предоставляет утилиты (фокус окна, работа с QR, почтовые helpers), а `solve_captcha_*.py` интегрируются с Turing/2Captcha при появлении captcha.
 
-## Возможности
+## <a id="features"></a> Возможности
 
 ✨ **Сделано для прагматичной script-first автоматизации**:
 
-- Публикация на несколько платформ: XiaoHongShu, Douyin, Bilibili, ShiPinHao (WeChat Channels), Instagram, YouTube (опционально).
-- Два режима работы: CLI watcher pipeline (`autopub.py`) и API queue service (`app.py` + `/publish` + `/publish/queue`).
-- Временное отключение платформ через `ignore_*` файлы.
-- Повторное использование browser-session через remote debugging с постоянными профилями.
-- Опциональная автоматизация QR/captcha и email-notification helpers.
-- Для включённого PWA (`pwa/`) uploader UI не требуется сборка frontend.
-- Скрипты Linux/Raspberry Pi для настройки сервисов (`scripts/`).
+- Мультиплатформенная публикация: XiaoHongShu, Douyin, Bilibili, ShiPinHao (WeChat Channels), Instagram, YouTube (опционально).
+- Два режима работы: pipeline с watcher (`autopub.py`) и API queue service (`app.py` + `/publish` + `/publish/queue`).
+- Временное отключение платформ через файлы `ignore_*`.
+- Повторное использование браузерных сессий через remote-debug с постоянными профилями.
+- Опциональная автоматизация QR/captcha и почтовые уведомления.
+- PWA (`pwa/`) не требует отдельной сборки frontend.
+- Скрипты для Linux/Raspberry Pi под настройку сервиса (`scripts/`).
 
-### Матрица возможностей
+### <a id="feature-matrix"></a> Матрица возможностей
 
-| Capability | CLI (`autopub.py`) | API (`app.py`) |
+| Возможность | CLI (`autopub.py`) | API (`app.py`) |
 | --- | --- | --- |
 | Источник входа | Локальный watcher `videos/` | Загруженный ZIP через `POST /publish` |
-| Очередь | Внутреннее продвижение на основе файлов | Явная in-memory очередь заданий |
+| Очередь | Прогон по файлам на уровне внутреннего состояния | Явная in-memory очередь заданий |
 | Флаги платформ | CLI args (`--pub-*`) + `ignore_*` | Query args (`publish_*`) + `ignore_*` |
-| Лучший сценарий | Workflow оператора на одном хосте | Внешние системы и удалённый триггер |
+| Лучший сценарий | Локальный workflow оператора | Внешние системы и удалённый триггер |
 
 ---
 
-## Структура проекта
+## <a id="project-structure"></a> Структура проекта
 
-Высокоуровневая структура исходников/runtime:
+Высокоуровневая структура исходников и runtime:
 
 ```text
 AutoPublish/
@@ -168,8 +234,7 @@ AutoPublish/
 ├── pwa/
 ├── figs/
 ├── .github/FUNDING.yml
-├── i18n/                     # multilingual READMEs (currently includes Arabic and Spanish)
-├── archived/
+├── i18n/                     # multilingual READMEs
 ├── videos/                   # runtime input artifacts
 ├── logs/, logs-autopub/      # runtime logs
 ├── temp/, temp_screenshot/   # runtime temp artifacts
@@ -177,44 +242,44 @@ AutoPublish/
 └── processed.csv
 ```
 
-Примечание: `transcription_data/` используется во время выполнения процессом обработки/публикации и может появиться после запуска.
+Примечание: `transcription_data/` используется во время обработки и публикации и может появиться после запуска.
 
-## Layout репозитория
+## <a id="repository-layout"></a> Layout репозитория
 
 🗂️ **Ключевые модули и их назначение**:
 
 | Path | Назначение |
 | --- | --- |
-| `app.py` | Tornado-сервис с `/publish` и `/publish/queue`, с внутренней очередью публикаций и worker thread. |
-| `autopub.py` | CLI watcher: сканирует `videos/`, обрабатывает новые файлы и параллельно вызывает паблишеры. |
-| `process_video.py` | Загружает видео в backend обработки и сохраняет возвращённые ZIP-бандлы. |
-| `pub_xhs.py`, `pub_douyin.py`, `pub_bilibili.py`, `pub_shipinhao.py`, `pub_instagram.py`, `pub_y2b.py` | Selenium automation модули по платформам. |
-| `login_xiaohongshu.py`, `login_douyin.py`, `login_shipinhao.py`, `login_instagram.py` | Проверки сессии и QR-login flow. |
-| `utils.py` | Общие automation helpers (фокус окна, QR/mail utility helpers, diagnostics helpers). |
-| `load_env.py` | Загружает env vars из shell profile (`~/.bashrc`) и маскирует чувствительные логи. |
-| `smtp.py`, `smtp_test_simple.py`, `send_email_qreader.py` | SMTP/SendGrid helper и test scripts. |
-| `solve_captcha_2captcha.py`, `solve_captcha_turing.py` | Интеграции с captcha-солверами. |
-| `scripts/` | Скрипты настройки сервисов и операций (Raspberry Pi/Linux + legacy automation). |
+| `app.py` | Tornado-сервис с `/publish` и `/publish/queue`, встроенной очередью и worker thread. |
+| `autopub.py` | CLI watcher: сканирует `videos/`, обрабатывает новые файлы и вызывает publisher-ы параллельно. |
+| `process_video.py` | Загружает видео в backend обработки и сохраняет возвращённые ZIP-пакеты. |
+| `pub_xhs.py`, `pub_douyin.py`, `pub_bilibili.py`, `pub_shipinhao.py`, `pub_instagram.py`, `pub_y2b.py` | Модули Selenium для каждой платформы. |
+| `login_xiaohongshu.py`, `login_douyin.py`, `login_shipinhao.py`, `login_instagram.py` | Проверки сессии и QR-потоки входа. |
+| `utils.py` | Общие помощники автоматизации (фокус окна, QR/mail helpers, диагностические helpers). |
+| `load_env.py` | Загружает env vars из shell-профиля (`~/.bashrc`) и маскирует чувствительные логи. |
+| `smtp.py`, `smtp_test_simple.py`, `send_email_qreader.py` | SMTP/SendGrid helper и тестовые скрипты. |
+| `solve_captcha_2captcha.py`, `solve_captcha_turing.py` | Интеграции с captcha solver-ами. |
+| `scripts/` | Скрипты развертывания и операций сервиса (Raspberry Pi/Linux + legacy automation). |
 | `pwa/` | Статический PWA для предпросмотра ZIP и отправки на публикацию. |
-| `setup_raspberrypi.md` | Пошаговое руководство по развёртыванию Raspberry Pi. |
-| `.env.example` | Шаблон переменных окружения (credentials, paths, captcha keys). |
-| `.github/FUNDING.yml` | Конфигурация sponsor/funding. |
-| `logs/`, `logs-autopub/`, `temp/`, `temp_screenshot/`, `videos/` | Runtime-артефакты и логи (многие gitignored). |
+| `setup_raspberrypi.md` | Пошаговое руководство по подготовке Raspberry Pi. |
+| `.env.example` | Шаблон переменных окружения (credentials, пути, captcha keys). |
+| `.github/FUNDING.yml` | Конфигурация спонсорства/фандрайзинга. |
+| `logs/`, `logs-autopub/`, `temp/`, `temp_screenshot/`, `videos/` | Артефакты рантайма и логи (многие игнорируются git). |
 
 ---
 
-## Prerequisites
+## <a id="prerequisites"></a> Требования
 
 🧰 **Установите это перед первым запуском**.
 
-### Операционная система и инструменты
+### <a id="operating-system-and-tools"></a> Операционная система и инструменты
 
-- Linux desktop/server с X session (`DISPLAY=:1` часто используется в предоставленных скриптах).
+- Linux desktop/server с X session (`DISPLAY=:1` обычно используется в скриптах).
 - Chromium/Chrome и соответствующий ChromeDriver.
-- GUI/media helpers: `xdotool`, `ffmpeg`, `zip`, `unzip`.
+- GUI/media утилиты: `xdotool`, `ffmpeg`, `zip`, `unzip`.
 - Python 3.10+ (venv или Conda).
 
-### Python зависимости
+### <a id="python-dependencies"></a> Зависимости Python
 
 Минимальный runtime-набор:
 
@@ -222,13 +287,13 @@ AutoPublish/
 pip install selenium tornado requests requests-toolbelt sendgrid qreader opencv-python webdriver-manager
 ```
 
-Паритет с репозиторием:
+Соответствие репозиторию:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Для облегчённой установки сервиса (по умолчанию используется setup-скриптами):
+Для облегчённой установки сервиса (по умолчанию используется setup скриптами):
 
 ```bash
 python -m pip install -r requirements.autopub.txt
@@ -237,7 +302,7 @@ python -m pip install -r requirements.autopub.txt
 `requirements.autopub.txt` содержит:
 - `selenium`, `webdriver-manager`, `tornado`, `requests`, `requests-toolbelt`, `sendgrid`, `qreader`, `opencv-python`, `numpy`, `pillow`, `twocaptcha`.
 
-### Опционально: создать sudo-пользователя
+### <a id="optional-create-a-sudo-user"></a> Опционально: создать пользователя с sudo
 
 ```bash
 sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" | sudo chpasswd
@@ -245,7 +310,7 @@ sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" 
 
 ---
 
-## Installation
+## <a id="installation"></a> Установка
 
 🚀 **Настройка на чистой машине**:
 
@@ -272,79 +337,91 @@ cp .env.example .env
 # fill values in .env (do not commit)
 ```
 
-4. Загрузите переменные для скриптов, которые читают значения shell profile:
+4. Подгрузите переменные для скриптов, которые читают shell profile:
 
 ```bash
 source ~/.bashrc
 python load_env.py
 ```
 
-Примечание: `load_env.py` ориентирован на `~/.bashrc`; если у вас используется другой профиль shell, адаптируйте его соответствующим образом.
+Примечание: `load_env.py` ориентирован на `~/.bashrc`; если у вас другой shell-профиль, адаптируйте его соответственно.
 
 ---
 
-## Configuration
+## <a id="configuration"></a> Конфигурация
 
-🔐 **Сначала задайте credentials, затем проверьте host-specific пути**.
+🔐 **Сначала задайте credentials, затем проверьте host-специфичные пути**.
 
-### Переменные окружения
+### <a id="environment-variables"></a> Переменные окружения
 
-Проект ожидает credentials и опциональные пути браузера/runtime через переменные окружения. Начните с `.env.example`:
+Проект ожидает credentials и optional browser/runtime пути из env. Начинайте с `.env.example`:
 
-| Variable | Description |
+| Переменная | Описание |
 | --- | --- |
 | `FROM_EMAIL`, `TO_EMAIL`, `APP_PASSWORD` | SMTP credentials для QR/login уведомлений. |
-| `SENDGRID_API_KEY` | Ключ SendGrid для email flow, использующих SendGrid API. |
-| `APIKEY_2CAPTCHA` | API key для 2Captcha. |
-| `TULING_USERNAME`, `TULING_PASSWORD`, `TULING_ID` | Credentials Turing captcha. |
-| `DOUYIN_LOGIN_PASSWORD` | Помощник для второй проверки Douyin. |
-| `INSTAGRAM_*`, `CHROME_*`, `CHROMEDRIVER_PATH` | Instagram/browser driver overrides. |
-| `AUTOPUBLISH_BROWSER_BIN`, `AUTOPUBLISH_CHROMEDRIVER`, `AUTOPUBLISH_DISPLAY` | Предпочитаемые глобальные browser/driver/display overrides в `app.py`. |
+| `SENDGRID_API_KEY` | Ключ SendGrid для email flow, где используются SendGrid API. |
+| `APIKEY_2CAPTCHA` | API-ключ для 2Captcha. |
+| `TULING_USERNAME`, `TULING_PASSWORD`, `TULING_ID` | Учетные данные Turing captcha. |
+| `DOUYIN_LOGIN_PASSWORD` | Вспомогательный пароль/код для второй проверки Douyin. |
+| `INSTAGRAM_*`, `CHROME_*`, `CHROMEDRIVER_PATH` | Переопределения для Instagram/browser драйвера. |
+| `AUTOPUBLISH_BROWSER_BIN`, `AUTOPUBLISH_CHROMEDRIVER`, `AUTOPUBLISH_DISPLAY` | Глобальные override для браузера/драйвера/дисплея в `app.py`. |
 
-### Константы путей (важно)
+### <a id="path-constants-important"></a> Константы путей (важно)
 
-📌 **Самая частая проблема при старте**: неразрешённые жёстко заданные абсолютные пути.
+📌 **Чаще всего проблема на старте** — неразрешённые или неверные абсолютные пути.
 
-В нескольких модулях всё ещё есть hard-coded пути. Обновите их под ваш хост:
+В нескольких модулях остаются hard-coded paths. Обновите их под ваш хост:
 
-| File | Constant(s) | Meaning |
+| Файл | Константа(ы) | Назначение |
 | --- | --- | --- |
-| `app.py` | `logs_folder_root`, `autopublish_folder_root`, `videos_db_path`, `processed_path`, `transcription_root`, `upload_url`, `process_url`. | Корни API-сервиса и backend endpoints. |
-| `autopub.py` | `logs_folder_path`, `autopublish_folder_path`, `videos_db_path`, `processed_path`, `transcription_path`, `upload_url`, `process_url`, `chromedriver_path`. | Корни CLI watcher и backend endpoints. |
-| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Абсолютные пути к Python/Conda/repo/log location. | Legacy/macOS-ориентированные обёртки. |
-| `utils.py` | Предположения о пути FFmpeg в helper-функциях обработки обложки. | Совместимость путей медиа-инструментов. |
+| `app.py` | `logs_folder_root`, `autopublish_folder_root`, `videos_db_path`, `processed_path`, `transcription_root`, `upload_url`, `process_url`. | Корни API-сервиса и backend-endpoint-ов. |
+| `autopub.py` | `logs_folder_path`, `autopublish_folder_path`, `videos_db_path`, `processed_path`, `transcription_path`, `upload_url`, `process_url`, `chromedriver_path`. | Корни CLI watcher и backend-endpoint-ов. |
+| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Абсолютные пути к Python/Conda/repo/log каталогам. | Legacy/macOS-ориентированные wrappers. |
+| `utils.py` | Предположения о пути FFmpeg в helper-ах обработки обложек. | Совместимость путей media-инструментов. |
 
-Важное замечание по репозиторию:
+Важно для репозитория:
 - Текущий путь репозитория в этом workspace: `/home/lachlan/ProjectsLFS/AutoPublish`.
 - Часть кода и скриптов всё ещё ссылается на `/home/lachlan/Projects/auto-publish` или `/Users/lachlan/...`.
-- Сохраните и скорректируйте эти пути локально перед использованием в production.
+- Сохраните и скорректируйте эти пути локально перед production-пользованием.
 
-### Platform toggles через `ignore_*`
+### <a id="platform-toggles-via-ignore*"></a> Переключатели платформ через `ignore_*`
 
-🧩 **Быстрый safety switch**: создание `ignore_*` файла отключает соответствующий publisher без правок кода.
+🧩 **Быстрый safety switch**: создание пустого файла `ignore_*` отключает publisher без правок кода.
 
-Флаги публикации также ограничиваются ignore-файлами. Создайте пустой файл, чтобы отключить платформу:
+Флаги публикации также ограничиваются ignore файлами. Создайте пустой файл для отключения платформы:
 
 ```bash
 touch ignore_xhs ignore_douyin ignore_bilibili ignore_shipinhao ignore_instagram ignore_y2b
 ```
 
-Удалите соответствующий файл, чтобы включить обратно.
+Удалите соответствующий файл, чтобы снова включить.
+
+### <a id="configuration-verification-checklist"></a> Чеклист проверки конфигурации
+
+Запустите быструю валидацию после заполнения `.env` и констант путей:
+
+```bash
+python -c "import os;print('AUTOPUBLISH_BROWSER_BIN=', os.getenv('AUTOPUBLISH_BROWSER_BIN'));print('AUTOPUBLISH_CHROMEDRIVER=', os.getenv('AUTOPUBLISH_CHROMEDRIVER'));print('DISPLAY=', os.getenv('DISPLAY') or os.getenv('AUTOPUBLISH_DISPLAY'))"
+python -c "from load_env import load_env_from_bashrc; load_env_from_bashrc(); print('Environment load OK')"
+python -c "import os; p=os.getenv('AUTOPUBLISH_CHROMEDRIVER') or os.getenv('CHROMEDRIVER_PATH') or '/usr/bin/chromedriver'; print(p, 'exists=', os.path.exists(p))"
+```
+
+Если какое-либо значение отсутствует, обновите `.env`, `~/.bashrc` или константы скрипта до запуска publisher-ов.
 
 ---
 
-## Preparing Browser Sessions
+## <a id="preparing-browser-sessions"></a> Подготовка браузерных сессий
 
-🌐 **Постоянство сессий обязательно** для надёжной Selenium-публикации.
+🌐 **Сессионная устойчивость обязательна** для надежной Selenium-публикации.
 
-1. Создайте выделенные директории профилей:
+1. Создайте выделенные папки профиля:
 
 ```bash
 mkdir -p ~/chromium_dev_session_{5003,5004,5005,5006,5007,9222}
 mkdir -p ~/chromium_dev_session_logs
 ```
 
-2. Запустите browser sessions с remote debugging (пример для XiaoHongShu):
+2. Запустите сессии браузера с remote debugging (пример для XiaoHongShu):
 
 ```bash
 DISPLAY=:1 chromium-browser \
@@ -367,19 +444,19 @@ print(driver.title)
 driver.quit()
 ```
 
-Замечание по безопасности:
-- `app.py` сейчас содержит hard-coded placeholder sudo-пароля (`password = "1"`), используемый логикой перезапуска браузера. Замените его перед реальным deployment.
+Примечание по безопасности:
+- В `app.py` пока есть placeholder sudo-пароля (`password = "1"`) для логики рестарта браузера. Замените это до реального deployment.
 
 ---
 
-## Usage
+## <a id="usage"></a> Использование
 
-▶️ **Доступны два runtime-режима**: CLI watcher и API queue service.
+▶️ **Доступно два режима выполнения**: CLI watcher и API queue service.
 
-### Запуск CLI pipeline (`autopub.py`)
+### <a id="running-the-cli-pipeline-autopubpy"></a> Запуск CLI pipeline (`autopub.py`)
 
-1. Поместите исходные видео в директорию наблюдения (`videos/` или ваш настроенный `autopublish_folder_path`).
-2. Выполните:
+1. Положите исходные видео в watch-каталог (`videos/` или ваш `autopublish_folder_path`).
+2. Запустите:
 
 ```bash
 python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili
@@ -387,21 +464,21 @@ python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili
 
 Флаги:
 
-| Flag | Meaning |
+| Флаг | Значение |
 | --- | --- |
-| `--pub-xhs`, `--pub-douyin`, `--pub-bilibili` | Ограничить публикацию выбранными платформами. Если ни один не указан, по умолчанию включены все три. |
-| `--test` | Тестовый режим, передаваемый в паблишеры (поведение зависит от модуля платформы). |
-| `--use-cache` | Использовать существующий `transcription_data/<video>/<video>.zip`, если доступен. |
+| `--pub-xhs`, `--pub-douyin`, `--pub-bilibili` | Ограничить публикацию выбранными платформами. Если не передан ни один флаг, по умолчанию включены все три. |
+| `--test` | Тестовый режим для publisher-ов (поведение зависит от модуля). |
+| `--use-cache` | Использовать существующий `transcription_data/<video>/<video>.zip`, если он есть. |
 
-CLI flow для каждого видео:
+Цикл CLI на видео:
 - Upload/process через `process_video.py`.
 - Извлечение ZIP в `transcription_data/<video>/`.
-- Запуск выбранных паблишеров через `ThreadPoolExecutor`.
-- Добавление tracking state в `videos_db.csv` и `processed.csv`.
+- Запуск выбранных publisher-ов через `ThreadPoolExecutor`.
+- Добавление статуса в `videos_db.csv` и `processed.csv`.
 
-### Запуск Tornado service (`app.py`)
+### <a id="running-the-tornado-service-apppy"></a> Запуск Tornado service (`app.py`)
 
-🛰️ **API-режим** удобен для внешних систем, которые создают ZIP-бандлы.
+🛰️ **API режим** полезен для внешних систем, которые генерируют ZIP-пакеты.
 
 Запуск сервера:
 
@@ -409,20 +486,20 @@ CLI flow для каждого видео:
 python app.py --refresh-time 1800 --port 8081
 ```
 
-Кратко по endpoint API:
+Кратко по endpoint-ам:
 
-| Endpoint | Method | Purpose |
+| Endpoint | Метод | Назначение |
 | --- | --- | --- |
-| `/publish` | `POST` | Загрузить ZIP bytes и поставить задание публикации в очередь |
-| `/publish/queue` | `GET` | Просмотреть очередь, историю заданий и состояние публикации |
+| `/publish` | `POST` | Загрузка ZIP bytes и постановка в очередь publish job |
+| `/publish/queue` | `GET` | Просмотр очереди, истории и состояния публикации |
 
-### `POST /publish`
+### <a id="post-publish"></a> `POST /publish`
 
-📤 **Поставьте задачу публикации в очередь**, напрямую загрузив ZIP bytes.
+📤 **Поставьте задачу публикации в очередь**, загрузив ZIP bytes напрямую.
 
-- Заголовок: `Content-Type: application/octet-stream`
-- Обязательный query/form arg: `filename` (имя ZIP-файла)
-- Опциональные boolean: `publish_xhs`, `publish_douyin`, `publish_bilibili`, `publish_shipinhao`, `publish_instagram`, `publish_y2b`, `test`
+- Header: `Content-Type: application/octet-stream`
+- Обязательный query/form arg: `filename` (имя ZIP)
+- Optional boolean-параметры: `publish_xhs`, `publish_douyin`, `publish_bilibili`, `publish_shipinhao`, `publish_instagram`, `publish_y2b`, `test`
 - Body: raw ZIP bytes
 
 Пример:
@@ -435,51 +512,66 @@ curl -X POST "http://localhost:8081/publish?filename=demo.zip&publish_xhs=true&p
 
 Текущее поведение в коде:
 - Запрос принимается и ставится в очередь.
-- Немедленный ответ возвращает JSON, включающий `status: queued`, `job_id` и `queue_size`.
+- Немедленный ответ возвращает JSON с `status: queued`, `job_id` и `queue_size`.
 - Worker thread последовательно обрабатывает задания из очереди.
 
-### `GET /publish/queue`
+### <a id="get-publish-queue"></a> `GET /publish/queue`
 
-📊 **Наблюдайте за состоянием очереди и текущими задачами**.
+📊 **Следите за здоровьем очереди и активными задачами**.
 
-Возвращает JSON со статусом/историей очереди:
+Возврат JSON с состоянием/историей очереди:
 
 ```bash
 curl "http://localhost:8081/publish/queue"
 ```
 
-Поля ответа включают:
+Поля ответа:
 - `status`, `jobs`, `queue_size`, `is_publishing`.
 
-### Поток обновления браузера
+### <a id="browser-refresh-thread"></a> Поток обновления браузера
 
-♻️ Периодическое обновление браузера снижает ошибки устаревших сессий при длительном uptime.
+♻️ Периодический refresh браузера снижает частоту падений из‑за устаревших сессий при долгом uptime.
 
-`app.py` запускает фоновый поток обновления с интервалом `--refresh-time` и хуками проверок логина. Sleep во время refresh включает рандомизированную задержку.
+`app.py` запускает фоновый refresh thread с интервалом `--refresh-time` и хуками проверки логина. В sleep включена рандомизированная задержка.
 
-### PWA frontend (`pwa/`)
+### <a id="pwa-frontend-pwa"></a> PWA frontend (`pwa/`)
 
-🖥️ Лёгкий статический UI для ручной загрузки ZIP и проверки очереди.
+🖥️ Легкий статический UI для ручной загрузки ZIP и просмотра очереди.
 
-Запуск статического UI локально:
+Запуск локально:
 
 ```bash
 cd pwa
 python -m http.server 5173
 ```
 
-Откройте `http://localhost:5173` и задайте backend base URL (например, `http://lazyingart:8081`).
+Откройте `http://localhost:5173` и укажите base URL backend (например, `http://lazyingart:8081`).
 
 Возможности PWA:
 - Drag/drop предпросмотр ZIP.
 - Переключатели целевых платформ + test mode.
-- Отправка на `/publish` и опрос `/publish/queue`.
+- Отправка в `/publish` и опрос `/publish/queue`.
+
+### <a id="command-palette"></a> Command Palette
+
+🧷 **Наиболее используемые команды в одном месте**.
+
+| Задача | Команда |
+| --- | --- |
+| Установить все зависимости | `python -m pip install -r requirements.txt` |
+| Установить легковесные зависимости runtime | `python -m pip install -r requirements.autopub.txt` |
+| Подгрузить env из shell | `source ~/.bashrc && python load_env.py` |
+| Запустить API queue server | `python app.py --refresh-time 1800 --port 8081` |
+| Запустить CLI watcher pipeline | `python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili` |
+| Отправить ZIP в очередь | `curl -X POST "http://localhost:8081/publish?filename=demo.zip" --data-binary @demo.zip -H "Content-Type: application/octet-stream"` |
+| Просмотреть статус очереди | `curl -s "http://localhost:8081/publish/queue"` |
+| Запустить локальный PWA | `cd pwa && python -m http.server 5173` |
 
 ---
 
-## Examples
+## <a id="examples"></a> Примеры
 
-🧪 **Команды smoke-test для copy/paste**:
+🧪 **Copy/paste команды для smoke-тестов**:
 
 ### Example 0: Загрузка окружения и запуск API-сервера
 
@@ -489,13 +581,13 @@ python load_env.py
 python app.py --refresh-time 1800 --port 8081
 ```
 
-### Example A: Запуск CLI-публикации
+### Example A: Запуск CLI publish
 
 ```bash
 python autopub.py --pub-xhs --pub-douyin --use-cache
 ```
 
-### Example B: API-публикация (один ZIP)
+### Example B: Запуск API publish (один ZIP)
 
 ```bash
 curl -X POST "http://localhost:8081/publish?filename=my_bundle.zip&publish_bilibili=true&test=true" \
@@ -503,13 +595,13 @@ curl -X POST "http://localhost:8081/publish?filename=my_bundle.zip&publish_bilib
   -H "Content-Type: application/octet-stream"
 ```
 
-### Example C: Проверка статуса очереди
+### Example C: Проверить состояние очереди
 
 ```bash
 curl -s "http://localhost:8081/publish/queue"
 ```
 
-### Example D: Smoke test SMTP helper
+### Example D: Проверка SMTP helper
 
 ```bash
 python smtp.py
@@ -518,9 +610,9 @@ python smtp_test_simple.py
 
 ---
 
-## Metadata & ZIP Format
+## <a id="metadata--zip-format"></a> Метаданные и ZIP-формат
 
-📦 **Контракт ZIP важен**: держите имена файлов и ключи метаданных согласованными с ожиданиями паблишеров.
+📦 **Контракт ZIP критичен**: соблюдайте соответствие имен файлов и ключей метаданных ожиданиям publisher-ов.
 
 Ожидаемое содержимое ZIP (минимум):
 
@@ -530,40 +622,52 @@ python smtp_test_simple.py
 <cover_filename>.jpg
 ```
 
-`metadata` управляет CN-паблишерами; опциональный `metadata["english_version"]` используется паблишером YouTube.
+`metadata` управляет CN publisher-ами; optional `metadata["english_version"]` используется YouTube-публикатором.
 
-Поля, часто используемые модулями:
+Часто используемые поля модулей:
 - `title`, `brief_description`, `middle_description`, `long_description`
-- `tags` (список hashtags)
+- `tags` (список hashtag)
 - `video_filename`, `cover_filename`
-- platform-specific поля согласно реализации в соответствующих `pub_*.py`
+- платформо-специфичные поля, реализованные в отдельных `pub_*.py`
 
-Если вы генерируете ZIP извне, держите ключи и имена файлов в соответствии с ожиданиями модулей.
+Если вы формируете ZIP во внешнем процессе, держите ключи и имена файлов согласованными с ожиданиями модулей.
 
----
+## <a id="data--artifact-lifecycle"></a> Жизненный цикл данных и артефактов
 
-## Platform-Specific Notes
+Пайплайн создает локальные артефакты, которые нужно сознательно хранить, ротацией или очисткой:
 
-🧭 **Карта портов + ответственность модулей** по каждому publisher.
-
-| Platform | Port | Module(s) | Notes |
+| Артефакт | Локация | Источник | Почему важно |
 | --- | --- | --- | --- |
-| XiaoHongShu | 5003 | `pub_xhs.py`, `login_xiaohongshu.py` | QR re-login flow; санитаризация заголовка и использование hashtags из metadata. |
-| Douyin | 5004 | `pub_douyin.py`, `login_douyin.py` | Проверки завершения загрузки и retry paths платформенно хрупкие; внимательно мониторьте логи. |
-| Bilibili | 5005 | `pub_bilibili.py` | Доступны captcha hooks через `solve_captcha_2captcha.py` и `solve_captcha_turing.py`. |
-| ShiPinHao (WeChat Channels) | 5006 | `pub_shipinhao.py`, `login_shipinhao.py` | Быстрое подтверждение QR важно для надёжности обновления сессии. |
-| Instagram | 5007 | `pub_instagram.py`, `login_instagram.py` | Управляется в API-режиме через `publish_instagram=true`; env vars доступны в `.env.example`. |
-| YouTube | 9222 | `pub_y2b.py` | Использует блок metadata `english_version`; отключается через `ignore_y2b`. |
+| Входные видео | `videos/` | Ручной drop или upstream sync | Исходный медиа-контент для CLI watcher режима |
+| ZIP обработки | `transcription_data/<stem>/<stem>.zip` | `process_video.py` | Повторно используемые payload для `--use-cache` |
+| Извлеченные publish assets | `transcription_data/<stem>/...` | Извлечение ZIP в `autopub.py` / `app.py` | Готовые файлы и метаданные для publisher-ов |
+| Логи публикации | `logs/`, `logs-autopub/` | CLI/API runtime | Диагностика ошибок и аудиторская трассировка |
+| Логи браузера | `~/chromium_dev_session_logs/*.log` (или chrome prefix) | Скрипты запуска браузера | Диагностика сессий, портов и стартовых ошибок |
+| Tracking CSV | `videos_db.csv`, `processed.csv` | CLI watcher | Защита от повторной обработки |
 
----
+Рекомендация по housekeeping:
+- Добавьте периодическую очистку/архивацию старых `transcription_data/`, `temp/` и логов, чтобы избегать переполнения диска.
 
-## Raspberry Pi / Linux Service Setup
+## <a id="platform-specific-notes"></a> Платформенно-специфические заметки
 
-🐧 **Рекомендуется для always-on хостов**.
+🧭 **Карта портов и владелец модулей** для каждой платформы.
 
-Для полного bootstrap хоста используйте [`setup_raspberrypi.md`](setup_raspberrypi.md).
+| Платформа | Порт | Модуль(и) | Примечания |
+| --- | --- | --- | --- |
+| XiaoHongShu | 5003 | `pub_xhs.py`, `login_xiaohongshu.py` | QR re-login flow; санитизация заголовков и использование hashtag из metadata. |
+| Douyin | 5004 | `pub_douyin.py`, `login_douyin.py` | Проверки завершения загрузки и пути retry платформенно хрупкие; внимательно следите за логами. |
+| Bilibili | 5005 | `pub_bilibili.py` | Доступны captcha-хуки через `solve_captcha_2captcha.py` и `solve_captcha_turing.py`. |
+| ShiPinHao (WeChat Channels) | 5006 | `pub_shipinhao.py`, `login_shipinhao.py` | Быстрое подтверждение QR важно для надежности обновления сессии. |
+| Instagram | 5007 | `pub_instagram.py`, `login_instagram.py` | В API режиме через `publish_instagram=true`; env vars есть в `.env.example`. |
+| YouTube | 9222 | `pub_y2b.py` | Использует metadata-блок `english_version`; отключается через `ignore_y2b`. |
 
-Быстрая настройка pipeline:
+## <a id="raspberry-pi--linux-service-setup"></a> Настройка Raspberry Pi / Linux Service
+
+🐧 **Рекомендуется для всегда-включенных хостов**.
+
+Для полной настройки системы смотрите [`setup_raspberrypi.md`](setup_raspberrypi.md).
+
+Быстрая настройка пайплайна:
 
 ```bash
 export AUTOPUB_USER=<USERNAME>
@@ -577,201 +681,183 @@ sudo -E ./scripts/setup_autopub_pipeline.sh
 - `scripts/download_and_setup_driver.sh`
 - `scripts/setup_autopub_service.sh`
 
-Ручной запуск сервиса в tmux:
+Запуск сервиса вручную в tmux:
 
 ```bash
 ./scripts/start_autopub_tmux.sh
 ```
 
-Проверка сервисов/портов:
+Проверить сервисы/порты:
 
 ```bash
-systemctl status autopub.service virtual-desktop.service
+systemctl status autopub.service autopub-vnc.service
 sudo ss -ltnp | grep 590
 ```
 
----
+Примечание по совместимости:
+- В старых документах/скриптах всё ещё встречается `virtual-desktop.service`; текущие скрипты устанавливают `autopub-vnc.service`.
 
-## Legacy macOS Scripts
+## <a id="legacy-macos-scripts"></a> Legacy macOS скрипты
 
-🍎 Legacy-обёртки остаются для совместимости со старыми локальными setup.
+🍎 Legacy wrappers сохранены для совместимости со старыми локальными настройками.
 
-Репозиторий всё ещё содержит legacy macOS-ориентированные обёртки:
+Репозиторий до сих пор включает:
 - `scripts/run_autopub.sh`
 - `scripts/setup_autopub.sh`
 
-Они содержат абсолютные пути `/Users/lachlan/...` и предположения о Conda. Сохраняйте их, если используете этот workflow, но обновите paths/venv/tooling под ваш хост.
+Они содержат абсолютные `/Users/lachlan/...` пути и предположения про Conda. Сохраняйте, если вы ими пользуетесь, но обновите paths/venv/tooling под ваш хост.
 
----
+## <a id="troubleshooting--maintenance"></a> Устранение проблем и обслуживание
 
-## Troubleshooting & Maintenance
+🛠️ **Если что-то ломается, начните здесь**.
 
-🛠️ **Если что-то сломалось, начинайте отсюда**.
+- **Дрейф путей между машинами**: если ошибки ссылаются на отсутствующие файлы в `/Users/lachlan/...` или `/home/lachlan/Projects/auto-publish`, синхронизируйте константы с вашим путём (`/home/lachlan/ProjectsLFS/AutoPublish` в этом workspace).
+- **Гигиена секретов**: запускайте `~/.local/bin/detect-secrets scan` перед push. Ротируйте утекшие credentials.
+- **Ошибки processing backend**: если `process_video.py` пишет “Failed to get the uploaded file path,” проверьте, что JSON ответа upload содержит `file_path`, а endpoint обработки возвращает ZIP bytes.
+- **Несовпадение ChromeDriver**: при ошибках DevTools connection согласуйте версии Chrome/Chromium и driver (или переключитесь на `webdriver-manager`).
+- **Проблемы с фокусом окна**: `bring_to_front` зависит от совпадения заголовков окна (различия в названиях Chromium/Chrome могут ломать это).
+- **Промежуточные captcha**: настройте 2Captcha/Turing credentials и интегрируйте solver-outputs по необходимости.
+- **Устаревшие lock-файлы**: если запуски по расписанию не стартуют, проверьте состояние процесса и удалите stale `autopub.lock` (legacy script flow).
+- **Логи для диагностики**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, плюс service journal logs.
 
-- **Path drift между машинами**: если ошибки указывают на отсутствующие файлы в `/Users/lachlan/...` или `/home/lachlan/Projects/auto-publish`, выровняйте константы с путём вашего хоста (`/home/lachlan/ProjectsLFS/AutoPublish` в этом workspace).
-- **Гигиена секретов**: запускайте `~/.local/bin/detect-secrets scan` перед push. Ротируйте любые утёкшие credentials.
-- **Ошибки backend обработки**: если `process_video.py` печатает “Failed to get the uploaded file path,” проверьте, что upload response JSON содержит `file_path`, а endpoint обработки возвращает ZIP bytes.
-- **Несовпадение ChromeDriver**: при ошибках DevTools connection выровняйте версии Chrome/Chromium и драйвера (или переключитесь на `webdriver-manager`).
-- **Проблемы с фокусом окна браузера**: `bring_to_front` зависит от совпадения заголовка окна (различия в именовании Chromium/Chrome могут ломать это).
-- **Прерывания captcha**: настройте credentials для 2Captcha/Turing и интегрируйте вывод solvers при необходимости.
-- **Устаревшие lock-файлы**: если запуски по расписанию никогда не стартуют, проверьте состояние процесса и удалите stale `autopub.lock` (legacy script flow).
-- **Логи для проверки**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, а также service journal logs.
+## <a id="faq"></a> FAQ
 
----
+**Q: Могу ли я запускать API и CLI watcher одновременно?**  
+A: Да, но не рекомендуется, если вы не изолировали входные данные и браузерные сессии. Оба режима могут конкурировать за одни и те же publisher-ы, файлы и порты.
 
-## Extending the System
+**Q: Почему `/publish` возвращает queued, но публикации пока не видно?**  
+A: `app.py` сначала ставит задания в очередь, а потом background worker обрабатывает их последовательно. Проверяйте `/publish/queue`, `is_publishing` и логи сервиса.
+
+**Q: Нужен ли `load_env.py`, если я уже использую `.env`?**  
+A: `start_autopub_tmux.sh` читает `.env`, если он есть, но некоторые прямые запуски зависят от загрузки переменных shell. Лучше держать `.env` и shell-экспорт синхронизированными.
+
+**Q: Какой минимальный ZIP-контракт для API загрузок?**  
+A: Корректный ZIP с `{stem}_metadata.json` и video/cover именами, которые совпадают с ключами `video_filename` и `cover_filename`.
+
+**Q: Поддерживается ли headless режим?**  
+A: В некоторых модулях есть headless-настройки, но основной и документированный режим репозитория — GUI-сессии с постоянными профилями.
+
+## <a id="extending-the-system"></a> Расширение системы
 
 🧱 **Точки расширения** для новых платформ и более безопасной эксплуатации.
 
-- **Добавление новой платформы**: скопируйте модуль `pub_*.py`, обновите selectors/flows, добавьте `login_*.py`, если нужна QR re-auth, затем подключите флаги и обработку очереди в `app.py`, а также CLI wiring в `autopub.py`.
-- **Абстракция конфигурации**: перенесите разрозненные константы в структурированный config (`config.yaml`/`.env` + typed model) для multi-host эксплуатации.
-- **Усиление хранения credentials**: замените hard-coded или shell-exposed чувствительные потоки на безопасное secret management (`sudo -A`, keychain, vault/secret manager).
-- **Контейнеризация**: упакуйте Chromium/ChromeDriver + Python runtime + virtual display в единый deployable unit для cloud/server использования.
+- **Добавление новой платформы**: скопируйте `pub_*.py`, обновите селекторы и flow, добавьте `login_*.py` при необходимости QR re-auth, затем подключите флаги и обработку очереди в `app.py` и CLI wiring в `autopub.py`.
+- **Абстракция конфигурации**: мигрируйте разбросанные константы в структурированный config (`config.yaml`/`.env` + typed model) для multi-host работы.
+- **Усиление хранения credentials**: замените хардкод/запросы в shell на более безопасное хранение (`sudo -A`, keychain, vault/secret manager).
+- **Контейнеризация**: упакуйте Chromium/ChromeDriver + Python runtime + virtual display в единый единый deployable блок для облака/сервера.
 
----
-
-## Quick Start Checklist
+## <a id="quick-start-checklist"></a> Чеклист быстрого старта
 
 ✅ **Минимальный путь к первой успешной публикации**.
 
-1. Клонируйте этот репозиторий и установите зависимости (`pip install -r requirements.txt` или облегчённый `requirements.autopub.txt`).
-2. Обновите hard-coded path-константы в `app.py`, `autopub.py` и любом скрипте, который будете запускать.
-3. Экспортируйте обязательные credentials в профиль shell или `.env`; запустите `python load_env.py`, чтобы проверить загрузку.
-4. Создайте директории browser profile для remote-debug и запустите каждую нужную платформенную сессию хотя бы один раз.
-5. Вручную войдите на каждой целевой платформе в её профиле.
-6. Запустите либо API-режим (`python app.py --port 8081`), либо CLI-режим (`python autopub.py --use-cache ...`).
-7. Отправьте один тестовый ZIP (API-режим) или один тестовый видеофайл (CLI-режим) и проверьте `logs/`.
-8. Перед каждым push запускайте сканирование секретов.
+1. Клонируйте репозиторий и установите зависимости (`pip install -r requirements.txt` или `requirements.autopub.txt`).
+2. Обновите hard-coded path-константы в `app.py`, `autopub.py` и любых скриптах, которые планируете запускать.
+3. Экспортируйте обязательные credentials в shell profile или `.env`; запустите `python load_env.py` для проверки.
+4. Создайте папки remote-debug профилей и поднимите каждую нужную сессию платформы хотя бы один раз.
+5. Ручной вход в каждую целевую платформу в её профиле.
+6. Запустите API режим (`python app.py --port 8081`) или CLI режим (`python autopub.py --use-cache ...`).
+7. Отправьте один тестовый ZIP (API) или одно видео для CLI и посмотрите `logs/`.
+8. Перед каждым push выполняйте сканирование секретов.
 
----
-
-## Development Notes
+## <a id="development-notes"></a> Заметки по разработке
 
 🧬 **Текущая база разработки** (ручное форматирование + smoke testing).
 
-- Стиль Python следует существующему 4-space indentation и ручному форматированию.
-- Формального автоматизированного тестового набора пока нет; используйте smoke tests:
-  - обработайте один тестовый видеофайл через `autopub.py`;
+- Python-стиль соответствует существующему 4-space indentation и ручному форматированию.
+- Формального автоматического тест-сьюта сейчас нет; используйте smoke tests:
+  - обработайте одно видео через `autopub.py`;
   - отправьте один ZIP в `/publish` и отслеживайте `/publish/queue`;
   - вручную проверьте каждую целевую платформу.
-- При добавлении новых скриптов включайте небольшой entrypoint `if __name__ == "__main__":` для быстрых dry-run.
-- По возможности изолируйте платформенные изменения (`pub_*`, `login_*`, `ignore_*` toggles).
-- Runtime-артефакты (`videos/*`, `logs*/*`, `transcription_data/*`, `ignore_*`) ожидаемо локальные и в основном игнорируются git.
+- При добавлении новых скриптов добавляйте компактный entrypoint `if __name__ == "__main__":` для быстрого dry-run.
+- По возможности изолируйте изменения по платформам (`pub_*`, `login_*`, `ignore_*` toggles).
+- Runtime-артефакты (`videos/*`, `logs*/*`, `transcription_data/*`, `ignore_*`) обычно локальны и в основном игнорируются git.
 
 ---
 
-## Roadmap
+## <a id="roadmap"></a> Дорожная карта
 
-🗺️ **Приоритетные улучшения, отражённые текущими ограничениями кода**.
+🗺️ **Приоритетные улучшения с учётом текущих ограничений кода**.
 
-Планируемые/желаемые улучшения (на основе текущей структуры кода и существующих заметок):
+Планируемые/желаемые улучшения (на основе текущей структуры и заметок):
 
-1. Заменить разрозненные hard-coded paths на централизованный config (`.env`/YAML + typed models).
-2. Удалить hard-coded паттерны sudo-пароля и перевести управление процессами на более безопасные механизмы.
-3. Повысить надёжность публикации за счёт более сильных retry и лучшего определения UI-state по платформам.
-4. Расширить поддержку платформ (например, Kuaishou и другие creator-платформы).
-5. Упаковать runtime в воспроизводимые deployable units (container + virtual display profile).
-6. Добавить автоматизированные интеграционные проверки ZIP-контракта и исполнения очереди.
+1. Заменить разрозненные hard-coded пути на централизованную конфигурацию (`.env`/YAML + typed models).
+2. Убрать hard-coded шаблоны sudo-паролей и перейти на более безопасное управление процессами.
+3. Повысить надежность публикации через более сильные retries и более точное определение состояний UI для каждой платформы.
+4. Расширить список платформ (например, Kuaishou и другие creator-платформы).
+5. Упаковать runtime в воспроизводимые deployable-юниты (container + virtual display profile).
+6. Добавить автоматические интеграционные проверки ZIP-контракта и выполнения очереди.
 
----
+## <a id="contributing"></a> Участие в разработке
 
-## Contributing
-
-🤝 Делайте PR сфокусированными, воспроизводимыми и явно указывайте runtime assumptions.
+🤝 Делайте PR сфокусированными, воспроизводимыми и явными в runtime-предпосылках.
 
 Вклады приветствуются.
 
-1. Сделайте fork и создайте сфокусированную ветку.
-2. Держите коммиты небольшими и в imperative style (пример в истории: “Wait for YouTube checks before publishing”).
-3. Добавляйте в PR заметки о ручной проверке:
-   - предположения по окружению,
-   - перезапуски браузера/сессий,
-   - релевантные логи/скриншоты для изменений UI flow.
-4. Никогда не коммитьте реальные секреты (`.env` игнорируется; `.env.example` только для формы).
+1. Сделайте fork и создайте фокусированный branch.
+2. Держите коммиты маленькими и в императивном стиле (пример из истории: “Wait for YouTube checks before publishing”).
+3. Добавляйте в PR заметки ручной проверки:
+   - assumptions по окружению,
+   - рестарты браузеров/sessions,
+   - релевантные логи/скриншоты для UI flow.
+4. Никогда не коммитьте реальные секреты (`.env` игнорируется; `.env.example` только для структуры).
 
-Если добавляете новые publisher-модули, подключите всё перечисленное:
+Если добавляете новые модули publisher, подключайте все:
 - `pub_<platform>.py`
 - опционально `login_<platform>.py`
-- API flags и queue handling в `app.py`
-- CLI wiring в `autopub.py` (если требуется)
-- обработку toggle `ignore_<platform>`
-- обновления README
+- API флаги и queue handling в `app.py`
+- CLI wiring в `autopub.py` (если нужно)
+- обработку `ignore_<platform>`
+- обновление README
+
+## <a id="security--ops-checklist"></a> Security & Ops чеклист
+
+Перед запуском в production-like среде:
+
+1. Убедитесь, что `.env` существует локально и не отслеживается git.
+2. Поверните/удалите исторические credentials, которые могли быть закоммичены.
+3. Замените placeholder-секреты в путях кода (например, sudo password placeholder в `app.py`).
+4. Проверьте, что выключатели `ignore_*` заданы намеренно перед batch runs.
+5. Убедитесь, что browser профили изолированы по платформам и используются минимально-привилегированные учётки.
+6. Убедитесь, что логи не раскрывают секреты перед расшариванием отчётов.
+7. Запускайте `detect-secrets` (или эквивалент) перед push.
+
+<a id="support-autopublish"></a>
+## ❤️ Support
+
+| Donate | PayPal | Stripe |
+|---|---|---|
+| [![Donate](https://img.shields.io/badge/Donate-LazyingArt-0EA5E9?style=for-the-badge&logo=ko-fi&logoColor=white)](https://chat.lazying.art/donate) | [![PayPal](https://img.shields.io/badge/PayPal-RongzhouChen-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/RongzhouChen) | [![Stripe](https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |
+
+💖 Поддержка сообщества финансирует инфраструктуру, устойчивость пайплайна и интеграцию новых платформ.
+
+AutoPublish — часть более широкой инициативы по сохранению открытых и расширяемых инструментов для мультиплатформенного контента. Донаты помогают:
+
+- Поддерживать Selenium farm, processing API и cloud GPU онлайн.
+- Добавлять новых publisher-ов (Kuaishou, Instagram Reels и др.) и улучать надежность текущих ботов.
+- Публиковать больше документации, датасетов для старта и туториалов для независимых создателей.
+
+Также доступны:
+- GitHub Sponsors: <https://github.com/sponsors/lachlanchen>
+- Ссылки проекта: <https://lazying.art>, <https://chat.lazying.art>, <https://onlyideas.art>
 
 ---
 
-## License
+## <a id="license"></a> Лицензия
 
-Файл `LICENSE` сейчас отсутствует в этом снимке репозитория.
+Файл `LICENSE` в этом снапшоте репозитория отсутствует.
 
-Предположение для этого черновика:
-- Считайте условия использования и распространения неопределёнными, пока maintainer не добавит явный файл лицензии.
+Допущение для этого черновика:
+- Считайте вопросы использования и распространения неурегулированными, пока мейнтейнер не добавит явный файл лицензии.
 
 Рекомендуемое следующее действие:
 - Добавить top-level `LICENSE` (например MIT/Apache-2.0/GPL-3.0) и обновить этот раздел.
 
-> 📝 Пока файл лицензии не добавлен, считайте предположения о коммерческом/внутреннем распространении нерешёнными и уточняйте напрямую у maintainer.
+> 📝 Пока файл лицензии не добавлен, считаете, что коммерческое/внутреннее распространение остаётся неурегулированным; уточняйте это напрямую у мейнтейнера.
 
 ---
 
-## Acknowledgements
+## <a id="acknowledgements"></a> Благодарности
 
-- Профиль maintainer и sponsor: [@lachlanchen](https://github.com/lachlanchen)
-- Источник конфигурации финансирования: [`.github/FUNDING.yml`](.github/FUNDING.yml)
-- Сервисы экосистемы, упоминаемые в этом репозитории: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.
-
----
-
-## Support AutoPublish
-
-💖 Поддержка сообщества финансирует инфраструктуру, работу над надёжностью и интеграции новых платформ.
-
-AutoPublish является частью более широкой инициативы по сохранению открытости и hackable-подхода в кроссплатформенных инструментах для авторов. Донаты помогают:
-
-- Поддерживать онлайн Selenium farm, processing API и cloud GPU.
-- Выпускать новых паблишеров (Kuaishou, Instagram Reels и т.д.) и улучшения надёжности существующих ботов.
-- Делиться большим объёмом документации, стартовыми датасетами и туториалами для независимых авторов.
-
-### Donate
-
-<div align="center">
-<table style="margin:0 auto; text-align:center; border-collapse:collapse;">
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://chat.lazying.art/donate">https://chat.lazying.art/donate</a>
-    </td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://chat.lazying.art/donate"><img src="figs/donate_button.svg" alt="Donate" height="44"></a>
-    </td>
-  </tr>
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://paypal.me/RongzhouChen">
-        <img src="https://img.shields.io/badge/PayPal-Donate-003087?logo=paypal&logoColor=white" alt="Donate with PayPal">
-      </a>
-    </td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;">
-      <a href="https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400">
-        <img src="https://img.shields.io/badge/Stripe-Donate-635bff?logo=stripe&logoColor=white" alt="Donate with Stripe">
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><strong>WeChat</strong></td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><strong>Alipay</strong></td>
-  </tr>
-  <tr>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><img alt="WeChat QR" src="figs/donate_wechat.png" width="240"/></td>
-    <td style="text-align:center; vertical-align:middle; padding:6px 12px;"><img alt="Alipay QR" src="figs/donate_alipay.png" width="240"/></td>
-  </tr>
-</table>
-</div>
-
-**支援 / Donate**
-
-- ご支援はクリエイター自動化の研究・開発・運用コストをまかなう大きな力になります。
-- 你的支持将用于服务器与研发，帮助作者持续开放改进跨平台发布工具链。
-- Your support keeps the pipelines alive so more independent studios can publish everywhere with less busywork.
-
-Также доступно через:
-- GitHub Sponsors: <https://github.com/sponsors/lachlanchen>
-- Project links: <https://lazying.art>, <https://chat.lazying.art>, <https://onlyideas.art>
+- Профиль мейнтейнера и спонсора: [@lachlanchen](https://github.com/lachlanchen)
+- Источник конфигурации funding: [`.github/FUNDING.yml`](.github/FUNDING.yml)
+- Сервисы экосистемы, упомянутые в репозитории: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.
