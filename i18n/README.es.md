@@ -1,15 +1,17 @@
 [English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [Français](README.fr.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Tiếng Việt](README.vi.md) · [中文 (简体)](README.zh-Hans.md) · [中文（繁體）](README.zh-Hant.md) · [Deutsch](README.de.md) · [Русский](README.ru.md)
 
 
-<div align="center">
 
 [![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
+
+<div align="center">
 
 # AutoPublish
 
 <p align="center">
-  <strong>Publicación automática de vídeos cortos basada en scripts y controlada por navegador.</strong><br/>
-  <sub>Manual operativo canónico para configuración, ejecución, modo cola y flujos de automatización por plataforma.</sub>
+  <strong>Automatización de publicación de vídeos cortos, impulsada por scripts, con navegador.
+  </strong><br/>
+  <sub>Manual operativo de referencia para configuración, ejecución, modo cola y flujos de automatización por plataforma.</sub>
 </p>
 
 </div>
@@ -36,15 +38,15 @@
 | Configuración inicial | [Empieza aquí](#empieza-aqui) |
 | Ejecutar con watcher local | [Ejecutar el pipeline CLI (`autopub.py`)](#ejecucion-del-pipeline-cli-autopubpy) |
 | Ejecutar mediante cola HTTP | [Ejecutar el servicio Tornado (`app.py`)](#ejecucion-del-servicio-tornado-apppy) |
-| Desplegar como servicio | [Configuración Raspberry Pi / servicio Linux](#configuracion-de-servicio-raspberry-pi--linux) |
+| Desplegar como servicio | [Configuración de Raspberry Pi / servicio Linux](#configuracion-de-servicio-raspberry-pi--linux) |
 | Apoyar el proyecto | [Support](#support-autopublish) |
 
-Conjunto de herramientas de automatización para distribuir contenido de vídeo corto en varias plataformas de creadores chinas e internacionales. El proyecto combina un servicio basado en Tornado, bots de Selenium y un flujo local de vigilancia de carpetas, de modo que al dejar un vídeo en una carpeta este acabe publicándose en XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram y, opcionalmente, YouTube.
+Conjunto de herramientas para automatizar la distribución de contenido en vídeo corto a varias plataformas de creadores (chinas e internacionales). El repositorio combina un servicio basado en Tornado, bots de Selenium y un flujo local de vigilancia de carpetas, de modo que al depositar un vídeo en una carpeta se pueda publicar en XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram y, opcionalmente, YouTube.
 
-El repositorio está diseñado como herramienta de bajo nivel: la mayor parte de la configuración vive en archivos Python y scripts. Este documento es un manual operativo que cubre instalación, ejecución y puntos de extensión.
+El repositorio está intencionalmente de bajo nivel: la mayor parte de la configuración reside en archivos Python y scripts. Este documento es un manual operativo que cubre configuración, ejecución y puntos de extensión.
 
-> ⚙️ **Filosofía operativa**: este proyecto prioriza scripts explícitos y automatización directa con navegador frente a capas de abstracción ocultas.
-> ✅ **Política canónica para este README**: mantener el detalle técnico y luego mejorar legibilidad y encontrabilidad.
+> ⚙️ **Filosofía operativa**: este proyecto prioriza scripts explícitos y automatización directa por navegador frente a capas de abstracción ocultas.
+> ✅ **Política canónica para este README**: conservar el detalle técnico y luego mejorar legibilidad y encontrabilidad.
 > 🌍 **Estado de localización (verificado en este workspace el 28 de febrero de 2026)**: `i18n/` incluye variantes en árabe, alemán, español, francés, japonés, coreano, vietnamita, chino simplificado y chino tradicional.
 
 ### Navegación rápida
@@ -62,9 +64,9 @@ El repositorio está diseñado como herramienta de bajo nivel: la mayor parte de
 
 Si te incorporas por primera vez, sigue esta secuencia:
 
-1. Lee [Prerrequisitos](#prerrequisitos) e [Instalación](#instalacion).
+1. Lee [Prerrequisitos](#prerrequisitos) y [Instalación](#instalacion).
 2. Configura secretos y rutas absolutas en [Configuración](#configuracion).
-3. Prepara sesiones del navegador en [Preparación de sesiones del navegador](#preparacion-de-sesiones-del-navegador).
+3. Prepara sesiones de navegador en [Preparación de sesiones del navegador](#preparacion-de-sesiones-del-navegador).
 4. Elige un modo de ejecución en [Uso](#uso): `autopub.py` (watcher) o `app.py` (cola API).
 5. Valida con los comandos de [Ejemplos](#ejemplos).
 
@@ -72,10 +74,10 @@ Si te incorporas por primera vez, sigue esta secuencia:
 
 AutoPublish actualmente soporta dos modos de ejecución en producción:
 
-1. **Modo watcher CLI (`autopub.py`)** para ingesta y publicación basada en carpetas.
-2. **Modo cola API (`app.py`)** para publicación desde ZIP mediante HTTP (`/publish`, `/publish/queue`).
+1. **Modo watcher CLI (`autopub.py`)** para ingesta y publicación basadas en carpeta.
+2. **Modo cola API (`app.py`)** para publicar desde ZIP mediante HTTP (`/publish`, `/publish/queue`).
 
-Está pensado para operadores que prefieren flujos transparentes, orientados a scripts, en lugar de plataformas de orquestación abstracta.
+Está pensado para operadores que prefieren flujos transparentes y guiados por scripts frente a plataformas de orquestación abstracta.
 
 ### Modos de ejecución de un vistazo
 
@@ -100,20 +102,20 @@ Está pensado para operadores que prefieren flujos transparentes, orientados a s
 | Qué | Valor | Indicador visual |
 | --- | --- | --- |
 | Lenguaje principal | Python 3.10+ | ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white) |
-| Runtimes principales | Pipeline CLI (`autopub.py`) + servicio queue de Tornado (`app.py`) | ![Modes](https://img.shields.io/badge/Modes-CLI%20%2B%20API-2563EB) |
+| Runtimes principales | Pipeline CLI (`autopub.py`) + servicio API de Tornado (`app.py`) | ![Modes](https://img.shields.io/badge/Modes-CLI%20%2B%20API-2563EB) |
 | Motor de automatización | Selenium + sesiones Chromium con remote debug | ![Engine](https://img.shields.io/badge/Engine-Selenium-43B02A?logo=selenium&logoColor=white) |
 | Formatos de entrada | Vídeos sin procesar (`videos/`) y paquetes ZIP (`/publish`) | ![Inputs](https://img.shields.io/badge/Inputs-videos%20%26%20ZIP-6B7280) |
 | Ruta del workspace actual | `/home/lachlan/ProjectsLFS/AutoPublish` | ![Workspace](https://img.shields.io/badge/Path-Verified-10B981) |
-| Usuarios objetivo | Creadores/operadores gestionando pipelines de vídeo corto multiplaforma | ![Audience](https://img.shields.io/badge/Users-Operators-0F766E) |
+| Usuarios objetivo | Creadores/operadores que gestionan pipelines multiplaforma de vídeo corto | ![Audience](https://img.shields.io/badge/Users-Operators-0F766E) |
 
 ### Instantánea de seguridad operativa
 
 | Tema | Estado actual | Acción |
 | --- | --- | --- |
-| Rutas codificadas | Presentes en varios módulos/scripts | Actualizar constantes de ruta por host antes de ejecutar en producción |
-| Estado de inicio de sesión del navegador | Requerido | Mantener perfiles remotos persistentes por plataforma |
-| Gestión de captcha | Integraciones opcionales disponibles | Configurar credenciales de 2Captcha/Turing cuando haga falta |
-| Declaración de licencia | No se detecta `LICENSE` en raíz | Confirmar términos con el mantenedor antes de redistribuir |
+| Rutas codificadas | Presentes en varios módulos/scripts | Actualiza las constantes de ruta por host antes de ejecución en producción |
+| Estado de sesión del navegador | Requerido | Mantén perfiles remotos persistentes por plataforma |
+| Gestión de captcha | Integraciones opcionales disponibles | Configura credenciales de 2Captcha/Turing cuando sea necesario |
+| Declaración de licencia | No se detecta `LICENSE` en la raíz | Confirma términos con el mantenedor antes de redistribuir |
 
 ### Compatibilidad y supuestos
 
@@ -124,7 +126,7 @@ Está pensado para operadores que prefieren flujos transparentes, orientados a s
 | Modo de control del navegador | Sesiones de depuración remota con directorios de perfil persistentes |
 | Puerto API principal | `8081` (`app.py --port`) |
 | Backend de procesamiento | `upload_url` + `process_url` deben ser accesibles y devolver un ZIP válido |
-| Workspace usado para este borrador | `/home/lachlan/ProjectsLFS/AutoPublish` |
+| Espacio de trabajo usado para este borrador | `/home/lachlan/ProjectsLFS/AutoPublish` |
 
 ---
 
@@ -169,7 +171,7 @@ Está pensado para operadores que prefieren flujos transparentes, orientados a s
 
 ## Resumen del sistema
 
-🎯 **Flujo extremo a extremo** de medios sin procesar a publicaciones publicadas:
+🎯 **Flujo de extremo a extremo** desde medios brutos hasta publicaciones públicas:
 
 ```mermaid
 flowchart LR
@@ -182,28 +184,28 @@ flowchart LR
     E --> H[Platforms: XHS, Douyin, Bilibili, ShiPinHao, Instagram, YouTube]
 ```
 
-Flujo de trabajo:
+Flujo de trabajo de una vista:
 
-1. **Ingesta de material bruto**: coloca un video en `videos/`. El watcher (`autopub.py` o un scheduler/servicio) detecta nuevos archivos usando `videos_db.csv` y `processed.csv`.
-2. **Generación de activos**: `process_video.VideoProcessor` sube el archivo a un servidor de procesamiento de contenidos (`upload_url` y `process_url`) que devuelve un ZIP que contiene:
+1. **Entrada de material bruto**: coloca un vídeo en `videos/`. El watcher (`autopub.py` o un scheduler/servicio) detecta nuevos archivos usando `videos_db.csv` y `processed.csv`.
+2. **Generación de activos**: `process_video.VideoProcessor` sube el archivo a un servidor de procesamiento (`upload_url` y `process_url`) que devuelve un paquete ZIP con:
    - el vídeo editado/encodificado (`<stem>.mp4`),
    - una imagen de portada,
    - `{stem}_metadata.json` con títulos, descripciones y etiquetas localizadas.
-3. **Publicación**: `metadata` alimenta los publicadores Selenium en `pub_*.py`. Cada publicador se acopla a una instancia Chromium/Chrome ya abierta mediante puertos de depuración remota y directorios de perfil persistentes.
+3. **Publicación**: `metadata` alimenta los publicadores Selenium en `pub_*.py`. Cada publicador se acopla a una instancia Chromium/Chrome ya en ejecución mediante puertos de depuración remota y directorios de perfil persistentes.
 4. **Plano de control web (opcional)**: `app.py` expone `/publish`, acepta paquetes ZIP preconstruidos, los descomprime y encola trabajos para los mismos publicadores. También puede refrescar sesiones del navegador y lanzar helpers de login (`login_*.py`).
-5. **Módulos de soporte**: `load_env.py` carga secretos desde `~/.bashrc`, `utils.py` aporta helpers (enfoque de ventana, QR, correo) y `solve_captcha_*.py` integra Turing/2Captcha cuando aparecen captchas.
+5. **Módulos de soporte**: `load_env.py` carga secretos desde `~/.bashrc`, `utils.py` aporta helpers (foco de ventana, manejo de QR, utilidades de correo) y `solve_captcha_*.py` integra Turing/2Captcha cuando aparecen captchas.
 
 ## Características
 
-✨ **Diseñado para automatización pragmática y dirigida por scripts**:
+✨ **Diseñado para una automatización práctica y guiada por scripts**:
 
 - Publicación multiplataforma: XiaoHongShu, Douyin, Bilibili, ShiPinHao (WeChat Channels), Instagram, YouTube (opcional).
-- Dos modos operativos: pipeline watcher CLI (`autopub.py`) y servicio de cola API (`app.py` + `/publish` + `/publish/queue`).
+- Dos modos de operación: pipeline watcher CLI (`autopub.py`) y servicio de cola API (`app.py` + `/publish` + `/publish/queue`).
 - Desactivación temporal por plataforma mediante archivos `ignore_*`.
-- Reutilización de sesiones navegador con remote debug y perfiles persistentes.
+- Reutilización de sesiones de navegador con depuración remota y perfiles persistentes.
 - Automatización opcional de QR/captcha y helpers de notificación por correo.
-- Sin necesidad de compilar frontend para la UI PWA incluida (`pwa/`).
-- Scripts de automatización Linux/Raspberry Pi para despliegue (`scripts/`).
+- La UI PWA (`pwa/`) incluida no requiere compilación.
+- Scripts de automatización para Linux/Raspberry Pi en `scripts/`.
 
 ### Matriz de características
 
@@ -212,7 +214,7 @@ Flujo de trabajo:
 | Fuente de entrada | Carpeta local `videos/` | ZIP subido vía `POST /publish` |
 | Encolado | Progreso interno basado en archivos | Cola explícita en memoria |
 | Flags de plataforma | args CLI (`--pub-*`) + `ignore_*` | query args (`publish_*`) + `ignore_*` |
-| Ajuste ideal | Flujo de operador monohoste | Integraciones externas y activación remota |
+| Ajuste ideal | Flujo de operador en un solo host | Integraciones externas y activación remota |
 
 ---
 
@@ -260,12 +262,12 @@ Nota: `transcription_data/` se usa en runtime en el flujo de procesamiento/publi
 | --- | --- |
 | `app.py` | Servicio Tornado que expone `/publish` y `/publish/queue`, con cola interna y thread worker. |
 | `autopub.py` | Watcher CLI: escanea `videos/`, procesa archivos nuevos y lanza publicadores en paralelo. |
-| `process_video.py` | Sube vídeos al backend de procesamiento y guarda ZIP devueltos. |
+| `process_video.py` | Sube vídeos al backend de procesamiento y guarda los ZIP devueltos. |
 | `pub_xhs.py`, `pub_douyin.py`, `pub_bilibili.py`, `pub_shipinhao.py`, `pub_instagram.py`, `pub_y2b.py` | Módulos de automatización Selenium por plataforma. |
-| `login_xiaohongshu.py`, `login_douyin.py`, `login_shipinhao.py`, `login_instagram.py` | Checks de sesión y flujo de login por QR. |
-| `utils.py` | Helpers compartidos (focus de ventana, QR, utilidades de correo, utilidades de diagnóstico). |
+| `login_xiaohongshu.py`, `login_douyin.py`, `login_shipinhao.py`, `login_instagram.py` | Comprobaciones de sesión y flujo de login por QR. |
+| `utils.py` | Helpers compartidos (focus de ventana, QR, utilidades de correo, diagnóstico). |
 | `load_env.py` | Carga variables desde `~/.bashrc` y enmascara logs sensibles. |
-| `smtp.py`, `smtp_test_simple.py`, `send_email_qreader.py` | Helpers y scripts de test SMTP/SendGrid. |
+| `smtp.py`, `smtp_test_simple.py`, `send_email_qreader.py` | Helpers y scripts de prueba SMTP/SendGrid. |
 | `solve_captcha_2captcha.py`, `solve_captcha_turing.py` | Integraciones de resolución de captcha. |
 | `scripts/` | Scripts de setup y operación (Raspberry Pi/Linux + automatización heredada). |
 | `pwa/` | PWA estática para vista previa de ZIP y envío de publicación. |
@@ -282,7 +284,7 @@ Nota: `transcription_data/` se usa en runtime en el flujo de procesamiento/publi
 
 ### Sistema operativo y herramientas
 
-- Linux desktop/servidor con sesión X (`DISPLAY=:1` es frecuente en los scripts incluidos).
+- Linux desktop/servidor con sesión X (`DISPLAY=:1` es común en los scripts incluidos).
 - Chromium/Chrome y ChromeDriver compatible.
 - Utilidades GUI/media: `xdotool`, `ffmpeg`, `zip`, `unzip`.
 - Python 3.10+ (venv o Conda).
@@ -320,7 +322,7 @@ sudo useradd -m -s /bin/bash -G sudo <USERNAME> && echo "<USERNAME>:<PASSWORD>" 
 
 ## Instalación
 
-🚀 **Configuración desde máquina limpia**:
+🚀 **Setup desde una máquina limpia**:
 
 1. Clona el repositorio:
 
@@ -338,7 +340,7 @@ python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-3. Prepara variables de entorno:
+3. Prepara las variables de entorno:
 
 ```bash
 cp .env.example .env
@@ -362,15 +364,15 @@ Nota: `load_env.py` está diseñado alrededor de `~/.bashrc`; si tu entorno usa 
 
 ### Variables de entorno
 
-El proyecto espera credenciales y rutas opcionales de navegador/runtime desde variables de entorno. Comienza con `.env.example`:
+El proyecto espera credenciales y rutas opcionales de navegador/runtime desde variables de entorno. Comienza desde `.env.example`:
 
 | Variable | Descripción |
 | --- | --- |
 | `FROM_EMAIL`, `TO_EMAIL`, `APP_PASSWORD` | Credenciales SMTP para notificaciones de QR/login. |
-| `SENDGRID_API_KEY` | Clave SendGrid para flujos de correo que usan APIs de SendGrid. |
+| `SENDGRID_API_KEY` | Clave SendGrid para flujos de correo que usan las APIs de SendGrid. |
 | `APIKEY_2CAPTCHA` | Clave API de 2Captcha. |
 | `TULING_USERNAME`, `TULING_PASSWORD`, `TULING_ID` | Credenciales captcha de Turing. |
-| `DOUYIN_LOGIN_PASSWORD` | Ayuda de verificación secundaria de Douyin. |
+| `DOUYIN_LOGIN_PASSWORD` | Ayuda de segunda verificación de Douyin. |
 | `INSTAGRAM_*`, `CHROME_*`, `CHROMEDRIVER_PATH` | Overrides de navegador/driver para Instagram. |
 | `AUTOPUBLISH_BROWSER_BIN`, `AUTOPUBLISH_CHROMEDRIVER`, `AUTOPUBLISH_DISPLAY` | Overrides globales de navegador/driver/display preferidos en `app.py`. |
 
@@ -380,23 +382,23 @@ El proyecto espera credenciales y rutas opcionales de navegador/runtime desde va
 
 Varios módulos aún contienen rutas fijas. Actualízalas para tu host:
 
-| Archivo | Constante(s) | Significado |
+| Archivo | Constant(es) | Significado |
 | --- | --- | --- |
 | `app.py` | `logs_folder_root`, `autopublish_folder_root`, `videos_db_path`, `processed_path`, `transcription_root`, `upload_url`, `process_url`. | Raíces del servicio API y endpoints del backend. |
 | `autopub.py` | `logs_folder_path`, `autopublish_folder_path`, `videos_db_path`, `processed_path`, `transcription_path`, `upload_url`, `process_url`, `chromedriver_path`. | Raíces del watcher CLI y endpoints del backend. |
-| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Rutas absolutas a Python/Conda/repo/logs. | Wrappers legacy orientados a macOS. |
+| `scripts/run_autopub.sh`, `scripts/setup_autopub.sh` | Rutas absolutas a Python/Conda/repo/logs. | Wrappers heredados orientados a macOS. |
 | `utils.py` | Suposiciones de ruta de FFmpeg en helpers de portada. | Compatibilidad de herramientas multimedia. |
 
 Nota importante del repositorio:
 - La ruta actual del repositorio en este workspace es `/home/lachlan/ProjectsLFS/AutoPublish`.
 - Parte del código y scripts aún referencia `/home/lachlan/Projects/auto-publish` o `/Users/lachlan/...`.
-- Conserva y ajusta esas rutas en tu host antes de usar en producción.
+- Conserva y ajusta esas rutas en tu host antes de usarlo en producción.
 
 ### Toggles por plataforma vía `ignore_*`
 
-🧩 **Switch rápido de seguridad**: crear un archivo `ignore_*` desactiva ese publicador sin editar código.
+🧩 **Interruptor rápido de seguridad**: crear un archivo `ignore_*` desactiva ese publicador sin editar código.
 
-Las flags de publicación también se controlan por estos archivos. Crea un archivo vacío para desactivar una plataforma:
+Las flags de publicación también se gobiernan por estos archivos. Crea un archivo vacío para desactivar una plataforma:
 
 ```bash
 touch ignore_xhs ignore_douyin ignore_bilibili ignore_shipinhao ignore_instagram ignore_y2b
@@ -406,7 +408,7 @@ Elimina el archivo correspondiente para reactivarla.
 
 ### Checklist de verificación de configuración
 
-Ejecuta esta validación rápida después de definir `.env` y las constantes de ruta:
+Ejecuta esta validación rápida tras definir `.env` y las constantes de ruta:
 
 ```bash
 python -c "import os;print('AUTOPUBLISH_BROWSER_BIN=', os.getenv('AUTOPUBLISH_BROWSER_BIN'));print('AUTOPUBLISH_CHROMEDRIVER=', os.getenv('AUTOPUBLISH_CHROMEDRIVER'));print('DISPLAY=', os.getenv('DISPLAY') or os.getenv('AUTOPUBLISH_DISPLAY'))"
@@ -453,13 +455,13 @@ driver.quit()
 ```
 
 Nota de seguridad:
-- `app.py` actualmente contiene un placeholder hardcodeado de contraseña sudo (`password = "1"`) usado por la lógica de reinicio del navegador. Cámbialo antes de un despliegue real.
+- `app.py` actualmente contiene un placeholder hardcodeado de contraseña sudo (`password = "1"`) usado por la lógica de reinicio del navegador. Cámbialo antes de despliegue real.
 
 ---
 
 ## Uso
 
-▶️ **Hay dos modos de ejecución**: watcher CLI y servicio de cola API.
+▶️ **Hay dos modos de ejecución** disponibles: watcher CLI y servicio de cola API.
 
 ### Ejecución del pipeline CLI (`autopub.py`)
 
@@ -474,21 +476,21 @@ Flags:
 
 | Flag | Significado |
 | --- | --- |
-| `--pub-xhs`, `--pub-douyin`, `--pub-bilibili` | Restringe la publicación a plataformas seleccionadas. Si no pasas ninguna, las tres quedan activadas por defecto. |
-| `--test` | Modo prueba que se pasa a los publicadores (el comportamiento varía por módulo). |
+| `--pub-xhs`, `--pub-douyin`, `--pub-bilibili` | Restringe la publicación a plataformas seleccionadas. Si no pasas ninguna, las tres se dejan activadas por defecto. |
+| `--test` | Modo de prueba que se pasa a los publicadores (el comportamiento varía por módulo). |
 | `--use-cache` | Reutiliza `transcription_data/<video>/<video>.zip` si está disponible. |
 
 Flujo CLI por vídeo:
 - Sube/procesa vía `process_video.py`.
 - Extrae el ZIP en `transcription_data/<video>/`.
-- Ejecuta los publicadores seleccionados con `ThreadPoolExecutor`.
+- Lanza publicadores seleccionados con `ThreadPoolExecutor`.
 - Registra estado en `videos_db.csv` y `processed.csv`.
 
 ### Ejecución del servicio Tornado (`app.py`)
 
 🛰️ **El modo API** es útil para sistemas externos que generan paquetes ZIP.
 
-Iniciar servidor:
+Arranca el servidor:
 
 ```bash
 python app.py --refresh-time 1800 --port 8081
@@ -498,8 +500,8 @@ Resumen de endpoints:
 
 | Endpoint | Método | Propósito |
 | --- | --- | --- |
-| `/publish` | `POST` | Subir bytes de ZIP y encolar un trabajo de publicación |
-| `/publish/queue` | `GET` | Inspeccionar cola, historial de trabajos y estado de publicación |
+| `/publish` | `POST` | Sube bytes de ZIP y encola un trabajo de publicación |
+| `/publish/queue` | `GET` | Inspecciona cola, historial de trabajos y estado de publicación |
 
 ### `POST /publish`
 
@@ -508,7 +510,7 @@ Resumen de endpoints:
 - Header: `Content-Type: application/octet-stream`
 - Argumento query/form obligatorio: `filename` (nombre del ZIP)
 - Booleanos opcionales: `publish_xhs`, `publish_douyin`, `publish_bilibili`, `publish_shipinhao`, `publish_instagram`, `publish_y2b`, `test`
-- Body: bytes ZIP en crudo
+- Body: bytes ZIP en bruto
 
 Ejemplo:
 
@@ -521,11 +523,11 @@ curl -X POST "http://localhost:8081/publish?filename=demo.zip&publish_xhs=true&p
 Comportamiento actual en código:
 - La solicitud se acepta y se encola.
 - La respuesta inmediata devuelve JSON incluyendo `status: queued`, `job_id` y `queue_size`.
-- Un worker thread procesa los trabajos de forma serial.
+- Un worker thread procesa los trabajos en serie.
 
 ### `GET /publish/queue`
 
-📊 **Observa la salud de la cola y trabajos en curso**.
+📊 **Observa salud de la cola y trabajos en curso**.
 
 Devuelve JSON de estado/historial:
 
@@ -538,13 +540,13 @@ Campos de respuesta incluyen:
 
 ### Hilo de refresco del navegador
 
-♻️ El refresco periódico del navegador reduce fallos por sesión obsoleta en ventanas de uptime largas.
+♻️ El refresco periódico del navegador reduce fallos por sesiones obsoletas en ventanas de uptime largas.
 
-`app.py` ejecuta un hilo de refresco en segundo plano usando el intervalo `--refresh-time` y hooks de checks de login. El tiempo de espera incluye retardo aleatorio.
+`app.py` ejecuta un hilo de refresco en segundo plano usando `--refresh-time` y hooks de comprobación de login. El tiempo de espera incluye retardo aleatorio.
 
 ### Frontend PWA (`pwa/`)
 
-🖥️ UI estática ligera para subida manual de ZIP e inspección de cola.
+🖥️ UI estática ligera para subidas manuales de ZIP e inspección de cola.
 
 Levantar UI local:
 
@@ -556,19 +558,19 @@ python -m http.server 5173
 Abre `http://localhost:5173` y configura la base URL del backend (por ejemplo `http://lazyingart:8081`).
 
 Capacidades de la PWA:
-- Previsualización de ZIP con arrastrar/soltar.
+- Previsualización de ZIP con arrastrar y soltar.
 - Toggles de objetivo de publicación + modo prueba.
 - Envía a `/publish` y consulta `/publish/queue`.
 
 ### Paleta de comandos
 
-🧷 **Comandos más usados en un único bloque**.
+🧷 **Comandos más usados en un bloque**.
 
 | Tarea | Comando |
 | --- | --- |
 | Instalar dependencias completas | `python -m pip install -r requirements.txt` |
 | Instalar dependencias ligeras de runtime | `python -m pip install -r requirements.autopub.txt` |
-| Cargar variables de entorno del shell | `source ~/.bashrc && python load_env.py` |
+| Cargar variables del entorno del shell | `source ~/.bashrc && python load_env.py` |
 | Iniciar servidor API de cola | `python app.py --refresh-time 1800 --port 8081` |
 | Iniciar pipeline watcher CLI | `python autopub.py --use-cache --pub-xhs --pub-douyin --pub-bilibili` |
 | Enviar ZIP a la cola | `curl -X POST "http://localhost:8081/publish?filename=demo.zip" --data-binary @demo.zip -H "Content-Type: application/octet-stream"` |
@@ -579,9 +581,9 @@ Capacidades de la PWA:
 
 ## Ejemplos
 
-🧪 **Comandos smoke-test para copiar/pegar**:
+🧪 **Comandos smoke-test para copiar y pegar**:
 
-### Ejemplo 0: cargar entorno e iniciar servidor API
+### Ejemplo 0: Cargar entorno e iniciar servidor API
 
 ```bash
 source ~/.bashrc
@@ -589,13 +591,13 @@ python load_env.py
 python app.py --refresh-time 1800 --port 8081
 ```
 
-### Ejemplo A: ejecución de publicación CLI
+### Ejemplo A: Ejecución de publicación CLI
 
 ```bash
 python autopub.py --pub-xhs --pub-douyin --use-cache
 ```
 
-### Ejemplo B: ejecución de publicación API (un único ZIP)
+### Ejemplo B: Ejecución API (un único ZIP)
 
 ```bash
 curl -X POST "http://localhost:8081/publish?filename=my_bundle.zip&publish_bilibili=true&test=true" \
@@ -603,13 +605,13 @@ curl -X POST "http://localhost:8081/publish?filename=my_bundle.zip&publish_bilib
   -H "Content-Type: application/octet-stream"
 ```
 
-### Ejemplo C: consultar estado de cola
+### Ejemplo C: Consultar estado de cola
 
 ```bash
 curl -s "http://localhost:8081/publish/queue"
 ```
 
-### Ejemplo D: smoke test del helper SMTP
+### Ejemplo D: Smoke test del helper SMTP
 
 ```bash
 python smtp.py
@@ -620,9 +622,9 @@ python smtp_test_simple.py
 
 ## Metadata y formato ZIP
 
-📦 **El contrato ZIP importa**: mantiene nombres de archivo y claves de metadata alineados con lo que esperan los publicadores.
+📦 **El contrato ZIP importa**: mantén nombres de archivo y claves de metadata alineados con lo que esperan los publicadores.
 
-Contenido esperado de ZIP (mínimo):
+Contenido mínimo esperado de ZIP:
 
 ```text
 <stem>_metadata.json
@@ -632,13 +634,13 @@ Contenido esperado de ZIP (mínimo):
 
 `metadata` impulsa publicadores CN; `metadata["english_version"]` alimenta opcionalmente el publicador de YouTube.
 
-Campos usados comúnmente por módulos:
+Campos usados comúnmente por los módulos:
 - `title`, `brief_description`, `middle_description`, `long_description`
 - `tags` (lista de hashtags)
 - `video_filename`, `cover_filename`
 - campos específicos por plataforma según implementación en `pub_*.py`
 
-Si generas ZIP externamente, conserva claves y nombres de archivo alineados con lo que esperan los módulos.
+Si generas ZIPs externamente, conserva claves y nombres alineados con lo que esperan los módulos.
 
 ## Ciclo de vida de datos y artefactos
 
@@ -648,8 +650,8 @@ El pipeline crea artefactos locales que conviene conservar, rotar o limpiar deli
 | --- | --- | --- | --- |
 | Vídeos de entrada | `videos/` | Carga manual o sync upstream | Fuente de media para watcher CLI |
 | ZIP de procesamiento | `transcription_data/<stem>/<stem>.zip` | `process_video.py` | Payload reutilizable con `--use-cache` |
-| Assets extraídos | `transcription_data/<stem>/...` | Extracción ZIP en `autopub.py` / `app.py` | Archivos y metadata listos para publicadores |
-| Logs de publicación | `logs/`, `logs-autopub/` | Runtime CLI/API | Triage de fallos y trazabilidad |
+| Activos extraídos | `transcription_data/<stem>/...` | Extracción ZIP en `autopub.py` / `app.py` | Archivos y metadata listos para publicadores |
+| Logs de publicación | `logs/`, `logs-autopub/` | Runtime CLI/API | Triaging de fallos y trazabilidad |
 | Logs del navegador | `~/chromium_dev_session_logs/*.log` (o prefijo chrome) | Scripts de arranque de navegador | Diagnóstico de sesión/puerto/startup |
 | CSV de seguimiento | `videos_db.csv`, `processed.csv` | Watcher CLI | Evita procesamiento duplicado |
 
@@ -665,11 +667,11 @@ Recomendación de mantenimiento:
 | Plataforma | Puerto | Módulo(s) | Notas |
 | --- | --- | --- | --- |
 | XiaoHongShu | 5003 | `pub_xhs.py`, `login_xiaohongshu.py` | Flujo de re-login por QR; sanitización de título y hashtags desde metadata. |
-| Douyin | 5004 | `pub_douyin.py`, `login_douyin.py` | Checks de carga y rutas de reintento son frágiles; vigila logs de cerca. |
+| Douyin | 5004 | `pub_douyin.py`, `login_douyin.py` | Las comprobaciones de carga y rutas de reintento son frágiles; vigila logs de cerca. |
 | Bilibili | 5005 | `pub_bilibili.py` | Hooks de captcha disponibles vía `solve_captcha_2captcha.py` y `solve_captcha_turing.py`. |
 | ShiPinHao (WeChat Channels) | 5006 | `pub_shipinhao.py`, `login_shipinhao.py` | Aprobar rápido el QR mejora la confiabilidad del refresco de sesión. |
 | Instagram | 5007 | `pub_instagram.py`, `login_instagram.py` | En modo API se controla con `publish_instagram=true`; hay env vars en `.env.example`. |
-| YouTube | 9222 | `pub_y2b.py` | Usa metadata `english_version`; desactiva con `ignore_y2b`. |
+| YouTube | 9222 | `pub_y2b.py` | Usa `metadata["english_version"]`; desactiva con `ignore_y2b`. |
 
 ## Configuración de servicio Raspberry Pi / Linux
 
@@ -697,7 +699,7 @@ Ejecutar servicio manualmente en tmux:
 ./scripts/start_autopub_tmux.sh
 ```
 
-Validar servicios/puertos:
+Validar servicios y puertos:
 
 ```bash
 systemctl status autopub.service autopub-vnc.service
@@ -705,7 +707,7 @@ sudo ss -ltnp | grep 590
 ```
 
 Nota de compatibilidad:
-- Algunos documentos/scripts antiguos todavía referencian `virtual-desktop.service`; los scripts actuales de este repositorio instalan `autopub-vnc.service`.
+- Algunos documentos/scripts antiguos aún referencian `virtual-desktop.service`; los scripts actuales del repositorio instalan `autopub-vnc.service`.
 
 ---
 
@@ -713,11 +715,11 @@ Nota de compatibilidad:
 
 🍎 Se conservan wrappers legacy para compatibilidad con setups locales antiguos.
 
-El repositorio incluye todavía wrappers orientados a macOS:
+El repositorio aún incluye wrappers orientados a macOS:
 - `scripts/run_autopub.sh`
 - `scripts/setup_autopub.sh`
 
-Contienen rutas absolutas `/Users/lachlan/...` y supuestos de Conda. Conserva este flujo si lo necesitas, pero actualiza rutas/venv/tooling para tu host.
+Contienen rutas absolutas `/Users/lachlan/...` y supuestos de Conda. Conserva estos flujos si los usas, pero actualiza rutas/venv/herramientas para tu host.
 
 ---
 
@@ -725,70 +727,66 @@ Contienen rutas absolutas `/Users/lachlan/...` y supuestos de Conda. Conserva es
 
 🛠️ **Si algo falla, empieza aquí**.
 
-- **Deriva de rutas entre máquinas**: si aparecen errores de archivos faltantes en `/Users/lachlan/...` o `/home/lachlan/Projects/auto-publish`, alinea constantes con la ruta de tu host (`/home/lachlan/ProjectsLFS/AutoPublish` en este workspace).
+- **Deriva de rutas entre máquinas**: si aparecen errores sobre rutas faltantes en `/Users/lachlan/...` o `/home/lachlan/Projects/auto-publish`, alinea constantes con la ruta de tu host (`/home/lachlan/ProjectsLFS/AutoPublish` en este workspace).
 - **Higiene de secretos**: ejecuta `~/.local/bin/detect-secrets scan` antes de `push`. Rota credenciales filtradas.
-- **Errores del backend de procesamiento**: si `process_video.py` muestra “Failed to get the uploaded file path”, valida que la respuesta JSON de upload incluya `file_path` y el endpoint de procesamiento devuelva bytes ZIP.
+- **Errores del backend de procesamiento**: si `process_video.py` muestra `Failed to get the uploaded file path`, valida que la respuesta JSON del upload incluya `file_path` y que el endpoint de procesamiento devuelva bytes ZIP.
 - **Desajuste de ChromeDriver**: si hay errores de conexión a DevTools, alinea versiones de Chrome/Chromium y driver (o usa `webdriver-manager`).
-- **Problemas de foco del navegador**: `bring_to_front` depende de coincidencia exacta de título de ventana (diferencias entre Chromium/Chrome pueden romperlo).
-- **Interrupciones por captcha**: configura credenciales de 2Captcha/Turing e integra salidas del solver donde haga falta.
-- **Locks obsoletos**: si ejecuciones programadas no inician, revisa estado de procesos y elimina `autopub.lock` obsoleto (flujo legacy).
-- **Logs a inspeccionar**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, y logs del journal de servicio.
+- **Problemas de foco del navegador**: `bring_to_front` depende de coincidencia exacta del título de ventana (las diferencias entre Chromium/Chrome pueden romper esto).
+- **Interrupciones por captcha**: configura credenciales de 2Captcha/Turing e integra los resultados del solver cuando haga falta.
+- **Bloqueos obsoletos**: si ejecuciones programadas no inician, revisa el estado de procesos y elimina `autopub.lock` obsoleto (flujo heredado).
+- **Logs a inspeccionar**: `logs/`, `logs-autopub/`, `~/chromium_dev_session_logs/*.log`, además de los journales de servicio.
 
 ## FAQ
 
 **P: ¿Puedo ejecutar modo API y watcher CLI al mismo tiempo?**  
-R: Es posible, pero no recomendado salvo que aísles cuidadosamente entradas y sesiones de navegador. Ambos modos pueden competir por publicadores, archivos y puertos.
+R: Es posible, pero no recomendado salvo que aísles cuidadosamente entradas y sesiones del navegador. Ambos modos pueden competir por publicadores, archivos y puertos.
 
-**P: ¿Por qué `/publish` devuelve `queued` pero aún no aparece publicado?**  
-R: `app.py` primero encola trabajos y luego un worker en segundo plano los procesa en serie. Revisa `/publish/queue`, `is_publishing` y logs del servicio.
+**P: ¿Por qué `/publish` devuelve `queued` pero todavía no aparece publicado?**  
+R: `app.py` primero encola trabajos y luego un worker en segundo plano los procesa en serie. Revisa `/publish/queue`, `is_publishing` y los logs del servicio.
 
 **P: ¿Necesito `load_env.py` si ya uso `.env`?**  
-R: `start_autopub_tmux.sh` hace `source` de `.env` si existe, mientras algunas ejecuciones directas dependen del entorno del shell. Mantener consistencia entre `.env` y exports del shell evita sorpresas.
+R: `start_autopub_tmux.sh` hace `source` de `.env` si existe, mientras que algunas ejecuciones directas dependen de variables del shell. Mantener consistencia entre `.env` y exports del shell evita sorpresas.
 
 **P: ¿Cuál es el contrato ZIP mínimo para cargas API?**  
-R: Un ZIP válido con `{stem}_metadata.json`, además de vídeo y portada cuyos nombres coincidan con las claves de metadata (`video_filename`, `cover_filename`).
+R: Un ZIP válido con `{stem}_metadata.json`, además de vídeo y portada con nombres que coincidan con las claves de metadata (`video_filename`, `cover_filename`).
 
-**P: ¿Se soporta el modo headless?**  
-R: Algunos módulos exponen variables relacionadas con headless, pero el modo principal documentado en este repo es con sesiones GUI y perfiles persistentes.
-
----
+**P: ¿Se soporta modo headless?**  
+R: Algunos módulos exponen variables relacionadas con headless, pero el modo principal documentado en este repositorio es con sesiones GUI y perfiles persistentes.
 
 ## Extender el sistema
 
 🧱 **Puntos de extensión** para nuevas plataformas y operaciones más seguras.
 
-- **Añadir una nueva plataforma**: copia un módulo `pub_*.py`, actualiza selectores/flujos, añade `login_*.py` si necesitas reautenticación por QR y conecta flags/cola en `app.py` y wiring CLI en `autopub.py`.
-- **Abstracción de configuración**: migra constantes dispersas a configuración estructurada (`config.yaml`/`.env` + modelo tipado) para operación multi-host.
-- **Endurecimiento de credenciales**: reemplaza flujos sensibles hardcodeados o expuestos por manejo seguro de secretos (`sudo -A`, keychain, vault/secret manager).
+- **Agregar una nueva plataforma**: copia un módulo `pub_*.py`, actualiza selectores/flujo, añade `login_*.py` si necesitas reautenticación por QR y conecta flags/cola en `app.py` y wiring CLI en `autopub.py`.
+- **Abstracción de configuración**: migra constantes dispersas a una configuración estructurada (`config.yaml`/`.env` + modelo tipado) para operación multi-host.
+- **Endurecimiento de credenciales**: sustituye flujos sensibles hardcodeados o expuestos por una gestión de secretos segura (`sudo -A`, keychain, vault/secret manager).
 - **Contenerización**: empaqueta Chromium/ChromeDriver + runtime Python + display virtual en una unidad desplegable para uso cloud/servidor.
 
 ## Checklist de inicio rápido
 
 ✅ **Ruta mínima hacia la primera publicación exitosa**.
 
-1. Clona este repositorio e instala dependencias (`pip install -r requirements.txt` o `requirements.autopub.txt` ligera).
+1. Clona este repositorio e instala dependencias (`pip install -r requirements.txt` o `requirements.autopub.txt` ligero).
 2. Actualiza constantes de ruta hardcodeadas en `app.py`, `autopub.py` y scripts que ejecutes.
 3. Exporta credenciales requeridas en tu perfil de shell o `.env`; ejecuta `python load_env.py` para validar carga.
 4. Crea carpetas de perfil de navegador con depuración remota y lanza cada sesión de plataforma al menos una vez.
 5. Inicia sesión manualmente en cada plataforma objetivo dentro de su perfil.
 6. Inicia modo API (`python app.py --port 8081`) o CLI (`python autopub.py --use-cache ...`).
 7. Envía un ZIP de muestra (modo API) o un vídeo de muestra (modo CLI) y revisa `logs/`.
-8. Ejecuta escaneo de secretos antes de cada push.
-
----
+8. Ejecuta detección de secretos antes de cada push.
 
 ## Notas de desarrollo
 
 🧬 **Línea base de desarrollo actual** (formato manual + smoke tests).
 
 - El estilo Python sigue la indentación existente de 4 espacios y formato manual.
-- No hay suite de pruebas formal; usa smoke tests:
+- No hay suite formal de pruebas; usa smoke tests:
   - procesa un vídeo de muestra con `autopub.py`;
   - envía un ZIP a `/publish` y monitoriza `/publish/queue`;
   - valida manualmente cada plataforma objetivo.
-- Incluye un entrypoint pequeño `if __name__ == "__main__":` al añadir scripts nuevos para dry-runs rápidos.
-- Mantén cambios de plataforma aislados cuando sea posible (`pub_*`, `login_*`, toggles `ignore_*`).
-- Los artefactos de runtime (`videos/*`, `logs*/*`, `transcription_data/*`, `ignore_*`) se espera que sean locales y en su mayoría ignorados por git.
+- Incluye un entrypoint `if __name__ == "__main__":` al añadir scripts nuevos para dry-runs rápidos.
+- Mantén cambios de plataforma aislados donde sea posible (`pub_*`, `login_*`, toggles `ignore_*`).
+- Los artefactos de runtime (`videos/*`, `logs*/*`, `transcription_data/*`, `ignore_*`) se esperan locales y en su mayoría están gitignored.
 
 ## Hoja de ruta
 
@@ -797,7 +795,7 @@ R: Algunos módulos exponen variables relacionadas con headless, pero el modo pr
 Mejoras planificadas/deseadas (según estructura actual y notas existentes):
 
 1. Reemplazar rutas hardcodeadas por configuración central (`.env`/YAML + modelos tipados).
-2. Eliminar patrones de contraseña sudo hardcodeada y pasar control de proceso a mecanismos más seguros.
+2. Eliminar patrones de contraseña sudo hardcodeada y pasar el control de procesos a mecanismos más seguros.
 3. Mejorar fiabilidad de publicación con reintentos robustos y mejor detección de estado de UI por plataforma.
 4. Ampliar soporte de plataformas (por ejemplo Kuaishou u otras plataformas de creadores).
 5. Empaquetar el runtime en unidades de despliegue reproducibles (contenedor + perfil de display virtual).
@@ -810,32 +808,32 @@ Mejoras planificadas/deseadas (según estructura actual y notas existentes):
 Las contribuciones son bienvenidas.
 
 1. Haz fork y crea una rama enfocada.
-2. Mantén commits pequeños e imperativos (estilo del historial: "Wait for YouTube checks before publishing").
+2. Mantén commits pequeños e imperativos (estilo del historial: “Wait for YouTube checks before publishing”).
 3. Incluye notas de verificación manual en PRs:
    - supuestos de entorno,
    - reinicios de navegador/sesión,
    - logs o capturas relevantes para cambios de flujo UI.
-4. Nunca hagas commit de secretos reales (`.env` está ignorado; usa `.env.example` solo como plantilla).
+4. Nunca comitees secretos reales (`.env` está ignorado; usa `.env.example` solo como plantilla).
 
-Si introduces nuevos módulos publicadores, conecta todo lo siguiente:
+Si introduces nuevos módulos publicadores, conecta lo siguiente:
 - `pub_<platform>.py`
 - `login_<platform>.py` opcional
-- flags API y manejo de cola en `app.py`
+- flags API y cola en `app.py`
 - wiring CLI en `autopub.py` (si aplica)
 - manejo de toggles `ignore_<platform>`
-- actualizaciones de README
+- actualiza el README
 
 ## Checklist de seguridad & operaciones
 
 Antes de cualquier ejecución tipo producción:
 
-1. Confirma que `.env` existe localmente y no está versionado.
-2. Rota/elimina credenciales que puedan haber sido comprometidas históricamente.
+1. Confirma que `.env` existe localmente y no esté versionado.
+2. Rota o elimina credenciales que hayan podido comprometerse históricamente.
 3. Sustituye valores sensibles placeholder en rutas de código (por ejemplo el placeholder sudo en `app.py`).
-4. Verifica que los switches `ignore_*` son intencionales antes de corridas por lotes.
+4. Verifica que los switches `ignore_*` sean intencionales antes de corridas por lotes.
 5. Asegura perfiles de navegador aislados por plataforma y cuentas con mínimo privilegio.
-6. Confirma que los logs no exponen secretos antes de compartir informes.
-7. Ejecuta `detect-secrets` (o equivalente) antes de push.
+6. Confirma que los logs no expongan secretos antes de compartir reportes.
+7. Ejecuta `detect-secrets` (o equivalente) antes de `push`.
 
 <a id="support-autopublish"></a>
 ## Licencia
@@ -843,12 +841,12 @@ Antes de cualquier ejecución tipo producción:
 Actualmente no hay archivo `LICENSE` en este snapshot del repositorio.
 
 Supuesto para este borrador:
-- Considera uso y redistribución como no definidos hasta que el mantenedor añada una licencia explícita.
+- Considera el uso y la redistribución como no definidos hasta que el mantenedor agregue una licencia explícita.
 
 Siguiente acción recomendada:
-- Añadir una `LICENSE` en la raíz (por ejemplo MIT/Apache-2.0/GPL-3.0) y actualizar esta sección en consecuencia.
+- Añadir un archivo `LICENSE` en la raíz (por ejemplo MIT/Apache-2.0/GPL-3.0) y actualizar esta sección en consecuencia.
 
-> 📝 Mientras no haya un archivo de licencia, trata suposiciones comerciales/internas de redistribución como pendientes y confírmalo directamente con el mantenedor.
+> 📝 Mientras no haya un archivo de licencia, trata asunciones comerciales/internas de redistribución como pendientes y confírmalo directamente con el mantenedor.
 
 ---
 
@@ -856,7 +854,7 @@ Siguiente acción recomendada:
 
 - Perfil del mantenedor y sponsor: [@lachlanchen](https://github.com/lachlanchen)
 - Fuente de configuración de financiación: [`.github/FUNDING.yml`](.github/FUNDING.yml)
-- Servicios del ecosistema referenciados en este repositorio: Selenium, Tornado, SendGrid, APIs de captcha 2Captcha y Turing.
+- Servicios del ecosistema referenciados en este repositorio: Selenium, Tornado, SendGrid, 2Captcha, APIs de captcha de Turing.
 
 
 ## ❤️ Support

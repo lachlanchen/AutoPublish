@@ -2,6 +2,7 @@
 
 
 
+
 <div align="center">
 
 [![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
@@ -111,7 +112,7 @@
 | التعامل مع Captcha | تكاملات اختيارية متاحة | اضبط بيانات 2Captcha/Turing إذا لزم |
 | إعلان الترخيص | لم يُكتشف ملف `LICENSE` في الجذر | أكّد شروط الاستخدام مع صاحب المشروع قبل إعادة التوزيع |
 
-### Compatibility & Assumptions
+### Compatibility ### التوافق والافتراضات Assumptions
 
 | العنصر | الافتراض الحالي في هذا المستودع |
 | --- | --- |
@@ -388,7 +389,7 @@ python load_env.py
 - بعض الكود والسكربتات ما تزال تشير إلى `/home/lachlan/Projects/auto-publish` أو `/Users/lachlan/...`.
 - احتفظ بهذه المسارات وعدّلها محليًا قبل الاستخدام الإنتاجي.
 
-### Platform toggles via `ignore_*`
+### تبديل المنصات عبر `ignore_*`
 
 🧩 **مفتاح أمان سريع**: إنشاء ملف `ignore_*` يعطّل الناشر المقابل دون تعديل الكود.
 
@@ -538,7 +539,7 @@ curl "http://localhost:8081/publish/queue"
 
 يشغّل `app.py` خيط تحديث في الخلفية باستخدام فترة `--refresh-time` ويربطه بفحوصات تسجيل الدخول. يتضمن زمن النوم للتحديث سلوك تأخير عشوائي.
 
-### PWA frontend (`pwa/`)
+`)/`)
 
 🖥️ واجهة ثابتة وخفيفة لرفع ZIP يدويًا وفحص الطابور.
 
@@ -614,7 +615,7 @@ python smtp_test_simple.py
 
 ---
 
-## Metadata & ZIP Format
+## Metadata ## تنسيق البيانات الوصفية والـ ZIP ZIP Format
 
 📦 **عقد ZIP مهم**: حافظ على اتساق أسماء الملفات ومفاتيح البيانات الوصفية مع توقعات وحدات النشر.
 
@@ -636,7 +637,7 @@ python smtp_test_simple.py
 
 إذا كنت تولّد ملفات ZIP خارجيًا، فاحرص على تطابق المفاتيح وأسماء الملفات مع ما تتوقعه الوحدات.
 
-## Data & Artifact Lifecycle
+## Data ## دورة حياة البيانات والقطع الفنية Artifact Lifecycle
 
 ينتج هذا المسار مخرجات محلية يجب الاحتفاظ بها أو تدويرها أو تنظيفها بوعي:
 
@@ -719,7 +720,7 @@ sudo ss -ltnp | grep 590
 
 ---
 
-## Troubleshooting & Maintenance
+## Troubleshooting ## استكشاف الأخطاء والصيانة Maintenance
 
 🛠️ **إذا حدث فشل، ابدأ من هنا**.
 
@@ -829,7 +830,7 @@ A: بعض الوحدات تعرض متغيرات مرتبطة بـ headless، ل
 - معالجة مفاتيح `ignore_<platform>`
 - تحديثات README
 
-## Security & Ops Checklist
+## Security ## فحص الأمان والتشغيل Ops Checklist
 
 قبل أي تشغيل يشبه بيئة الإنتاج:
 

@@ -1,6 +1,7 @@
 [English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [Français](README.fr.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Tiếng Việt](README.vi.md) · [中文 (简体)](README.zh-Hans.md) · [中文（繁體）](README.zh-Hant.md) · [Deutsch](README.de.md) · [Русский](README.ru.md)
 
 
+
 [![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
 
 <div align="center">
@@ -31,13 +32,13 @@
 [![Browser Engine](https://img.shields.io/badge/Browser-Chromium%20Remote%20Debug-4F46E5)](#preparing-browser-sessions)
 [![Input Formats](https://img.shields.io/badge/Inputs-videos%20%26%20ZIP-0891B2)](#metadata--zip-format)
 
-| Điều hướng nhanh | Liên kết |
+| Điều hướng nhanh | Chuyển đến |
 | --- | --- |
-| Cài đặt lần đầu | [Start Here](#start-here) |
-| Chạy bằng local watcher | [Running the CLI pipeline (`autopub.py`)](#running-the-cli-pipeline-autopubpy) |
-| Chạy qua HTTP queue | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
-| Triển khai dưới dạng service | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
-| Hỗ trợ dự án | [Support](#support-autopublish) |
+| Cài đặt lần đầu | [Bắt đầu](#start-here) |
+| Chạy bằng local watcher | [Chạy pipeline CLI (`autopub.py`)](#running-the-cli-pipeline-autopubpy) |
+| Chạy qua HTTP queue | [Chạy dịch vụ Tornado (`app.py`)](#running-the-tornado-service-apppy) |
+| Triển khai dưới dạng service | [Thiết lập Raspberry Pi / Linux](#raspberry-pi--linux-service-setup) |
+| Hỗ trợ dự án | [Hỗ trợ](#support-autopublish) |
 
 Bộ công cụ tự động hóa để phân phối nội dung video ngắn tới nhiều nền tảng nhà sáng tạo của Trung Quốc và quốc tế. Dự án kết hợp service dựa trên Tornado, các bot Selenium và quy trình làm việc với trình theo dõi thư mục cục bộ để khi bạn bỏ một video vào thư mục, sau đó hệ thống sẽ đăng tải lên XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram và tùy chọn YouTube.
 
@@ -51,12 +52,12 @@ Kho mã này được xây dựng theo hướng low-level: hầu hết cấu hì
 
 | Tôi muốn... | Đi tới |
 | --- | --- |
-| Chạy lần xuất bản đầu tiên | [Quick Start Checklist](#quick-start-checklist) |
-| So sánh chế độ runtime | [Runtime Modes at a Glance](#runtime-modes-at-a-glance) |
+| Chạy xuất bản lần đầu | [Danh sách khởi tạo nhanh](#quick-start-checklist) |
+| So sánh chế độ runtime | [Chế độ vận hành trong một cái nhìn](#runtime-modes-at-a-glance) |
 | Cấu hình credentials và đường dẫn | [Configuration](#configuration) |
-| Khởi chạy chế độ API và queue jobs | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
-| Kiểm tra nhanh bằng lệnh copy/paste | [Examples](#examples) |
-| Cài đặt trên Raspberry Pi/Linux | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
+| Khởi chạy chế độ API và queue jobs | [Chạy dịch vụ Tornado (`app.py`)](#running-the-tornado-service-apppy) |
+| Kiểm tra nhanh bằng lệnh copy/paste | [Ví dụ](#examples) |
+| Cài đặt trên Raspberry Pi/Linux | [Thiết lập Raspberry Pi / Linux](#raspberry-pi--linux-service-setup) |
 
 ## Start Here
 
@@ -87,14 +88,14 @@ Dự án được thiết kế cho những người vận hành ưa thích workf
 
 ### Runtime Modes at a Glance
 
-| Mode | Entry point | Input | Phù hợp nhất cho | Hành vi đầu ra |
+| Chế độ | Điểm vào | Đầu vào | Phù hợp nhất cho | Hành vi đầu ra |
 | --- | --- | --- | --- | --- |
 | CLI watcher | `autopub.py` | File được thả vào `videos/` | Workflow vận hành local và vòng cron/service | Xử lý video phát hiện được và xuất bản ngay lên các nền tảng đã chọn |
 | API queue service | `app.py` | Upload ZIP tới `POST /publish` | Tích hợp với hệ thống upstream và trigger từ xa | Chấp nhận jobs, đưa vào hàng đợi và xử lý xuất bản theo thứ tự worker |
 
 ### Platform Coverage Snapshot
 
-| Platform | Publisher module | Login helper | Control port | CLI mode | API mode |
+| Nền tảng | Module publish | Công cụ đăng nhập | Cổng điều khiển | Chế độ CLI | Chế độ API |
 | --- | --- | --- | --- | --- | --- |
 | XiaoHongShu | `pub_xhs.py` | `login_xiaohongshu.py` | `5003` | ✅ | ✅ |
 | Douyin | `pub_douyin.py` | `login_douyin.py` | `5004` | ✅ | ✅ |
@@ -105,7 +106,7 @@ Dự án được thiết kế cho những người vận hành ưa thích workf
 
 ## Quick Snapshot
 
-| What | Value | Color cue |
+| Mục | Giá trị | Mã màu |
 | --- | --- | --- |
 | Ngôn ngữ chính | Python 3.10+ | ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white) |
 | Runtime chính | CLI watcher (`autopub.py`) + Tornado queue service (`app.py`) | ![Modes](https://img.shields.io/badge/Modes-CLI%20%2B%20API-2563EB) |
@@ -116,16 +117,16 @@ Dự án được thiết kế cho những người vận hành ưa thích workf
 
 ### Operational Safety Snapshot
 
-| Topic | Current state | Hành động |
+| Chủ đề | Trạng thái hiện tại | Hành động |
 | --- | --- | --- |
-| Hard-coded paths | Có ở nhiều module/script | Cập nhật constants path theo từng máy chủ trước khi chạy production |
-| Browser login state | Bắt buộc | Giữ persistent remote-debug profile cho từng nền tảng |
-| Captcha handling | Có tích hợp tùy chọn | Cấu hình credentials 2Captcha/Turing nếu cần |
-| License declaration | Không phát hiện file `LICENSE` ở top-level | Xác nhận điều khoản sử dụng với maintainer trước khi phân phối lại |
+| Đường dẫn hard-coded | Có ở nhiều module/script | Cập nhật constants path theo từng máy chủ trước khi chạy production |
+| Trạng thái đăng nhập trình duyệt | Bắt buộc | Giữ persistent remote-debug profile cho từng nền tảng |
+| Xử lý captcha | Có tích hợp tùy chọn | Cấu hình credentials 2Captcha/Turing nếu cần |
+| Tuyên bố giấy phép | Không phát hiện file `LICENSE` ở top-level | Xác nhận điều khoản sử dụng với maintainer trước khi phân phối lại |
 
 ### Compatibility & Assumptions
 
-| Item | Current assumption in this repo |
+| Mục | Giả định hiện tại của repo |
 | --- | --- |
 | Python | 3.10+ |
 | Runtime environment | Linux desktop/server có GUI display cho Chromium |
@@ -138,40 +139,40 @@ Dự án được thiết kế cho những người vận hành ưa thích workf
 
 ## Table of Contents
 
-- [Start Here](#start-here)
-- [Overview](#overview)
-- [Runtime Modes at a Glance](#runtime-modes-at-a-glance)
-- [Platform Coverage Snapshot](#platform-coverage-snapshot)
-- [Quick Snapshot](#quick-snapshot)
-- [Operational Safety Snapshot](#operational-safety-snapshot)
-- [Compatibility & Assumptions](#compatibility--assumptions)
-- [System Overview](#system-overview)
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Repository Layout](#repository-layout)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Configuration Verification Checklist](#configuration-verification-checklist)
-- [Preparing Browser Sessions](#preparing-browser-sessions)
-- [Usage](#usage)
-- [Examples](#examples)
-- [Metadata & ZIP Format](#metadata--zip-format)
-- [Data & Artifact Lifecycle](#data--artifact-lifecycle)
-- [Platform-Specific Notes](#platform-specific-notes)
-- [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup)
-- [Legacy macOS Scripts](#legacy-macos-scripts)
-- [Troubleshooting & Maintenance](#troubleshooting--maintenance)
-- [FAQ](#faq)
-- [Extending the System](#extending-the-system)
-- [Quick Start Checklist](#quick-start-checklist)
-- [Development Notes](#development-notes)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [Security & Ops Checklist](#security--ops-checklist)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
-- [Support](#support-autopublish)
+- [Bắt đầu](#start-here)
+- [Tổng quan](#overview)
+- [Chế độ vận hành trong một cái nhìn](#runtime-modes-at-a-glance)
+- [Bảng tổng quan nền tảng](#platform-coverage-snapshot)
+- [Tóm tắt nhanh](#quick-snapshot)
+- [Bản đồ an toàn vận hành](#operational-safety-snapshot)
+- [Tương thích & giả định](#compatibility--assumptions)
+- [Tổng quan hệ thống](#system-overview)
+- [Tính năng](#features)
+- [Cấu trúc dự án](#project-structure)
+- [Bố cục repository](#repository-layout)
+- [Yêu cầu ban đầu](#prerequisites)
+- [Cài đặt](#installation)
+- [Cấu hình](#configuration)
+- [Checklist xác minh cấu hình](#configuration-verification-checklist)
+- [Chuẩn bị browser session](#preparing-browser-sessions)
+- [Cách dùng](#usage)
+- [Ví dụ](#examples)
+- [Metadata & định dạng ZIP](#metadata--zip-format)
+- [Chu kỳ dữ liệu và artifact](#data--artifact-lifecycle)
+- [Ghi chú theo nền tảng](#platform-specific-notes)
+- [Thiết lập Raspberry Pi / Linux](#raspberry-pi--linux-service-setup)
+- [Script macOS legacy](#legacy-macos-scripts)
+- [Sửa lỗi & bảo trì](#troubleshooting--maintenance)
+- [Hỏi đáp](#faq)
+- [Mở rộng hệ thống](#extending-the-system)
+- [Checklist khởi động nhanh](#quick-start-checklist)
+- [Ghi chú phát triển](#development-notes)
+- [Lộ trình](#roadmap)
+- [Đóng góp](#contributing)
+- [Checklist bảo mật & vận hành](#security--ops-checklist)
+- [Giấy phép](#license)
+- [Lời cảm ơn](#acknowledgements)
+- [Hỗ trợ](#support-autopublish)
 
 ---
 
@@ -611,13 +612,13 @@ curl -X POST "http://localhost:8081/publish?filename=my_bundle.zip&publish_bilib
   -H "Content-Type: application/octet-stream"
 ```
 
-### Example C: Check queue status
+### Example C: Kiểm tra trạng thái queue
 
 ```bash
 curl -s "http://localhost:8081/publish/queue"
 ```
 
-### Example D: SMTP helper smoke test
+### Example D: Kiểm tra nhanh helper SMTP
 
 ```bash
 python smtp.py

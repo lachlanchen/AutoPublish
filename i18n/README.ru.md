@@ -2,6 +2,7 @@
 
 
 
+
 [![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
 
 # AutoPublish
@@ -823,7 +824,7 @@ A: В некоторых модулях есть headless-настройки, н
 7. Запускайте `detect-secrets` (или эквивалент) перед push.
 
 <a id="support-autopublish"></a>
-## <a id="license"></a> Лицензия
+## Лицензия
 
 Файл `LICENSE` в этом снапшоте репозитория отсутствует.
 
@@ -842,6 +843,7 @@ A: В некоторых модулях есть headless-настройки, н
 - Профиль мейнтейнера и спонсора: [@lachlanchen](https://github.com/lachlanchen)
 - Источник конфигурации funding: [`.github/FUNDING.yml`](.github/FUNDING.yml)
 - Сервисы экосистемы, упомянутые в репозитории: Selenium, Tornado, SendGrid, 2Captcha, Turing captcha APIs.
+
 
 
 ## ❤️ Support
