@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException
 import time
 
-from utils import dismiss_alert, bring_to_front, close_extra_tabs
+from utils import dismiss_alert, bring_to_front, close_extra_tabs, log_html_snapshot
 from login_xiaohongshu import XiaoHongShuLogin
 
 import traceback
@@ -33,6 +33,18 @@ class XiaoHongShuPublisher:
         for xpath in xpaths:
             try:
                 return WebDriverWait(self.driver, timeout).until(condition((By.XPATH, xpath)))
+            except Exception as exc:
+                last_exc = exc
+        if last_exc:
+            raise last_exc
+
+    def _find_clickable(self, xpaths, timeout=20):
+        last_exc = None
+        for xpath in xpaths:
+            try:
+                return WebDriverWait(self.driver, timeout).until(
+                    EC.element_to_be_clickable((By.XPATH, xpath))
+                )
             except Exception as exc:
                 last_exc = exc
         if last_exc:
@@ -183,6 +195,82 @@ class XiaoHongShuPublisher:
         editor_text = " ".join((element.text or "").split())
         if editor_text != target_text:
             raise Exception("Failed to set XiaoHongShu description editor.")
+
+    def _click_publish_button(self):
+        publish_button_xpaths = [
+            '//div[contains(@class,"publish-page-publish-btn")]//button[contains(@class,"bg-red") and .//span[normalize-space()="发布"]]',
+            '//div[contains(@class,"publish-page-publish-btn")]//button[.//span[normalize-space()="发布"]]',
+            '//button[contains(@class,"bg-red") and .//span[normalize-space()="发布"]]',
+            '//button[.//span[normalize-space()="发布"]]',
+        ]
+        publish_button = self._find_clickable(publish_button_xpaths, timeout=60)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", publish_button)
+        time.sleep(1)
+
+        try:
+            publish_button.click()
+            print("Clicked XiaoHongShu publish button with Selenium.")
+            return
+        except Exception as click_exc:
+            print(f"Selenium click on XiaoHongShu publish button failed: {click_exc}")
+
+        self.driver.execute_script("arguments[0].click();", publish_button)
+        print("Clicked XiaoHongShu publish button with JavaScript fallback.")
+
+    def _wait_for_publish_result(self, start_url, timeout=60):
+        publish_button_xpaths = [
+            '//div[contains(@class,"publish-page-publish-btn")]//button[.//span[normalize-space()="发布"]]',
+            '//button[.//span[normalize-space()="发布"]]',
+        ]
+        success_xpaths = [
+            '//*[contains(text(),"发布成功")]',
+            '//*[contains(text(),"全部笔记")]',
+            '//*[contains(text(),"审核中")]',
+        ]
+        failure_xpaths = [
+            '//*[contains(text(),"发布失败")]',
+            '//*[contains(text(),"上传失败")]',
+            '//*[contains(text(),"上传出错")]',
+            '//*[contains(text(),"上传异常")]',
+        ]
+
+        start_time = time.time()
+        while time.time() - start_time <= timeout:
+            current_url = self.driver.current_url
+
+            failure_element, failure_xpath = self._find_present(failure_xpaths)
+            if failure_element is not None:
+                failure_text = (failure_element.text or "").strip()
+                log_html_snapshot(self.driver, "xiaohongshu", "publish_failed")
+                raise Exception(
+                    f"XiaoHongShu publish failure detected: matched {failure_xpath} text={failure_text!r}"
+                )
+
+            if "published=true" in current_url or "/new/note-manager" in current_url:
+                print(f"XiaoHongShu publish confirmed via URL: {current_url}")
+                return current_url
+
+            success_element, success_xpath = self._find_present(success_xpaths)
+            if success_element is not None:
+                print(f"XiaoHongShu publish confirmed via page state: matched {success_xpath}")
+                return current_url
+
+            publish_button, _ = self._find_present(publish_button_xpaths)
+            if publish_button is None and current_url != start_url:
+                print(
+                    "XiaoHongShu publish likely completed because the publish button disappeared "
+                    f"and URL changed to {current_url}"
+                )
+                return current_url
+
+            print(f"Waiting for XiaoHongShu publish confirmation... Current URL: {current_url}")
+            time.sleep(2)
+
+        log_html_snapshot(self.driver, "xiaohongshu", "publish_timeout")
+        raise Exception(
+            "Timed out waiting for XiaoHongShu publish confirmation. "
+            f"Last URL: {self.driver.current_url} (started from {start_url})"
+        )
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         driver = self.driver
@@ -394,18 +482,14 @@ class XiaoHongShuPublisher:
                 if user_input == 'yes':
                     # If user confirms, click the publish button
                     time.sleep(3)
-                    publish_button = self._find_first([
-                        '//div[contains(@class,"publish-page-publish-btn")]//button[.//span[normalize-space()="发布"]]',
-                        '//button[.//span[normalize-space()="发布"]]',
-                    ], timeout=30)
-                    time.sleep(3)
-                    publish_button.click()
+                    start_url = driver.current_url
+                    self._click_publish_button()
                     
                     time.sleep(10)
                     dismiss_alert(driver)
-                    time.sleep(3)
+                    publish_result_url = self._wait_for_publish_result(start_url, timeout=90)
 
-                    print("Publishing...")
+                    print(f"Publishing completed. Final XiaoHongShu URL: {publish_result_url}")
                 else:
                     print("Publishing cancelled by user.")
 
