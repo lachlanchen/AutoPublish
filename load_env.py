@@ -1,5 +1,6 @@
 # File: load_env.py
 import os
+import shlex
 import subprocess
 import traceback
 
@@ -15,12 +16,24 @@ def load_env_from_bashrc():
         
         print(f"Attempting to load environment variables from {bashrc_path}")
         
-        # Execute the .bashrc using a shell command and capture the environment
-        command = f"bash -c 'source {bashrc_path} && env'"
-        
+        # .bashrc on this host exits early for non-interactive shells, so
+        # force an interactive bash and silence shell-control noise.
+        quoted_bashrc = shlex.quote(bashrc_path)
+        command = f"bash -ic 'source {quoted_bashrc} >/dev/null 2>&1; env' 2>/dev/null"
+
         # Run the command and capture the output
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
-        output, _ = proc.communicate()
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+        )
+        output, stderr = proc.communicate()
+        if proc.returncode != 0:
+            stderr_text = (stderr or b"").decode().strip()
+            raise RuntimeError(
+                f"Failed to source {bashrc_path} (exit {proc.returncode}): {stderr_text}"
+            )
         
         # Parse the environment variables and set them in the current process
         env_count = 0
