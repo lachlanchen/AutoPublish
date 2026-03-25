@@ -200,7 +200,7 @@ Workflow at a glance:
    - `{stem}_metadata.json` with localized titles, descriptions, tags, etc.
 3. **Publishing**: Metadata drives the Selenium publishers in `pub_*.py`. Each publisher attaches to an already-running Chromium/Chrome instance using remote debugging ports and persistent user-data directories.
 4. **Web control plane (optional)**: `app.py` exposes `/publish`, accepts pre-built ZIP bundles, unpacks them, and queues publish jobs to the same publishers. It can also refresh browser sessions and trigger login helpers (`login_*.py`).
-5. **Support modules**: `load_env.py` hydrates secrets from `~/.bashrc`, `utils.py` provides helpers (window focus, QR handling, mail utility helpers), and `solve_captcha_*.py` integrates with Turing/2Captcha when captchas appear.
+5. **Support modules**: `load_env.py` loads secrets from the repo-local `.env` first and uses `~/.bashrc` only as fallback, `utils.py` provides helpers (window focus, QR handling, mail utility helpers), and `solve_captcha_*.py` integrates with Turing/2Captcha when captchas appear.
 
 ## Features
 
@@ -354,14 +354,13 @@ cp .env.example .env
 # fill values in .env (do not commit)
 ```
 
-4. Load variables for scripts that read shell profile values:
+4. Load variables for scripts that need publishing credentials:
 
 ```bash
-source ~/.bashrc
 python load_env.py
 ```
 
-Note: `load_env.py` is designed around `~/.bashrc`; if your environment uses a different shell profile, adapt accordingly.
+By default, `load_env.py` reads the repo-local `.env` first. It only falls back to `~/.bashrc` if required keys are still missing.
 
 ---
 
