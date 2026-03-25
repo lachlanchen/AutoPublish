@@ -38,6 +38,152 @@ class XiaoHongShuPublisher:
         if last_exc:
             raise last_exc
 
+    def _find_present(self, xpaths, visible=True):
+        for xpath in xpaths:
+            try:
+                elements = self.driver.find_elements(By.XPATH, xpath)
+            except Exception:
+                continue
+            for element in elements:
+                try:
+                    if not visible or element.is_displayed():
+                        return element, xpath
+                except Exception:
+                    continue
+        return None, None
+
+    def _wait_for_upload_ready(self, timeout=3600):
+        success_xpaths = [
+            '//span[contains(@class,"video-plugin-title-action") and contains(normalize-space(),"重新上传")]',
+            '//*[contains(@class,"video-plugin-title-action") and contains(normalize-space(),"重新上传")]',
+            '//*[contains(text(),"重新上传")]',
+            '//*[contains(text(),"替换视频")]',
+            '//input[@placeholder="填写标题会有更多赞哦"]',
+            '//input[@placeholder="填写标题会有更多赞哦～"]',
+            '//div[contains(@class,"tiptap") and @contenteditable="true"]',
+            '//div[contains(@class,"ProseMirror") and @contenteditable="true"]',
+        ]
+        failure_xpaths = [
+            '//*[contains(text(),"上传失败")]',
+            '//*[contains(text(),"上传出错")]',
+            '//*[contains(text(),"上传异常")]',
+        ]
+
+        start_time = time.time()
+        while time.time() - start_time <= timeout:
+            failure_element, failure_xpath = self._find_present(failure_xpaths)
+            if failure_element is not None:
+                raise Exception(f"Video upload failed: matched {failure_xpath}")
+
+            success_element, success_xpath = self._find_present(success_xpaths)
+            if success_element is not None:
+                print(f"Video uploaded successfully! Matched {success_xpath}")
+                return success_element
+
+            print("Waiting for the video to upload or for the editor to become ready...")
+            time.sleep(5)
+
+        raise Exception("Timeout reached while waiting for video upload completion.")
+
+    def _fill_input(self, element, value):
+        driver = self.driver
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        try:
+            element.click()
+        except Exception:
+            pass
+        try:
+            element.clear()
+        except Exception:
+            pass
+        try:
+            element.send_keys(Keys.CONTROL, "a")
+            element.send_keys(Keys.BACKSPACE)
+            element.send_keys(value)
+        except Exception:
+            pass
+
+        current_value = (element.get_attribute("value") or "").strip()
+        if current_value == value:
+            return
+
+        driver.execute_script(
+            """
+            const el = arguments[0];
+            const value = arguments[1];
+            el.focus();
+            const descriptor = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype,
+              "value"
+            );
+            if (descriptor && descriptor.set) {
+              descriptor.set.call(el, value);
+            } else {
+              el.value = value;
+            }
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+            """,
+            element,
+            value,
+        )
+
+        current_value = (element.get_attribute("value") or "").strip()
+        if current_value != value:
+            raise Exception(f"Failed to set XiaoHongShu title. Current value: {current_value!r}")
+
+    def _fill_editor(self, element, value):
+        driver = self.driver
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        try:
+            element.click()
+        except Exception:
+            pass
+        try:
+            element.send_keys(Keys.CONTROL, "a")
+            element.send_keys(Keys.BACKSPACE)
+            element.send_keys(value)
+        except Exception:
+            pass
+
+        editor_text = " ".join((element.text or "").split())
+        target_text = " ".join(value.split())
+        if editor_text == target_text:
+            return
+
+        driver.execute_script(
+            """
+            const el = arguments[0];
+            const value = arguments[1];
+            el.focus();
+            if (window.getSelection) {
+              const selection = window.getSelection();
+              const range = document.createRange();
+              range.selectNodeContents(el);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+            if (document.execCommand) {
+              document.execCommand("selectAll", false, null);
+              document.execCommand("insertText", false, value);
+            }
+            if ((el.innerText || "").trim() !== value.trim()) {
+              el.innerHTML = "";
+              const paragraph = document.createElement("p");
+              paragraph.textContent = value;
+              el.appendChild(paragraph);
+            }
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+            """,
+            element,
+            value,
+        )
+
+        editor_text = " ".join((element.text or "").split())
+        if editor_text != target_text:
+            raise Exception("Failed to set XiaoHongShu description editor.")
+
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         driver = self.driver
         try:
@@ -71,70 +217,37 @@ class XiaoHongShuPublisher:
                 bring_to_front(["小红书", "你访问的页面不见了"])
                 close_extra_tabs(driver)
 
-                WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//input[@type="file"]')))
+                video_input = self._find_first([
+                    '//input[@type="file" and contains(@accept, ".mp4")]',
+                    '//div[contains(@class,"publish-page-content-media")]//input[@type="file"]',
+                    '//input[@type="file"]',
+                ], visible=False)
                 print("Video upload field is present.")
 
                 print(f"Uploading video from path: {path_mp4}")
                 time.sleep(3)
                 bring_to_front(["小红书", "你访问的页面不见了"])
-                driver.find_element(By.XPATH, '//input[@type="file"]').send_keys(path_mp4)
-
-                # Monitor upload status
-                reupload_xpath = '//*[contains(text(),"替换视频")]'
-                failure_xpath = '//*[contains(text(),"上传失败")]'
-                # reupload_xpath = '//*[text()="重新上传"]'
-                # failure_xpath = '//*[text()="上传失败"]'
+                video_input.send_keys(path_mp4)
                 time.sleep(3)
-                # WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(),"重新上传")]')))
-                start_time = time.time()
-                timeout = 3600  # 3600 seconds timeout
-                
-                while True:
-                    if time.time() - start_time > timeout:
-                        raise Exception("Timeout reached while waiting for video to be uploaded or for a failure message.")
-                    
-                    try:
-                        # Wait until the "重新上传" element is present
-                        element = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, reupload_xpath)))
-                        print("Video uploaded successfully!")
-                        break
-                    except:
-                        pass  # Ignore TimeoutException here
-                    
-                    try:
-                        # Wait until the "上传失败" element is present
-                        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, failure_xpath)))
-                        print("Upload failed! Raising an error to initiate retry...")
-                        raise Exception("Video upload failed.")
-                    except:
-                        pass  # Ignore TimeoutException here
-
-                    time.sleep(5)
+                self._wait_for_upload_ready(timeout=3600)
                 
                 print("Entering title and description.")
-                time.sleep(3)
                 title_input = self._find_first([
+                    '//input[@placeholder="填写标题会有更多赞哦"]',
                     '//input[@placeholder="填写标题会有更多赞哦～"]',
+                    '//div[contains(@class,"input")]//input[@type="text"]',
                     '//div[contains(@class,"title-container")]//input[@type="text"]',
                     '//*[contains(@class,"titleInput")]//input',
-                ])
-                try:
-                    title_input.clear()
-                except Exception:
-                    pass
-                title_input.click()
-                title_input.send_keys(metadata['title'][:20])
+                ], timeout=60)
+                self._fill_input(title_input, metadata['title'][:20])
                 
                 description_with_tags = metadata['long_description'] + " " + " ".join([f"#{tag}" for tag in metadata['tags']])
-                time.sleep(3)
-                # driver.find_element(By.XPATH, '//*[contains(@class,"topic-container")]//p').send_keys(description_with_tags[:1000])
                 description_editor = self._find_first([
                     '//div[contains(@class,"tiptap") and @contenteditable="true"]',
                     '//div[contains(@class,"ProseMirror") and @contenteditable="true"]',
                     '//div[contains(@class,"ql-editor") and @contenteditable="true"]',
-                ])
-                description_editor.click()
-                description_editor.send_keys(description_with_tags[:1000])
+                ], timeout=60)
+                self._fill_editor(description_editor, description_with_tags[:1000])
 
 #                 try:
 #                     # print("Handling cover upload.")
@@ -281,7 +394,10 @@ class XiaoHongShuPublisher:
                 if user_input == 'yes':
                     # If user confirms, click the publish button
                     time.sleep(3)
-                    publish_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[text()="发布"]')))
+                    publish_button = self._find_first([
+                        '//div[contains(@class,"publish-page-publish-btn")]//button[.//span[normalize-space()="发布"]]',
+                        '//button[.//span[normalize-space()="发布"]]',
+                    ], timeout=30)
                     time.sleep(3)
                     publish_button.click()
                     
