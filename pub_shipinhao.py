@@ -336,6 +336,146 @@ return (match.innerText || match.textContent || '').replace(/\s+/g, ' ').trim();
 """
 
 
+CONTENT_FRAME_POST_UPLOAD_STATE_SCRIPT = r"""
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style) return false;
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  if (parseFloat(style.opacity || '1') === 0) {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function isDisabled(el) {
+  if (!el) return true;
+  const className = (el.className || '').toString();
+  return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(className);
+}
+
+function findButton(label) {
+  return Array.from(document.querySelectorAll('button')).find((el) => {
+    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    return text === label;
+  }) || null;
+}
+
+const uploadWrap = document.querySelector('.post-upload-wrap');
+const previewVideo = uploadWrap && (uploadWrap.querySelector('video') || uploadWrap.querySelector('[src^="blob:"]'));
+const uploading = uploadWrap && uploadWrap.querySelector(
+  '.ant-upload.ant-upload-drag-uploading, .ant-upload-list-item-uploading, [class*="uploading"], [class*="progress"]'
+);
+const description = document.querySelector('.input-editor[contenteditable]');
+const shortTitle = document.querySelector('input[placeholder*="概括视频主要内容"]');
+const publishButton = findButton('发表');
+
+return {
+  ready: !!previewVideo && !uploading && isVisible(description) && !!shortTitle,
+  hasPreviewVideo: !!previewVideo,
+  uploading: !!uploading,
+  hasDescription: !!description,
+  hasShortTitle: !!shortTitle,
+  hasPublishButton: !!publishButton,
+  publishDisabled: isDisabled(publishButton),
+};
+"""
+
+
+CONTENT_FRAME_SELECT_COLLECTION_SCRIPT = r"""
+const desired = arguments[0];
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style) return false;
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  if (parseFloat(style.opacity || '1') === 0) {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function click(el) {
+  if (!el) return false;
+  el.scrollIntoView({block: 'center'});
+  el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
+  el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+  if (typeof el.click === 'function') {
+    el.click();
+  }
+  el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+  return true;
+}
+
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+
+const display =
+  document.querySelector('.post-album-display-wrap') ||
+  document.querySelector('.post-album-display') ||
+  document.querySelector('.post-album-wrap .display-text');
+const filterWrap = document.querySelector('.post-album-wrap .filter-wrap');
+const displayTextNode = document.querySelector('.post-album-wrap .display-text');
+
+if (!isVisible(filterWrap)) {
+  click(display);
+}
+
+const options = Array.from(document.querySelectorAll('.post-album-wrap .option-item'));
+const option = options.find((item) => {
+  const text = norm(item.innerText || item.textContent || '');
+  return text.includes(desired);
+});
+
+if (!option) {
+  return {
+    found: false,
+    selectedText: norm(displayTextNode && displayTextNode.textContent),
+    options: options.map((item) => norm(item.innerText || item.textContent || '')),
+    filterVisible: isVisible(filterWrap),
+  };
+}
+
+click(option.querySelector('.item') || option.querySelector('.name') || option);
+
+return {
+  found: true,
+  selectedText: norm(displayTextNode && displayTextNode.textContent),
+  options: options.map((item) => norm(item.innerText || item.textContent || '')),
+  filterVisible: isVisible(filterWrap),
+};
+"""
+
+
+CONTENT_FRAME_PUBLISH_BUTTON_STATE_SCRIPT = r"""
+function isDisabled(el) {
+  if (!el) return true;
+  const className = (el.className || '').toString();
+  return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(className);
+}
+
+const publishButton = Array.from(document.querySelectorAll('button')).find((el) => {
+  const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  return text === '发表';
+}) || null;
+
+return {
+  exists: !!publishButton,
+  disabled: isDisabled(publishButton),
+  className: publishButton ? (publishButton.className || '').toString() : null,
+};
+"""
+
+
 def click_content_frame_css(driver, selector, duration=30, text=None, exact=False, visible=True):
     return WebDriverWait(driver, duration).until(
         lambda current_driver: _execute_in_content_frame(
@@ -441,6 +581,78 @@ def ensure_content_frame_checkbox_value(driver, selector, checked=True, duration
         time.sleep(0.5)
     raise TimeoutException(
         f"Failed to verify Shipinhao checkbox {selector!r}. Last value: {last_value!r}"
+    )
+
+
+def read_post_upload_state(driver):
+    state = _execute_in_content_frame(
+        driver,
+        CONTENT_FRAME_POST_UPLOAD_STATE_SCRIPT,
+    )
+    return state if isinstance(state, dict) else {}
+
+
+def wait_for_post_upload_editor_ready(driver, duration=120, stable_seconds=8):
+    deadline = time.time() + duration
+    stable_since = None
+    last_state = None
+
+    while time.time() < deadline:
+        state = read_post_upload_state(driver)
+        last_state = state
+        if state.get("ready"):
+            if stable_since is None:
+                stable_since = time.time()
+            elif time.time() - stable_since >= stable_seconds:
+                return state
+        else:
+            stable_since = None
+        dismiss_alert(driver)
+        time.sleep(2)
+
+    raise TimeoutException(
+        f"Timed out waiting for Shipinhao post-upload editor readiness. Last state: {last_state!r}"
+    )
+
+
+def select_content_frame_collection(driver, collection_name, duration=20):
+    deadline = time.time() + duration
+    last_state = None
+
+    while time.time() < deadline:
+        state = _execute_in_content_frame(
+            driver,
+            CONTENT_FRAME_SELECT_COLLECTION_SCRIPT,
+            collection_name,
+        )
+        if isinstance(state, dict):
+            last_state = state
+            if collection_name in (state.get("selectedText") or ""):
+                return state
+        time.sleep(1)
+
+    raise TimeoutException(
+        f"Failed to select Shipinhao collection {collection_name!r}. Last state: {last_state!r}"
+    )
+
+
+def wait_for_publish_button_ready(driver, duration=30):
+    deadline = time.time() + duration
+    last_state = None
+
+    while time.time() < deadline:
+        state = _execute_in_content_frame(
+            driver,
+            CONTENT_FRAME_PUBLISH_BUTTON_STATE_SCRIPT,
+        )
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("exists") and not state.get("disabled"):
+                return state
+        time.sleep(1)
+
+    raise TimeoutException(
+        f"Timed out waiting for Shipinhao publish button readiness. Last state: {last_state!r}"
     )
 
 
@@ -933,16 +1145,11 @@ class ShiPinHaoPublisher:
                     dismiss_alert(driver)
                     time.sleep(5)
 
-                time.sleep(10)  # Wait for 10 seconds after detecting the delete button
                 print("Video uploaded or completion indicator detected!")
+                post_upload_state = wait_for_post_upload_editor_ready(driver, duration=180, stable_seconds=8)
+                print(f"Shipinhao post-upload editor is stable: {post_upload_state}")
 
                 print("Skipping cover upload for ShiPinHao; current UI no longer requires it.")
-                WebDriverWait(driver, 30).until(
-                    lambda current_driver: _execute_in_content_frame(
-                        current_driver,
-                        "return !!document.querySelector('.input-editor[contenteditable]');",
-                    )
-                )
                 time.sleep(2)
 
                 # Set description
@@ -979,22 +1186,14 @@ class ShiPinHaoPublisher:
                     print("Skipping location selection for ShiPinHao.")
 
                 # Set playlist
-                click_content_frame_css(
-                    driver,
-                    ".post-album-display-wrap .display-text",
-                    30,
-                )
-                time.sleep(3)
-
                 try:
-                    click_content_frame_css(
+                    collection_state = select_content_frame_collection(
                         driver,
-                        ".common-option-list-wrap.option-list-wrap .name",
-                        duration=30,
-                        text="简单生活",
-                        exact=True,
+                        "简单生活",
+                        duration=20,
                     )
-                    time.sleep(3)
+                    print(f"Shipinhao collection selected: {collection_state}")
+                    time.sleep(2)
                 except Exception as e:
                     print(f"Collection '简单生活' not found or not clickable: {e}")
 
@@ -1067,6 +1266,8 @@ class ShiPinHaoPublisher:
                 else:
                     user_input = "yes"
                 if user_input == 'yes':
+                    publish_state = wait_for_publish_button_ready(driver, duration=30)
+                    print(f"Shipinhao publish button ready: {publish_state}")
                     click_content_frame_css(
                         driver,
                         "button",
