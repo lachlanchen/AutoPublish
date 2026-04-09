@@ -3,7 +3,12 @@ import json
 import traceback
 import os
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, NoAlertPresentException, TimeoutException
+from selenium.common.exceptions import (
+    NoAlertPresentException,
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -81,6 +86,56 @@ for (const el of matches) {
 return null;
 """
 
+DEEP_EXISTS_SCRIPT = r"""
+const selector = arguments[0];
+const requireVisible = !!arguments[1];
+const exactText = arguments.length > 2 ? arguments[2] : null;
+const exactMatch = !!arguments[3];
+const maxDepth = 8;
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style) return false;
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  if (parseFloat(style.opacity || '1') === 0) {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function matchesText(el, text, exact) {
+  if (text === null || text === undefined) return true;
+  const value = (el.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!value) return false;
+  return exact ? value === text : value.includes(text);
+}
+
+function queryAllDeep(root, depth, acc) {
+  if (!root || depth > maxDepth || !root.querySelectorAll) return acc;
+  for (const el of root.querySelectorAll(selector)) {
+    acc.push(el);
+  }
+  for (const el of root.querySelectorAll('*')) {
+    if (el.shadowRoot) {
+      queryAllDeep(el.shadowRoot, depth + 1, acc);
+    }
+  }
+  return acc;
+}
+
+const matches = queryAllDeep(document, 0, []);
+for (const el of matches) {
+  if ((!requireVisible || isVisible(el)) && matchesText(el, exactText, exactMatch)) {
+    return true;
+  }
+}
+return false;
+"""
+
 # def dismiss_alert(driver):
 #     try:
 #         alert = driver.switch_to.alert
@@ -138,14 +193,32 @@ def wait_for_any_element(driver, xpaths, duration=30):
 
 def find_deep_css(driver, selector, duration=30, visible=True):
     return WebDriverWait(driver, duration).until(
-        lambda current_driver: current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible)
+        lambda current_driver: _run_deep_query(current_driver, selector, visible)
     )
 
 
 def find_deep_text(driver, selector, text, duration=30, visible=True, exact=False):
     return WebDriverWait(driver, duration).until(
-        lambda current_driver: current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible, text, exact)
+        lambda current_driver: _run_deep_query(current_driver, selector, visible, text, exact)
     )
+
+
+def _run_deep_query(driver, selector, visible=True, text=None, exact=False):
+    try:
+        if text is None:
+            return driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible)
+        return driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible, text, exact)
+    except StaleElementReferenceException:
+        return False
+
+
+def deep_exists(driver, selector, visible=True, text=None, exact=False):
+    try:
+        if text is None:
+            return bool(driver.execute_script(DEEP_EXISTS_SCRIPT, selector, visible))
+        return bool(driver.execute_script(DEEP_EXISTS_SCRIPT, selector, visible, text, exact))
+    except StaleElementReferenceException:
+        return False
 
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
@@ -189,21 +262,14 @@ def wait_for_publish_page_ready(driver, duration=45):
     dismiss_overlays(driver)
 
     try:
-        ready_element = WebDriverWait(driver, duration).until(
-            lambda current_driver: next(
-                (
-                    found
-                    for found in (
-                        current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, True)
-                        for selector in SHIPINHAO_READY_SELECTORS
-                    )
-                    if found
-                ),
-                False,
+        WebDriverWait(driver, duration).until(
+            lambda current_driver: any(
+                deep_exists(current_driver, selector, visible=True)
+                for selector in SHIPINHAO_READY_SELECTORS
             )
         )
         print(f"Shipinhao editor is ready at {driver.current_url}")
-        return ready_element
+        return True
     except TimeoutException:
         print(f"Timed out waiting for Shipinhao editor. title={driver.title!r} url={driver.current_url!r}")
         save_debug_snapshot(driver, "publish_ready_timeout")
@@ -391,7 +457,7 @@ class ShiPinHaoPublisher:
                         (
                             found
                             for found in (
-                                current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, False)
+                                _run_deep_query(current_driver, selector, False)
                                 for selector in SHIPINHAO_UPLOAD_INPUT_SELECTORS
                             )
                             if found
