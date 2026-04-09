@@ -424,7 +424,20 @@ const display =
   document.querySelector('.post-album-display') ||
   document.querySelector('.post-album-wrap .display-text');
 const filterWrap = document.querySelector('.post-album-wrap .filter-wrap');
-const displayTextNode = document.querySelector('.post-album-wrap .display-text');
+const selectedNode =
+  document.querySelector('.post-album-wrap .collection-text span') ||
+  document.querySelector('.post-album-wrap .display-text');
+
+const selectedText = norm(selectedNode && selectedNode.textContent);
+if (selectedText && selectedText.includes(desired)) {
+  return {
+    found: true,
+    selectedText,
+    options: Array.from(document.querySelectorAll('.post-album-wrap .option-item')).map((item) => norm(item.innerText || item.textContent || '')),
+    filterVisible: isVisible(filterWrap),
+    alreadySelected: true,
+  };
+}
 
 if (!isVisible(filterWrap)) {
   click(display);
@@ -439,7 +452,7 @@ const option = options.find((item) => {
 if (!option) {
   return {
     found: false,
-    selectedText: norm(displayTextNode && displayTextNode.textContent),
+    selectedText,
     options: options.map((item) => norm(item.innerText || item.textContent || '')),
     filterVisible: isVisible(filterWrap),
   };
@@ -449,7 +462,12 @@ click(option.querySelector('.item') || option.querySelector('.name') || option);
 
 return {
   found: true,
-  selectedText: norm(displayTextNode && displayTextNode.textContent),
+  selectedText: norm(
+    (
+      document.querySelector('.post-album-wrap .collection-text span') ||
+      document.querySelector('.post-album-wrap .display-text')
+    )?.textContent
+  ),
   options: options.map((item) => norm(item.innerText || item.textContent || '')),
   filterVisible: isVisible(filterWrap),
 };
