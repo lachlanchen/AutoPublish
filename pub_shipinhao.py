@@ -158,6 +158,9 @@ UPLOAD_COMPLETE_XPATHS = [
 ]
 
 def is_upload_complete_indicator_present(driver):
+    if _content_frame_upload_ready(driver):
+        print("Upload preview is ready in content frame, upload likely complete.")
+        return True
     for xpath in UPLOAD_COMPLETE_XPATHS:
         if _indicator_present_in_content_frame(driver, xpath):
             print(f"Upload indicator found in content frame ({xpath}), upload likely complete.")
@@ -170,6 +173,30 @@ def is_upload_complete_indicator_present(driver):
         except NoSuchElementException:
             continue
     return False
+
+
+def _content_frame_upload_ready(driver):
+    expression = r"""
+(() => {
+  const frame = document.querySelector("iframe[name=content]");
+  if (!frame || !frame.contentDocument) return false;
+  const wrap = frame.contentDocument.querySelector(".post-upload-wrap");
+  if (!wrap) return false;
+  const previewVideo = wrap.querySelector('video[src^="blob:"]');
+  const uploading = wrap.querySelector(".ant-upload.ant-upload-drag-uploading");
+  return !!previewVideo && !uploading;
+})()
+"""
+    try:
+        result = driver.execute_cdp_cmd(
+            "Runtime.evaluate",
+            {"expression": expression, "returnByValue": True},
+        )
+    except Exception:
+        return False
+
+    payload = result.get("result") or {}
+    return bool(payload.get("value"))
 
 
 def _indicator_present_in_content_frame(driver, xpath):
