@@ -67,7 +67,9 @@ def create_new_driver(port=5003):
 def publish_platform(publisher, platform_name):
     try:
         print(f"Publishing on {platform_name}...")
-        publisher.publish()
+        result = publisher.publish()
+        if result is False:
+            raise RuntimeError(f"{platform_name} publisher returned unsuccessful status")
         print(f"Successfully published on {platform_name}.")
         return 1
     except Exception as e:
@@ -241,4 +243,3 @@ if __name__ == "__main__":
                         )
                         if success > 0:
                             update_csv_if_new(filename, processed_path)
-

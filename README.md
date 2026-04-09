@@ -38,6 +38,7 @@
 | Run with local watcher | [Running the CLI pipeline (`autopub.py`)](#running-the-cli-pipeline-autopubpy) |
 | Run via HTTP queue | [Running the Tornado service (`app.py`)](#running-the-tornado-service-apppy) |
 | Deploy as service | [Raspberry Pi / Linux Service Setup](#raspberry-pi--linux-service-setup) |
+| Shipinhao live ops | [`docs/SHIPINHAO_PUBLISH_WORKFLOW.md`](docs/SHIPINHAO_PUBLISH_WORKFLOW.md) |
 | Support the project | [Support](#support-autopublish) |
 
 Automation toolkit for distributing short-form video content to multiple Chinese and international creator platforms. The project combines a Tornado-based service, Selenium automation bots, and a local file-watcher workflow so that dropping a video into a folder eventually results in uploads to XiaoHongShu, Douyin, Bilibili, WeChat Channels (ShiPinHao), Instagram, and optionally YouTube.

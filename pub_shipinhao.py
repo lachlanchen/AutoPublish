@@ -9,11 +9,27 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from utils import dismiss_alert, bring_to_front, close_extra_tabs
+from utils import dismiss_alert, bring_to_front, close_extra_tabs, log_html_snapshot
 from login_shipinhao import ShiPinHaoLogin
 import traceback
 
 import re
+
+SHIPINHAO_CREATE_URL = "https://channels.weixin.qq.com/platform/post/create"
+SHIPINHAO_WINDOW_PATTERNS = ["视频号", "视频号助手", "发表动态", "视频管理"]
+SHIPINHAO_READY_XPATHS = [
+    '//div[contains(@class, "post-create-wrap")]',
+    '//div[contains(@class, "post-edit-wrap")]',
+    '//div[contains(@class, "post-upload-wrap")]',
+    '//div[contains(@class, "input-editor") and @contenteditable]',
+    '//input[@type="file" and contains(@accept, "video")]',
+    "//span[contains(text(), '发表动态')]",
+]
+SHIPINHAO_UPLOAD_INPUT_XPATHS = [
+    '//input[@type="file" and contains(@accept, "video")]',
+    '//div[contains(@class, "post-upload-wrap")]//input[@type="file"]',
+    '//input[@type="file"]',
+]
 
 # def dismiss_alert(driver):
 #     try:
@@ -55,6 +71,20 @@ def wait_for_element_clickable(driver, xpath, duration=30):
 def wait_for_element_visible(driver, xpath, duration=30):
     return WebDriverWait(driver, duration).until(EC.visibility_of_element_located((By.XPATH, xpath)))
 
+
+def wait_for_any_element(driver, xpaths, duration=30):
+    def _locate(current_driver):
+        for xpath in xpaths:
+            try:
+                element = current_driver.find_element(By.XPATH, xpath)
+                if element:
+                    return element
+            except NoSuchElementException:
+                continue
+        return False
+
+    return WebDriverWait(driver, duration).until(_locate)
+
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
     try:
@@ -73,6 +103,37 @@ def dismiss_overlays(driver):
         )
     except Exception:
         pass
+
+
+def save_debug_snapshot(driver, label):
+    log_html_snapshot(driver, "shipinhao", label)
+    logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    screenshot_path = os.path.join(logs_dir, f"shipinhao-{label}.png")
+    try:
+        driver.save_screenshot(screenshot_path)
+        print(f"Saved Shipinhao screenshot to {screenshot_path}")
+    except Exception as exc:
+        print(f"Failed to save Shipinhao screenshot for {label}: {exc}")
+
+
+def wait_for_publish_page_ready(driver, duration=45):
+    try:
+        driver.switch_to.default_content()
+    except Exception:
+        pass
+
+    dismiss_alert(driver)
+    dismiss_overlays(driver)
+
+    try:
+        ready_element = wait_for_any_element(driver, SHIPINHAO_READY_XPATHS, duration)
+        print(f"Shipinhao editor is ready at {driver.current_url}")
+        return ready_element
+    except TimeoutException:
+        print(f"Timed out waiting for Shipinhao editor. title={driver.title!r} url={driver.current_url!r}")
+        save_debug_snapshot(driver, "publish_ready_timeout")
+        raise
 
 class ShiPinHaoPublisher:
     def __init__(self, driver, video_path, thumbnail_path, metadata, test=False):
@@ -228,20 +289,20 @@ class ShiPinHaoPublisher:
                 test = self.test
 
                 print("Starting the publishing process on ShiPinHao...")
-                driver.get("https://channels.weixin.qq.com/post/create")
-                dismiss_alert(driver)
-                time.sleep(10)
-
-                bring_to_front(["视频号"])
-                close_extra_tabs(driver)
-
-                wait_for_element(driver, "//span[contains(text(), '发表动态')]", 30)
+                driver.get(SHIPINHAO_CREATE_URL)
                 dismiss_alert(driver)
                 time.sleep(3)
 
+                bring_to_front(SHIPINHAO_WINDOW_PATTERNS)
+                close_extra_tabs(driver)
+
+                wait_for_publish_page_ready(driver, 45)
+                dismiss_alert(driver)
+                time.sleep(2)
+
                 # Upload video
-                bring_to_front(["视频号"])
-                video_upload_input = wait_for_element(driver, '//input[@type="file"]', 30)
+                bring_to_front(SHIPINHAO_WINDOW_PATTERNS)
+                video_upload_input = wait_for_any_element(driver, SHIPINHAO_UPLOAD_INPUT_XPATHS, 30)
                 video_upload_input.send_keys(video_path)
                 print("Video uploading...")
 
@@ -427,14 +488,22 @@ class ShiPinHaoPublisher:
 
                 print("Process completed successfully!")
                 self.retry_count = 0  # reset retry count after successful execution
+                return True
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback.print_exc()
+                save_debug_snapshot(driver, f"publish_attempt_{self.retry_count + 1}")
                 self.retry_count += 1
+                if self.retry_count >= 3:
+                    message = "Maximum retry attempts reached. Process failed."
+                    print(message)
+                    raise RuntimeError(message) from e
                 print(f"Retrying the whole process... Attempt {self.retry_count}")
-                self.publish()  # Retry the whole process
+                return self.publish()  # Retry the whole process
         else:
-            print("Maximum retry attempts reached. Process failed.")
+            message = "Maximum retry attempts reached. Process failed."
+            print(message)
+            raise RuntimeError(message)
 
 
 if __name__ == "__main__":
