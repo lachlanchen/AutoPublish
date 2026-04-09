@@ -289,6 +289,29 @@ def _find_in_content_frame(driver, selector, visible=True, text=None, exact=Fals
         pass
     return False
 
+
+def find_any_in_content_frame(driver, selectors, duration=30, visible=True):
+    def _locate(current_driver):
+        if not _switch_to_content_frame(current_driver):
+            return False
+
+        for selector in selectors:
+            try:
+                candidates = current_driver.find_elements(By.CSS_SELECTOR, selector)
+            except Exception:
+                continue
+
+            for candidate in candidates:
+                try:
+                    if visible and not candidate.is_displayed():
+                        continue
+                    return candidate
+                except StaleElementReferenceException:
+                    continue
+        return False
+
+    return WebDriverWait(driver, duration).until(_locate)
+
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
     try:
@@ -521,18 +544,11 @@ class ShiPinHaoPublisher:
 
                 # Upload video
                 bring_to_front(SHIPINHAO_WINDOW_PATTERNS)
-                video_upload_input = WebDriverWait(driver, 30).until(
-                    lambda current_driver: next(
-                        (
-                            found
-                            for found in (
-                                _run_deep_query(current_driver, selector, False)
-                                for selector in SHIPINHAO_UPLOAD_INPUT_SELECTORS
-                            )
-                            if found
-                        ),
-                        False,
-                    )
+                video_upload_input = find_any_in_content_frame(
+                    driver,
+                    SHIPINHAO_UPLOAD_INPUT_SELECTORS,
+                    duration=30,
+                    visible=False,
                 )
                 video_upload_input.send_keys(video_path)
                 print("Video uploading...")
