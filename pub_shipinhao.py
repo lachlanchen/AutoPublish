@@ -6,6 +6,7 @@ from selenium import webdriver
 from selenium.common.exceptions import (
     NoAlertPresentException,
     NoSuchElementException,
+    NoSuchFrameException,
     StaleElementReferenceException,
     TimeoutException,
 )
@@ -204,6 +205,9 @@ def find_deep_text(driver, selector, text, duration=30, visible=True, exact=Fals
 
 
 def _run_deep_query(driver, selector, visible=True, text=None, exact=False):
+    frame_match = _find_in_content_frame(driver, selector, visible, text, exact)
+    if frame_match:
+        return frame_match
     try:
         if text is None:
             return driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible)
@@ -213,12 +217,77 @@ def _run_deep_query(driver, selector, visible=True, text=None, exact=False):
 
 
 def deep_exists(driver, selector, visible=True, text=None, exact=False):
+    frame_match = _find_in_content_frame(driver, selector, visible, text, exact)
+    if frame_match:
+        return True
     try:
         if text is None:
             return bool(driver.execute_script(DEEP_EXISTS_SCRIPT, selector, visible))
         return bool(driver.execute_script(DEEP_EXISTS_SCRIPT, selector, visible, text, exact))
     except StaleElementReferenceException:
         return False
+
+
+def _switch_to_content_frame(driver):
+    try:
+        driver.switch_to.default_content()
+    except Exception:
+        return False
+    try:
+        driver.switch_to.frame("content")
+        return True
+    except (NoSuchFrameException, NoSuchElementException, StaleElementReferenceException):
+        try:
+            frame = driver.find_element(By.CSS_SELECTOR, 'iframe[name="content"]')
+            driver.switch_to.frame(frame)
+            return True
+        except Exception:
+            try:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
+            return False
+
+
+def _matches_element_text(element, text, exact=False):
+    if text is None:
+        return True
+    value = (element.text or "").strip()
+    if not value:
+        return False
+    if exact:
+        return value == text
+    return text in value
+
+
+def _find_in_content_frame(driver, selector, visible=True, text=None, exact=False):
+    if not _switch_to_content_frame(driver):
+        return False
+
+    try:
+        candidates = driver.find_elements(By.CSS_SELECTOR, selector)
+    except Exception:
+        try:
+            driver.switch_to.default_content()
+        except Exception:
+            pass
+        return False
+
+    for candidate in candidates:
+        try:
+            if visible and not candidate.is_displayed():
+                continue
+            if not _matches_element_text(candidate, text, exact):
+                continue
+            return candidate
+        except StaleElementReferenceException:
+            continue
+
+    try:
+        driver.switch_to.default_content()
+    except Exception:
+        pass
+    return False
 
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
