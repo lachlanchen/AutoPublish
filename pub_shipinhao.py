@@ -159,6 +159,9 @@ UPLOAD_COMPLETE_XPATHS = [
 
 def is_upload_complete_indicator_present(driver):
     for xpath in UPLOAD_COMPLETE_XPATHS:
+        if _indicator_present_in_content_frame(driver, xpath):
+            print(f"Upload indicator found in content frame ({xpath}), upload likely complete.")
+            return True
         try:
             element = driver.find_element(By.XPATH, xpath)
             if element and element.is_displayed():
@@ -166,6 +169,29 @@ def is_upload_complete_indicator_present(driver):
                 return True
         except NoSuchElementException:
             continue
+    return False
+
+
+def _indicator_present_in_content_frame(driver, xpath):
+    if not _switch_to_content_frame(driver):
+        return False
+
+    try:
+        elements = driver.find_elements(By.XPATH, xpath)
+        for element in elements:
+            try:
+                if element and element.is_displayed():
+                    return True
+            except StaleElementReferenceException:
+                continue
+    except Exception:
+        return False
+    finally:
+        try:
+            driver.switch_to.default_content()
+        except Exception:
+            pass
+
     return False
 
 def wait_for_element(driver, xpath, duration=30):
