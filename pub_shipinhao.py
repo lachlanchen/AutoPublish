@@ -199,6 +199,174 @@ def _content_frame_upload_ready(driver):
     return bool(payload.get("value"))
 
 
+def _execute_in_content_frame(driver, script, *args):
+    if not _switch_to_content_frame(driver):
+        return False
+    try:
+        return driver.execute_script(script, *args)
+    except StaleElementReferenceException:
+        return False
+    finally:
+        try:
+            driver.switch_to.default_content()
+        except Exception:
+            pass
+
+
+CONTENT_FRAME_CLICK_SCRIPT = r"""
+const selector = arguments[0];
+const expectedText = arguments.length > 1 ? arguments[1] : null;
+const exactMatch = !!arguments[2];
+const requireVisible = arguments.length > 3 ? !!arguments[3] : true;
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style) return false;
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  if (parseFloat(style.opacity || '1') === 0) {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function textMatches(el, value) {
+  if (value === null || value === undefined) return true;
+  const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+  return exactMatch ? text === value : text.includes(value);
+}
+
+const match = Array.from(document.querySelectorAll(selector)).find(
+  (el) => (!requireVisible || isVisible(el)) && textMatches(el, expectedText)
+);
+if (!match) return false;
+match.scrollIntoView({block: 'center'});
+match.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
+match.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+if (typeof match.click === 'function') {
+  match.click();
+}
+match.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+match.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+return true;
+"""
+
+
+CONTENT_FRAME_SET_INPUT_SCRIPT = r"""
+const selector = arguments[0];
+const value = arguments[1] || '';
+const match = document.querySelector(selector);
+if (!match) return false;
+match.scrollIntoView({block: 'center'});
+match.focus();
+const proto = match.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+if (descriptor && descriptor.set) {
+  descriptor.set.call(match, value);
+} else {
+  match.value = value;
+}
+match.dispatchEvent(new Event('input', {bubbles: true}));
+match.dispatchEvent(new Event('change', {bubbles: true}));
+match.blur();
+return true;
+"""
+
+
+CONTENT_FRAME_SET_EDITABLE_SCRIPT = r"""
+const selector = arguments[0];
+const value = arguments[1] || '';
+const match = document.querySelector(selector);
+if (!match) return false;
+match.scrollIntoView({block: 'center'});
+match.focus();
+match.innerHTML = '';
+match.textContent = value;
+match.dispatchEvent(new InputEvent('input', {
+  bubbles: true,
+  cancelable: true,
+  data: value,
+  inputType: 'insertText',
+}));
+match.dispatchEvent(new Event('change', {bubbles: true}));
+match.blur();
+return true;
+"""
+
+
+CONTENT_FRAME_SET_CHECKBOX_SCRIPT = r"""
+const selector = arguments[0];
+const desired = !!arguments[1];
+const match = document.querySelector(selector);
+if (!match) return false;
+match.scrollIntoView({block: 'center'});
+const clickTarget = match.closest('label, .ant-checkbox-wrapper, .declare-original-checkbox, .original-proto-wrapper') || match;
+if (!!match.checked !== desired) {
+  if (typeof clickTarget.click === 'function') {
+    clickTarget.click();
+  } else if (typeof match.click === 'function') {
+    match.click();
+  }
+}
+if (!!match.checked !== desired) {
+  match.checked = desired;
+  match.dispatchEvent(new Event('input', {bubbles: true}));
+  match.dispatchEvent(new Event('change', {bubbles: true}));
+}
+return !!match.checked === desired;
+"""
+
+
+def click_content_frame_css(driver, selector, duration=30, text=None, exact=False, visible=True):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: _execute_in_content_frame(
+            current_driver,
+            CONTENT_FRAME_CLICK_SCRIPT,
+            selector,
+            text,
+            exact,
+            visible,
+        )
+    )
+
+
+def set_content_frame_input_value(driver, selector, text, duration=30):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: _execute_in_content_frame(
+            current_driver,
+            CONTENT_FRAME_SET_INPUT_SCRIPT,
+            selector,
+            text,
+        )
+    )
+
+
+def set_content_frame_editable_value(driver, selector, text, duration=30):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: _execute_in_content_frame(
+            current_driver,
+            CONTENT_FRAME_SET_EDITABLE_SCRIPT,
+            selector,
+            text,
+        )
+    )
+
+
+def set_content_frame_checkbox(driver, selector, checked=True, duration=30):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: _execute_in_content_frame(
+            current_driver,
+            CONTENT_FRAME_SET_CHECKBOX_SCRIPT,
+            selector,
+            checked,
+        )
+    )
+
+
 def _indicator_present_in_content_frame(driver, xpath):
     if not _switch_to_content_frame(driver):
         return False
@@ -691,14 +859,23 @@ class ShiPinHaoPublisher:
                 time.sleep(10)  # Wait for 10 seconds after detecting the delete button
                 print("Video uploaded or completion indicator detected!")
 
-                # Upload and confirm cover
-                self.upload_and_confirm_cover()
-                time.sleep(3)
+                print("Skipping cover upload for ShiPinHao; current UI no longer requires it.")
+                WebDriverWait(driver, 30).until(
+                    lambda current_driver: _execute_in_content_frame(
+                        current_driver,
+                        "return !!document.querySelector('.input-editor[contenteditable]');",
+                    )
+                )
+                time.sleep(2)
 
                 # Set description
                 video_description_with_tags = self.metadata["long_description"] + " " + " ".join("#" + tag for tag in self.metadata["tags"])
-                description_input = find_deep_css(driver, '.input-editor[contenteditable]', 30)
-                self.clear_and_type(description_input, video_description_with_tags)
+                set_content_frame_editable_value(
+                    driver,
+                    ".input-editor[contenteditable]",
+                    video_description_with_tags,
+                    duration=30,
+                )
                 time.sleep(3)
 
                 # # Set location
@@ -724,31 +901,33 @@ class ShiPinHaoPublisher:
                     print("Skipping location selection for ShiPinHao.")
 
                 # Set playlist
-                collection_dropdown = find_deep_css(
+                click_content_frame_css(
                     driver,
                     ".post-album-display-wrap .display-text",
                     30,
                 )
-                safe_click(driver, collection_dropdown)
                 time.sleep(3)
 
                 try:
-                    simple_life_collection = find_deep_text(
+                    click_content_frame_css(
                         driver,
                         ".common-option-list-wrap.option-list-wrap .name",
-                        "简单生活",
-                        30,
+                        duration=30,
+                        text="简单生活",
                         exact=True,
                     )
-                    safe_click(driver, simple_life_collection)
                     time.sleep(3)
                 except Exception as e:
                     print(f"Collection '简单生活' not found or not clickable: {e}")
 
                 # Set short title
                 title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]
-                short_title_input = find_deep_css(driver, 'input[placeholder*="概括视频主要内容"]', 30)
-                self.clear_and_type(short_title_input, self.clean_title(title[:16]))
+                set_content_frame_input_value(
+                    driver,
+                    'input[placeholder*="概括视频主要内容"]',
+                    self.clean_title(title[:16]),
+                    duration=30,
+                )
                 time.sleep(3)
 
 #                 # Original declaration
@@ -778,16 +957,29 @@ class ShiPinHaoPublisher:
 
                 # ------------------ Step 6: Declare original content ------------------
                 print("Declaring original content...")
-                declare_original_checkbox = find_deep_css(driver, ".declare-original-checkbox input.ant-checkbox-input", 10)
-                safe_click(driver, declare_original_checkbox)
+                set_content_frame_checkbox(
+                    driver,
+                    ".declare-original-checkbox input.ant-checkbox-input",
+                    checked=True,
+                    duration=10,
+                )
                 time.sleep(2)
 
-                dialog_checkbox = find_deep_css(driver, ".original-proto-wrapper input.ant-checkbox-input", 10)
-                safe_click(driver, dialog_checkbox)
+                set_content_frame_checkbox(
+                    driver,
+                    ".original-proto-wrapper input.ant-checkbox-input",
+                    checked=True,
+                    duration=10,
+                )
                 time.sleep(1)
 
-                declare_button = find_deep_text(driver, "button", "声明原创", 10, exact=True)
-                safe_click(driver, declare_button)
+                click_content_frame_css(
+                    driver,
+                    "button",
+                    duration=10,
+                    text="声明原创",
+                    exact=True,
+                )
                 time.sleep(3)
 
                 # Click publish button
@@ -796,8 +988,13 @@ class ShiPinHaoPublisher:
                 else:
                     user_input = "yes"
                 if user_input == 'yes':
-                    submit_button = find_deep_text(driver, "button", "发表", 30, exact=True)
-                    safe_click(driver, submit_button)
+                    click_content_frame_css(
+                        driver,
+                        "button",
+                        duration=30,
+                        text="发表",
+                        exact=True,
+                    )
                     time.sleep(10)
                     print("Publishing...")
                 else:
