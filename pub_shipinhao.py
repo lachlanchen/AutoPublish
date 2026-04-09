@@ -312,6 +312,40 @@ def find_any_in_content_frame(driver, selectors, duration=30, visible=True):
 
     return WebDriverWait(driver, duration).until(_locate)
 
+
+def send_file_to_content_frame(driver, selectors, file_path, duration=30):
+    deadline = time.time() + duration
+    last_error = None
+
+    while time.time() < deadline:
+        if not _switch_to_content_frame(driver):
+            time.sleep(0.5)
+            continue
+
+        for selector in selectors:
+            try:
+                candidates = driver.find_elements(By.CSS_SELECTOR, selector)
+            except Exception as exc:
+                last_error = exc
+                continue
+
+            for candidate in candidates:
+                try:
+                    candidate.send_keys(file_path)
+                    return True
+                except StaleElementReferenceException as exc:
+                    last_error = exc
+                    continue
+                except Exception as exc:
+                    last_error = exc
+                    continue
+
+        time.sleep(0.5)
+
+    if last_error:
+        raise last_error
+    raise TimeoutException("Timed out sending file to Shipinhao upload input.")
+
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
     try:
@@ -544,13 +578,18 @@ class ShiPinHaoPublisher:
 
                 # Upload video
                 bring_to_front(SHIPINHAO_WINDOW_PATTERNS)
-                video_upload_input = find_any_in_content_frame(
+                find_any_in_content_frame(
                     driver,
                     SHIPINHAO_UPLOAD_INPUT_SELECTORS,
                     duration=30,
                     visible=False,
                 )
-                video_upload_input.send_keys(video_path)
+                send_file_to_content_frame(
+                    driver,
+                    SHIPINHAO_UPLOAD_INPUT_SELECTORS,
+                    video_path,
+                    duration=30,
+                )
                 print("Video uploading...")
 
                 start_time = time.time()
