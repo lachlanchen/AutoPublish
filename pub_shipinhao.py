@@ -321,6 +321,21 @@ return !!match.checked === desired;
 """
 
 
+CONTENT_FRAME_READ_FIELD_SCRIPT = r"""
+const selector = arguments[0];
+const fieldType = arguments[1] || 'text';
+const match = document.querySelector(selector);
+if (!match) return null;
+if (fieldType === 'input') {
+  return match.value || '';
+}
+if (fieldType === 'checked') {
+  return !!match.checked;
+}
+return (match.innerText || match.textContent || '').replace(/\s+/g, ' ').trim();
+"""
+
+
 def click_content_frame_css(driver, selector, duration=30, text=None, exact=False, visible=True):
     return WebDriverWait(driver, duration).until(
         lambda current_driver: _execute_in_content_frame(
@@ -364,6 +379,68 @@ def set_content_frame_checkbox(driver, selector, checked=True, duration=30):
             selector,
             checked,
         )
+    )
+
+
+def read_content_frame_field(driver, selector, field_type="text"):
+    value = _execute_in_content_frame(
+        driver,
+        CONTENT_FRAME_READ_FIELD_SCRIPT,
+        selector,
+        field_type,
+    )
+    return value
+
+
+def _normalize_field_text(value):
+    return " ".join((value or "").split())
+
+
+def ensure_content_frame_editable_value(driver, selector, text, duration=30):
+    expected = _normalize_field_text(text)
+    deadline = time.time() + duration
+    last_value = None
+    while time.time() < deadline:
+        set_content_frame_editable_value(driver, selector, text, duration=5)
+        current = read_content_frame_field(driver, selector, "text")
+        last_value = current
+        normalized = _normalize_field_text(current)
+        if normalized == expected or expected in normalized:
+            return current
+        time.sleep(0.5)
+    raise TimeoutException(
+        f"Failed to verify Shipinhao editable field {selector!r}. Last value: {last_value!r}"
+    )
+
+
+def ensure_content_frame_input_value(driver, selector, text, duration=30):
+    expected = _normalize_field_text(text)
+    deadline = time.time() + duration
+    last_value = None
+    while time.time() < deadline:
+        set_content_frame_input_value(driver, selector, text, duration=5)
+        current = read_content_frame_field(driver, selector, "input")
+        last_value = current
+        if _normalize_field_text(current) == expected:
+            return current
+        time.sleep(0.5)
+    raise TimeoutException(
+        f"Failed to verify Shipinhao input field {selector!r}. Last value: {last_value!r}"
+    )
+
+
+def ensure_content_frame_checkbox_value(driver, selector, checked=True, duration=30):
+    deadline = time.time() + duration
+    last_value = None
+    while time.time() < deadline:
+        set_content_frame_checkbox(driver, selector, checked=checked, duration=5)
+        current = read_content_frame_field(driver, selector, "checked")
+        last_value = current
+        if bool(current) == bool(checked):
+            return current
+        time.sleep(0.5)
+    raise TimeoutException(
+        f"Failed to verify Shipinhao checkbox {selector!r}. Last value: {last_value!r}"
     )
 
 
@@ -870,12 +947,13 @@ class ShiPinHaoPublisher:
 
                 # Set description
                 video_description_with_tags = self.metadata["long_description"] + " " + " ".join("#" + tag for tag in self.metadata["tags"])
-                set_content_frame_editable_value(
+                description_value = ensure_content_frame_editable_value(
                     driver,
                     ".input-editor[contenteditable]",
                     video_description_with_tags,
                     duration=30,
                 )
+                print(f"Shipinhao description set ({len(description_value or '')} chars).")
                 time.sleep(3)
 
                 # # Set location
@@ -922,12 +1000,13 @@ class ShiPinHaoPublisher:
 
                 # Set short title
                 title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]
-                set_content_frame_input_value(
+                short_title_value = ensure_content_frame_input_value(
                     driver,
                     'input[placeholder*="概括视频主要内容"]',
                     self.clean_title(title[:16]),
                     duration=30,
                 )
+                print(f"Shipinhao short title set to: {short_title_value!r}")
                 time.sleep(3)
 
 #                 # Original declaration
@@ -957,7 +1036,7 @@ class ShiPinHaoPublisher:
 
                 # ------------------ Step 6: Declare original content ------------------
                 print("Declaring original content...")
-                set_content_frame_checkbox(
+                ensure_content_frame_checkbox_value(
                     driver,
                     ".declare-original-checkbox input.ant-checkbox-input",
                     checked=True,
@@ -965,7 +1044,7 @@ class ShiPinHaoPublisher:
                 )
                 time.sleep(2)
 
-                set_content_frame_checkbox(
+                ensure_content_frame_checkbox_value(
                     driver,
                     ".original-proto-wrapper input.ant-checkbox-input",
                     checked=True,
