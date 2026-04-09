@@ -318,11 +318,21 @@ def send_file_to_content_frame(driver, selectors, file_path, duration=30):
     last_error = None
 
     while time.time() < deadline:
-        if not _switch_to_content_frame(driver):
-            time.sleep(0.5)
-            continue
-
         for selector in selectors:
+            object_id = _resolve_content_frame_input_object_id(driver, selector)
+            if object_id:
+                try:
+                    driver.execute_cdp_cmd(
+                        "DOM.setFileInputFiles",
+                        {"files": [file_path], "objectId": object_id},
+                    )
+                    return True
+                except Exception as exc:
+                    last_error = exc
+
+            if not _switch_to_content_frame(driver):
+                continue
+
             try:
                 candidates = driver.find_elements(By.CSS_SELECTOR, selector)
             except Exception as exc:
@@ -345,6 +355,30 @@ def send_file_to_content_frame(driver, selectors, file_path, duration=30):
     if last_error:
         raise last_error
     raise TimeoutException("Timed out sending file to Shipinhao upload input.")
+
+
+def _resolve_content_frame_input_object_id(driver, selector):
+    expression = f"""
+(() => {{
+  const frame = document.querySelector("iframe[name=content]");
+  if (!frame || !frame.contentDocument) return null;
+  return frame.contentDocument.querySelector({json.dumps(selector)});
+}})()
+"""
+    try:
+        result = driver.execute_cdp_cmd(
+            "Runtime.evaluate",
+            {
+                "expression": expression,
+                "objectGroup": "autopub",
+                "includeCommandLineAPI": True,
+            },
+        )
+    except Exception:
+        return None
+
+    payload = result.get("result") or {}
+    return payload.get("objectId")
 
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
