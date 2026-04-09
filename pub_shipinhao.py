@@ -17,19 +17,69 @@ import re
 
 SHIPINHAO_CREATE_URL = "https://channels.weixin.qq.com/platform/post/create"
 SHIPINHAO_WINDOW_PATTERNS = ["视频号", "视频号助手", "发表动态", "视频管理"]
-SHIPINHAO_READY_XPATHS = [
-    '//div[contains(@class, "post-create-wrap")]',
-    '//div[contains(@class, "post-edit-wrap")]',
-    '//div[contains(@class, "post-upload-wrap")]',
-    '//div[contains(@class, "input-editor") and @contenteditable]',
-    '//input[@type="file" and contains(@accept, "video")]',
-    "//span[contains(text(), '发表动态')]",
+SHIPINHAO_READY_SELECTORS = [
+    ".post-create-wrap",
+    ".post-edit-wrap",
+    ".post-upload-wrap",
+    ".input-editor[contenteditable]",
+    'input[type="file"][accept*="video"]',
 ]
-SHIPINHAO_UPLOAD_INPUT_XPATHS = [
-    '//input[@type="file" and contains(@accept, "video")]',
-    '//div[contains(@class, "post-upload-wrap")]//input[@type="file"]',
-    '//input[@type="file"]',
+SHIPINHAO_UPLOAD_INPUT_SELECTORS = [
+    'input[type="file"][accept*="video"]',
+    '.post-upload-wrap input[type="file"]',
+    'input[type="file"]',
 ]
+DEEP_QUERY_SCRIPT = r"""
+const selector = arguments[0];
+const requireVisible = !!arguments[1];
+const exactText = arguments.length > 2 ? arguments[2] : null;
+const maxDepth = 8;
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style) return false;
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  if (parseFloat(style.opacity || '1') === 0) {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function matchesText(el, text) {
+  if (text === null || text === undefined) return true;
+  const value = (el.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!value) return false;
+  if (arguments[2]) {
+    return value === text;
+  }
+  return value.includes(text);
+}
+
+function queryAllDeep(root, depth, acc) {
+  if (!root || depth > maxDepth || !root.querySelectorAll) return acc;
+  for (const el of root.querySelectorAll(selector)) {
+    acc.push(el);
+  }
+  for (const el of root.querySelectorAll('*')) {
+    if (el.shadowRoot) {
+      queryAllDeep(el.shadowRoot, depth + 1, acc);
+    }
+  }
+  return acc;
+}
+
+const matches = queryAllDeep(document, 0, []);
+for (const el of matches) {
+  if ((!requireVisible || isVisible(el)) && matchesText(el, exactText, !!arguments[3])) {
+    return el;
+  }
+}
+return null;
+"""
 
 # def dismiss_alert(driver):
 #     try:
@@ -85,6 +135,18 @@ def wait_for_any_element(driver, xpaths, duration=30):
 
     return WebDriverWait(driver, duration).until(_locate)
 
+
+def find_deep_css(driver, selector, duration=30, visible=True):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible)
+    )
+
+
+def find_deep_text(driver, selector, text, duration=30, visible=True, exact=False):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, visible, text, exact)
+    )
+
 def safe_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
     try:
@@ -127,7 +189,19 @@ def wait_for_publish_page_ready(driver, duration=45):
     dismiss_overlays(driver)
 
     try:
-        ready_element = wait_for_any_element(driver, SHIPINHAO_READY_XPATHS, duration)
+        ready_element = WebDriverWait(driver, duration).until(
+            lambda current_driver: next(
+                (
+                    found
+                    for found in (
+                        current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, True)
+                        for selector in SHIPINHAO_READY_SELECTORS
+                    )
+                    if found
+                ),
+                False,
+            )
+        )
         print(f"Shipinhao editor is ready at {driver.current_url}")
         return ready_element
     except TimeoutException:
@@ -149,40 +223,48 @@ class ShiPinHaoPublisher:
 
 
     def clear_and_type(self, element, text):
-        element.clear()
-        time.sleep(1)  # Wait a bit after clearing
+        tag_name = (element.tag_name or "").lower()
+        contenteditable = (element.get_attribute("contenteditable") or "").lower() == "true"
+        safe_click(self.driver, element)
+        time.sleep(0.5)
+        if tag_name in {"input", "textarea"}:
+            element.clear()
+        elif contenteditable:
+            element.send_keys(Keys.CONTROL, "a")
+            element.send_keys(Keys.BACKSPACE)
+        else:
+            self.driver.execute_script("arguments[0].value = '';", element)
+        time.sleep(0.5)
         element.send_keys(text)
 
     def upload_and_confirm_cover(self):
         try:
             # Wait and click on '更换封面' if it exists
-            change_cover_button = wait_for_element_clickable(self.driver, '//*[contains(text(), "更换封面")]', duration=10)
-            change_cover_button.click()
+            change_cover_button = find_deep_text(self.driver, "button, span, div", "更换封面", duration=10)
+            safe_click(self.driver, change_cover_button)
             time.sleep(2)
 
             # Click on '上传封面' to start the cover upload
-            upload_cover_button = wait_for_element_clickable(self.driver, '//*[contains(text(), "上传封面")]', duration=10)
-            upload_cover_button.click()
+            upload_cover_button = find_deep_text(self.driver, "button, span, div", "上传封面", duration=10)
+            safe_click(self.driver, upload_cover_button)
             time.sleep(2)
 
             # Interact with the file input to upload the cover file
-            file_input_xpath = '//input[@type="file" and @accept="image/jpeg,image/jpg,image/png"]'
-            file_input = wait_for_element(self.driver, file_input_xpath, duration=10)
+            file_input = find_deep_css(self.driver, 'input[type="file"][accept*="image"]', duration=10, visible=False)
             file_input.send_keys(self.thumbnail_path)
             time.sleep(2)
 
             # Confirm the upload by clicking on '确认'
-            confirm_button_xpath = '//*[contains(@class, "finder-dialog-footer")]//*[contains(text(), "确认")]'
-            confirm_button = wait_for_element_clickable(self.driver, confirm_button_xpath, duration=10)
-            confirm_button.click()
+            confirm_button = find_deep_text(self.driver, "button, span, div", "确认", duration=10)
+            safe_click(self.driver, confirm_button)
             time.sleep(2)
 
         except Exception as e:
             print(f"An error occurred during cover upload: {e}")
             # Close the dialog if there's an error
             try:
-                close_button = wait_for_element_clickable(self.driver, '//button[contains(@class, "weui-desktop-dialog__close-btn")]', duration=10)
-                close_button.click()
+                close_button = find_deep_css(self.driver, "button.weui-desktop-dialog__close-btn", duration=10)
+                safe_click(self.driver, close_button)
                 time.sleep(2)
                 print("Closed the cover upload dialog due to an error.")
             except Exception as e:
@@ -237,18 +319,18 @@ class ShiPinHaoPublisher:
             try:
                 dismiss_overlays(driver)
                 # Click on the position display wrapper
-                position_display_wrap = wait_for_element(driver, '//div[contains(@class, "position-display-wrap")]', 30)
+                position_display_wrap = find_deep_css(driver, ".position-display-wrap", 30)
                 safe_click(driver, position_display_wrap)
                 time.sleep(3)
 
                 if location_input_text:
                     # Enter location in the search box
-                    location_input = wait_for_element(driver, '//input[@placeholder="搜索附近位置"]', 30)
+                    location_input = find_deep_css(driver, 'input[placeholder="搜索附近位置"]', 30)
                     self.clear_and_type(location_input, location_input_text)
                     time.sleep(3)
 
                     # Click the search button if needed
-                    search_button = wait_for_element(driver, '//button[contains(@class, "weui-desktop-search__btn")]', 30)
+                    search_button = find_deep_css(driver, "button.weui-desktop-search__btn", 30)
                     safe_click(driver, search_button)
                     time.sleep(3)
 
@@ -256,10 +338,12 @@ class ShiPinHaoPublisher:
                 for _, location_click_text in location_options:
                     try:
                         # Try clicking on the specified location
-                        location_option = wait_for_element_visible(
+                        location_option = find_deep_text(
                             driver,
-                            f"//div[contains(@class, 'location-item-info')]//div[contains(@class, 'name') and normalize-space()='{location_click_text}']",
+                            ".location-item-info .name",
+                            location_click_text,
                             30,
+                            exact=True,
                         )
                         safe_click(driver, location_option)
                         time.sleep(3)
@@ -302,7 +386,19 @@ class ShiPinHaoPublisher:
 
                 # Upload video
                 bring_to_front(SHIPINHAO_WINDOW_PATTERNS)
-                video_upload_input = wait_for_any_element(driver, SHIPINHAO_UPLOAD_INPUT_XPATHS, 30)
+                video_upload_input = WebDriverWait(driver, 30).until(
+                    lambda current_driver: next(
+                        (
+                            found
+                            for found in (
+                                current_driver.execute_script(DEEP_QUERY_SCRIPT, selector, False)
+                                for selector in SHIPINHAO_UPLOAD_INPUT_SELECTORS
+                            )
+                            if found
+                        ),
+                        False,
+                    )
+                )
                 video_upload_input.send_keys(video_path)
                 print("Video uploading...")
 
@@ -324,7 +420,7 @@ class ShiPinHaoPublisher:
 
                 # Set description
                 video_description_with_tags = self.metadata["long_description"] + " " + " ".join("#" + tag for tag in self.metadata["tags"])
-                description_input = wait_for_element(driver, '//*[@data-placeholder="添加描述"]', 30)
+                description_input = find_deep_css(driver, '.input-editor[contenteditable]', 30)
                 self.clear_and_type(description_input, video_description_with_tags)
                 time.sleep(3)
 
@@ -351,20 +447,21 @@ class ShiPinHaoPublisher:
                     print("Skipping location selection for ShiPinHao.")
 
                 # Set playlist
-                collection_dropdown = wait_for_element_clickable(
+                collection_dropdown = find_deep_css(
                     driver,
-                    "//div[contains(@class, 'post-album-display-wrap')]//div[contains(@class, 'display-text') and contains(text(), '选择合集')]",
+                    ".post-album-display-wrap .display-text",
                     30,
                 )
                 safe_click(driver, collection_dropdown)
                 time.sleep(3)
 
                 try:
-                    simple_life_collection = wait_for_element_visible(
+                    simple_life_collection = find_deep_text(
                         driver,
-                        "//div[contains(@class,'common-option-list-wrap') and contains(@class,'option-list-wrap')]"
-                        "//div[contains(@class,'option-item')]//div[contains(@class,'name') and normalize-space()='简单生活']",
+                        ".common-option-list-wrap.option-list-wrap .name",
+                        "简单生活",
                         30,
+                        exact=True,
                     )
                     safe_click(driver, simple_life_collection)
                     time.sleep(3)
@@ -373,7 +470,7 @@ class ShiPinHaoPublisher:
 
                 # Set short title
                 title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]
-                short_title_input = driver.find_element(By.XPATH, '//input[@placeholder="概括视频主要内容，字数建议6-16个字符"]')
+                short_title_input = find_deep_css(driver, 'input[placeholder*="概括视频主要内容"]', 30)
                 self.clear_and_type(short_title_input, self.clean_title(title[:16]))
                 time.sleep(3)
 
@@ -404,74 +501,17 @@ class ShiPinHaoPublisher:
 
                 # ------------------ Step 6: Declare original content ------------------
                 print("Declaring original content...")
-                driver.execute_script(
-                    """
-                    // Step 1: Click the first checkbox to open the dialog
-                    let declareOriginalCheckbox = document.querySelector('.declare-original-checkbox input.ant-checkbox-input');
+                declare_original_checkbox = find_deep_css(driver, ".declare-original-checkbox input.ant-checkbox-input", 10)
+                safe_click(driver, declare_original_checkbox)
+                time.sleep(2)
 
-                    if (declareOriginalCheckbox) {
-                        // Simulate a click event on the first checkbox
-                        let event = new MouseEvent('click', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window,
-                        });
-                        declareOriginalCheckbox.dispatchEvent(event);
-                        console.log('First checkbox clicked to open dialog.');
+                dialog_checkbox = find_deep_css(driver, ".original-proto-wrapper input.ant-checkbox-input", 10)
+                safe_click(driver, dialog_checkbox)
+                time.sleep(1)
 
-                        setTimeout(() => {
-                            // Step 2: Find the dialog-specific checkbox
-                            let dialogCheckbox = document.querySelector('.original-proto-wrapper input.ant-checkbox-input');
-                            if (dialogCheckbox) {
-                                dialogCheckbox.checked = true;
-                                let changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                dialogCheckbox.dispatchEvent(changeEvent);
-                                console.log('Dialog checkbox programmatically checked.');
-
-                                setTimeout(() => {
-                                    // Step 3: Find and click the "声明原创" button by text
-                                    let buttons = document.querySelectorAll('button');
-                                    let declareButton = Array.from(buttons).find(
-                                        btn => btn.textContent.trim() === '声明原创'
-                                    );
-                                    if (declareButton) {
-                                        let buttonEvent = new MouseEvent('click', {
-                                            bubbles: true,
-                                            cancelable: true,
-                                            view: window,
-                                        });
-                                        declareButton.dispatchEvent(buttonEvent);
-                                        console.log('"声明原创" button clicked!');
-
-                                        setTimeout(() => {
-                                            // Step 4: Close the dialog
-                                            let closeButton = document.querySelector('.weui-desktop-icon-btn.weui-desktop-dialog__close-btn');
-                                            if (closeButton) {
-                                                let closeEvent = new MouseEvent('click', {
-                                                    bubbles: true,
-                                                    cancelable: true,
-                                                    view: window,
-                                                });
-                                                closeButton.dispatchEvent(closeEvent);
-                                                console.log('Dialog closed!');
-                                            } else {
-                                                console.log('Close button not found!');
-                                            }
-                                        }, 500);
-                                    } else {
-                                        console.log('"声明原创" button not found!');
-                                    }
-                                }, 500);
-                            } else {
-                                console.log('Dialog checkbox not found!');
-                            }
-                        }, 500);
-                    } else {
-                        console.log('First checkbox not found!');
-                    }
-                    """
-                )
-                time.sleep(5)
+                declare_button = find_deep_text(driver, "button", "声明原创", 10, exact=True)
+                safe_click(driver, declare_button)
+                time.sleep(3)
 
                 # Click publish button
                 if test:
@@ -479,8 +519,8 @@ class ShiPinHaoPublisher:
                 else:
                     user_input = "yes"
                 if user_input == 'yes':
-                    submit_button = wait_for_element(driver, '//*[text()="发表"]', 30)
-                    submit_button.click()
+                    submit_button = find_deep_text(driver, "button", "发表", 30, exact=True)
+                    safe_click(driver, submit_button)
                     time.sleep(10)
                     print("Publishing...")
                 else:

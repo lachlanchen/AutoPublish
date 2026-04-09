@@ -282,7 +282,7 @@ def stop_and_start_chromium_sessions(
                 "shipinhao": _build_start_command(
                     "shipinhao",
                     5006,
-                    "https://channels.weixin.qq.com/post/create",
+                    "https://channels.weixin.qq.com/platform/post/create",
                     browser_bin,
                     display,
                     _session_dir(5006),
