@@ -99,22 +99,25 @@ class QRCodeProcessor:
 class SendMail:
     def __init__(
         self,
-        sendgrid_api_key=os.environ.get("SENDGRID_API_KEY"),
-        from_email=os.environ.get("FROM_EMAIL"),
-        to_email=os.environ.get("TO_EMAIL"),
-        app_password=os.environ.get("APP_PASSWORD"),
+        sendgrid_api_key=None,
+        from_email=None,
+        to_email=None,
+        app_password=None,
         smtp_server="smtp.gmail.com",
         smtp_port=587,
     ):
-        self.from_email = from_email
-        self.to_email = to_email
-        self.app_password = app_password or sendgrid_api_key
+        self.from_email = from_email or os.environ.get("FROM_EMAIL")
+        self.to_email = to_email or os.environ.get("TO_EMAIL")
+        legacy_password = None
+        if sendgrid_api_key and not str(sendgrid_api_key).startswith("SG."):
+            legacy_password = sendgrid_api_key
+        self.app_password = app_password or os.environ.get("APP_PASSWORD") or legacy_password
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
 
     def send_email(self, subject, content, attachment_path, attachment_name):
         if not self.from_email or not self.to_email or not self.app_password:
-            print("SMTP not configured. Skipping email send.")
+            print("SMTP not configured. Missing FROM_EMAIL, TO_EMAIL, or APP_PASSWORD.")
             return False
 
         msg = MIMEMultipart("mixed")

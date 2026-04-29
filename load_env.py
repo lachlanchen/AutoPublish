@@ -11,7 +11,7 @@ CRITICAL_VARS = [
     "TULING_ID",
     "FROM_EMAIL",
     "TO_EMAIL",
-    "SENDGRID_API_KEY",
+    "APP_PASSWORD",
 ]
 
 

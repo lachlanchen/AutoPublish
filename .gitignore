@@ -1,5 +1,7 @@
 archived/*
 notebooks/*
+__pycache__/
+*.py[cod]
 *.old
 videos/*
 transcription_data/*

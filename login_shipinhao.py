@@ -92,7 +92,15 @@ class ShiPinHaoLogin:
         env_names = os.environ.get("SHIPINHAO_ACCOUNT_NAMES") or os.environ.get("SHIPINHAO_ACCOUNT_NAME")
         if env_names:
             return [name.strip() for name in env_names.split(",") if name.strip()]
-        return ["LazyingArt", "陈苗", "懒人艺术", "懶人藝術"]
+        return [
+            "LazyingArt懒人艺术",
+            "LazyingArt懶人藝術",
+            "陈苗LazyingArt懒人艺术",
+            "LazyingArt",
+            "陈苗",
+            "懒人艺术",
+            "懶人藝術",
+        ]
 
     def find_lazying_art(self):
         try:
@@ -109,10 +117,13 @@ class ShiPinHaoLogin:
             # Try multiple selector strategies for better reliability
             selectors = [
                 # Original approach - specific class and text
+                "//span[contains(@class, 'name') and contains(text(), 'LazyingArt懒人艺术')]",
                 "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt懒人艺术')]",
                 # More flexible - just look for the class with partial text
+                "//span[contains(@class, 'name') and contains(text(), 'LazyingArt')]",
                 "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt')]",
                 # Even more flexible - any element with account info near it
+                "//div[contains(@class, 'account-info')]//span[contains(text(), 'LazyingArt')]",
                 "//div[contains(@class, 'account-info')]//span[contains(text(), '陈苗')]",
                 # Try CSS selector approach
                 ".account-info .name"
@@ -147,7 +158,7 @@ class ShiPinHaoLogin:
             print(f"Saved debug screenshot to {debug_path}")
             log_html_snapshot(self.driver, "shipinhao", "login_check")
             
-            print("Did not find '陈苗LazyingArt懒人艺术' after trying multiple approaches.")
+            print(f"Did not find any expected Shipinhao account names: {expected_names}")
             return False
         except Exception as e:
             print(f"Error in find_lazying_art: {e}")
@@ -265,7 +276,7 @@ class ShiPinHaoLogin:
                 'shipinhao-screenshot.png'
             )
             if not sent:
-                print("Login email was not sent (SendGrid not configured or failed).")
+                print("Login email was not sent (SMTP not configured or authentication failed).")
         except Exception as exc:
             print(f"Failed to send login email: {exc}")
             traceback.print_exc()

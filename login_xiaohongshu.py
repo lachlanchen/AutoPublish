@@ -62,16 +62,42 @@ class XiaoHongShuLogin:
         except Exception as e:
             print(f"Failed to reveal QR code using JavaScript: {e}")
 
+    def _expected_account_names(self):
+        env_names = os.environ.get("XHS_ACCOUNT_NAMES") or os.environ.get("XHS_ACCOUNT_NAME")
+        if env_names:
+            return [name.strip() for name in env_names.split(",") if name.strip()]
+        return [
+            "LazyingArt懒人艺术",
+            "LazyingArt懶人藝術",
+            "陈苗LazyingArt懒人艺术",
+            "陈苗LazyingArt",
+            "懒人艺术",
+            "懶人藝術",
+        ]
+
     def find_lazying_art(self):
-        try:
-            # Search for the span element containing the specific text
-            user_info_element = self.driver.find_element(By.XPATH, "//span[contains(text(), '陈苗LazyingArt懒人艺术')]")
-            if user_info_element:
-                print("Found '陈苗LazyingArt懒人艺术'.")
-                return True
-        except NoSuchElementException:
-            # If the element is not found, NoSuchElementException is caught
-            print("Did not find '陈苗LazyingArt懒人艺术'.")
+        expected_names = self._expected_account_names()
+        selectors = [
+            (By.CSS_SELECTOR, "span"),
+            (By.CSS_SELECTOR, ".user-name"),
+            (By.CSS_SELECTOR, ".name"),
+            (By.XPATH, "//*[self::span or self::div][normalize-space(text())]"),
+        ]
+
+        for by, selector in selectors:
+            try:
+                elements = self.driver.find_elements(by, selector)
+            except Exception:
+                continue
+            for element in elements:
+                text = (element.text or "").strip()
+                if not text:
+                    continue
+                if any(name in text for name in expected_names):
+                    print(f"Found account name '{text}'.")
+                    return True
+
+        print(f"Did not find any expected XHS account names: {expected_names}")
         return False
 
 

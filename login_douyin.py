@@ -248,9 +248,34 @@ class DouyinLogin:
 
             time.sleep(5)
 
+    def _expected_account_names(self):
+        env_names = os.environ.get("DOUYIN_ACCOUNT_NAMES") or os.environ.get("DOUYIN_ACCOUNT_NAME")
+        if env_names:
+            return [name.strip() for name in env_names.split(",") if name.strip()]
+        return [
+            "LazyingArt懒人艺术",
+            "LazyingArt懶人藝術",
+            "陈苗LazyingArt懒人艺术",
+            "LazyingArt",
+            "陈苗",
+            "懒人艺术",
+            "懶人藝術",
+        ]
+
     def is_already_logged_in(self):
-        # Check for specific text that indicates we are logged in
-        return bool(self.driver.find_elements(By.XPATH, "//div[text()='陈苗LazyingArt懒人艺术']"))
+        expected_names = self._expected_account_names()
+        selectors = [
+            "//div[contains(normalize-space(.), '{name}')]",
+            "//span[contains(normalize-space(.), '{name}')]",
+        ]
+        for name in expected_names:
+            for selector in selectors:
+                try:
+                    if self.driver.find_elements(By.XPATH, selector.format(name=name)):
+                        return True
+                except Exception:
+                    continue
+        return False
 
     def is_qr_outdated(self):
         outdated_texts = [
