@@ -385,6 +385,52 @@ return {
 """
 
 
+CONTENT_FRAME_DRAFT_BUTTON_STATE_SCRIPT = r"""
+function isDisabled(el) {
+  if (!el) return true;
+  const className = (el.className || '').toString();
+  return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(className);
+}
+
+const draftButton = Array.from(document.querySelectorAll('button')).find((el) => {
+  const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  return text === '保存草稿';
+}) || null;
+
+return {
+  exists: !!draftButton,
+  disabled: isDisabled(draftButton),
+  className: draftButton ? (draftButton.className || '').toString() : null,
+};
+"""
+
+
+CONTENT_FRAME_COVER_READY_SCRIPT = r"""
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style) return false;
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  if (parseFloat(style.opacity || '1') === 0) return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+const coverWrap = document.querySelector('.cover-preview-wrap');
+const loadingWrap = document.querySelector('.cover-preview-wrap .loading-wrap, .cover-preview-wrap .primary-loading, .cover-preview-wrap .gen-text');
+const loadingText = document.querySelector('.cover-preview-wrap .gen-text');
+const loadingVisible = isVisible(loadingWrap) || (loadingText && isVisible(loadingText) && /生成中|生成/.test(loadingText.textContent || ''));
+const hasCoverImage = !!document.querySelector('.share-card-preview-container .video-cover-container img, .profile-card .preview-placeholder, .share-card-preview-container .preview-placeholder, .cover-preview-container img, .cover-preview-container video, .weui-desktop-dialog .preview-placeholder');
+
+return {
+  hasWrap: !!coverWrap,
+  coverReady: coverWrap ? !loadingVisible : true,
+  coverLoading: !!loadingVisible,
+  hasCoverImage,
+};
+"""
+
+
 CONTENT_FRAME_SELECT_COLLECTION_SCRIPT = r"""
 const desired = arguments[0];
 
@@ -671,6 +717,47 @@ def wait_for_publish_button_ready(driver, duration=30):
 
     raise TimeoutException(
         f"Timed out waiting for Shipinhao publish button readiness. Last state: {last_state!r}"
+    )
+
+
+def wait_for_cover_ready(driver, duration=120):
+    deadline = time.time() + duration
+    last_state = None
+
+    while time.time() < deadline:
+        state = _execute_in_content_frame(driver, CONTENT_FRAME_COVER_READY_SCRIPT)
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("coverReady"):
+                return state
+        time.sleep(1)
+
+    raise TimeoutException(
+        f"Timed out waiting for Shipinhao cover readiness. Last state: {last_state!r}"
+    )
+
+
+def click_content_frame_draft_if_available(driver, duration=90):
+    deadline = time.time() + duration
+    last_state = None
+
+    while time.time() < deadline:
+        state = _execute_in_content_frame(driver, CONTENT_FRAME_DRAFT_BUTTON_STATE_SCRIPT)
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("exists") and not state.get("disabled"):
+                click_content_frame_css(
+                    driver,
+                    "button",
+                    duration=20,
+                    text="保存草稿",
+                    exact=True,
+                )
+                return state
+        time.sleep(1)
+
+    raise TimeoutException(
+        f"Timed out waiting for Shipinhao save-draft button. Last state: {last_state!r}"
     )
 
 
@@ -1226,6 +1313,12 @@ class ShiPinHaoPublisher:
                 print(f"Shipinhao short title set to: {short_title_value!r}")
                 time.sleep(3)
 
+                if os.environ.get("AUTOPUB_SHIPINHAO_WAIT_COVER", "1") == "1":
+                    cover_state = wait_for_cover_ready(driver, duration=180)
+                    print(f"Shipinhao cover state before publish: {cover_state}")
+                else:
+                    print("Skipping Shipinhao cover wait (AUTOPUB_SHIPINHAO_WAIT_COVER=0).")
+
 #                 # Original declaration
 #                 original_content_checkbox = driver.find_element(By.XPATH, '//input[@class="ant-checkbox-input" and @type="checkbox"]')
 #                 original_content_checkbox.click()
@@ -1277,6 +1370,16 @@ class ShiPinHaoPublisher:
                     exact=True,
                 )
                 time.sleep(3)
+
+                if os.environ.get("AUTOPUB_SHIPINHAO_SAVE_DRAFT", "1") == "1":
+                    try:
+                        draft_state = click_content_frame_draft_if_available(driver, duration=120)
+                        print(f"Shipinhao save draft result: {draft_state}")
+                        time.sleep(3)
+                    except Exception as e:
+                        print(f"Save draft unavailable or failed; continuing with publish attempt: {e}")
+                else:
+                    print("Skipping Shipinhao draft save (AUTOPUB_SHIPINHAO_SAVE_DRAFT=0).")
 
                 # Click publish button
                 if test:
