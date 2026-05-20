@@ -76,6 +76,57 @@ class ShiPinHaoLogin:
             return False
         return False
 
+    def _switch_to_login_iframe(self, timeout=20):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe.display"))
+            )
+            return True
+        except TimeoutException:
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
+            return False
+
+    def is_publish_editor_ready(self):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+
+        if self.is_login_iframe_present():
+            return False
+
+        selectors = [
+            "input[type='file'][accept*='video']",
+            ".post-create-wrap",
+            ".post-edit-wrap",
+            ".form-btns",
+        ]
+        for selector in selectors:
+            try:
+                for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    if element.is_displayed():
+                        print(f"Shipinhao editor detected with selector: {selector}")
+                        return True
+            except Exception:
+                continue
+
+        try:
+            page_text = self.driver.page_source or ""
+        except Exception:
+            page_text = ""
+        editor_markers = ("视频描述", "发表动态", "保存草稿", "封面预览", "手机预览")
+        if any(marker in page_text for marker in editor_markers):
+            print("Shipinhao editor text detected; treating session as logged in.")
+            return True
+        return False
+
     # def find_lazying_art(self):
     #     try:
     #         # Search for the span element containing the specific text
@@ -181,21 +232,21 @@ class ShiPinHaoLogin:
 
         bring_to_front(["视频号"])
 
-        if self.find_lazying_art():
+        if self.is_publish_editor_ready() or self.find_lazying_art():
             print("Already logged in. ")
             return
 
         if self.is_login_iframe_present():
             log_html_snapshot(self.driver, "shipinhao", "login_required")
 
-        try:
-            WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
+        if self._switch_to_login_iframe(timeout=20):
             self.take_screenshot_and_send_email()
-        except TimeoutException:
-            print("Already logged in or the page did not load as expected.")
-            return  # Exiting the method early if we're already logged in or if the iframe is not present.
-
-
+        elif self.is_publish_editor_ready() or self.find_lazying_art():
+            print("Logged in while waiting for login iframe.")
+            return
+        else:
+            log_html_snapshot(self.driver, "shipinhao", "login_iframe_missing")
+            raise RuntimeError("Shipinhao login iframe was not available and the publish editor is not ready.")
 
         end_time = time.time() + 1800  # 30 minutes from now
         last_refresh_time = time.time()
@@ -207,10 +258,22 @@ class ShiPinHaoLogin:
             # if self.is_qr_outdated() or (current_time - last_refresh_time >= 180):
             if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
+                try:
+                    self.driver.switch_to.default_content()
+                except Exception:
+                    pass
                 self.driver.refresh()
                 time.sleep(5)
-                self.take_screenshot_and_send_email()
-                WebDriverWait(self.driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, 'iframe.display')))
+                if self.is_publish_editor_ready() or self.find_lazying_art():
+                    print("Logged in successfully after QR refresh.")
+                    break
+                if self._switch_to_login_iframe(timeout=20):
+                    self.take_screenshot_and_send_email()
+                else:
+                    print("Login iframe disappeared after QR refresh; rechecking login state instead of failing.")
+                    log_html_snapshot(self.driver, "shipinhao", "login_iframe_after_refresh_missing")
+                    time.sleep(5)
+                    continue
                 last_refresh_time = time.time()
 
             # if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
@@ -225,6 +288,10 @@ class ShiPinHaoLogin:
                 print("Logged in successfully, stopping checks.")
                 break  # Break the loop if logged in
 
+        if not (self.is_publish_editor_ready() or self.find_lazying_art()):
+            log_html_snapshot(self.driver, "shipinhao", "login_timeout")
+            raise RuntimeError("Shipinhao login required; QR login was not completed before timeout.")
+
         # self.driver.quit()
 
     # def is_qr_outdated(self):
@@ -235,6 +302,7 @@ class ShiPinHaoLogin:
     #     return False
     def is_qr_outdated(self):
         try:
+            self._switch_to_login_iframe(timeout=1)
             # Look for the more specific structure - a visible mask containing the refresh message
             elements = self.driver.find_elements(By.CSS_SELECTOR, ".mask.show .refresh-tip")
             for element in elements:
@@ -255,6 +323,9 @@ class ShiPinHaoLogin:
             return False
 
     def needs_login(self):
+        if self.is_publish_editor_ready():
+            return False
+        self._switch_to_login_iframe(timeout=1)
         elements = self.driver.find_elements(By.CSS_SELECTOR, ".tip span")
         for element in elements:
             if element.text == "微信扫码登录 视频号助手":
