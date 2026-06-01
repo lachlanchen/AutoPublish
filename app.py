@@ -516,7 +516,8 @@ def _process_publish_job(job):
         elif name == 'YouTube':
             bring_to_front(["YouTube"])
 
-        publish_platform(publisher, name)
+        if not publish_platform(publisher, name):
+            raise RuntimeError(f"{name} publish failed")
 
 def _publish_worker():
     global is_publishing

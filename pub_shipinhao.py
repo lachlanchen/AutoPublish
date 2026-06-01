@@ -374,7 +374,7 @@ const shortTitle = document.querySelector('input[placeholder*="概括视频主�
 const publishButton = findButton('发表');
 
 return {
-  ready: !!previewVideo && !uploading && isVisible(description) && !!shortTitle,
+  ready: !!previewVideo && !uploading && isVisible(description) && !!publishButton,
   hasPreviewVideo: !!previewVideo,
   uploading: !!uploading,
   hasDescription: !!description,
@@ -1302,16 +1302,18 @@ class ShiPinHaoPublisher:
                 except Exception as e:
                     print(f"Collection '简单生活' not found or not clickable: {e}")
 
-                # Set short title
-                title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]
-                short_title_value = ensure_content_frame_input_value(
-                    driver,
-                    'input[placeholder*="概括视频主要内容"]',
-                    self.clean_title(title[:16]),
-                    duration=30,
-                )
-                print(f"Shipinhao short title set to: {short_title_value!r}")
-                time.sleep(3)
+                if post_upload_state.get("hasShortTitle"):
+                    title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]
+                    short_title_value = ensure_content_frame_input_value(
+                        driver,
+                        'input[placeholder*="概括视频主要内容"]',
+                        self.clean_title(title[:16]),
+                        duration=30,
+                    )
+                    print(f"Shipinhao short title set to: {short_title_value!r}")
+                    time.sleep(3)
+                else:
+                    print("Shipinhao short title field is not present; skipping short title.")
 
                 if os.environ.get("AUTOPUB_SHIPINHAO_WAIT_COVER", "1") == "1":
                     cover_state = wait_for_cover_ready(driver, duration=180)
