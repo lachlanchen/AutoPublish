@@ -6,6 +6,7 @@ import zipfile
 import json
 import platform
 import shutil
+import socket
 
 import tornado.web
 import tornado.ioloop
@@ -118,6 +119,14 @@ def _resolve_logs_dir(prefix):
     return os.path.join(os.path.expanduser("~"), f"{prefix}_dev_session_logs")
 
 
+def _is_port_open(host, port, timeout=1.0):
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def _resolve_chromedriver_path():
     for key in ("AUTOPUBLISH_CHROMEDRIVER", "CHROMEDRIVER_PATH"):
         value = os.environ.get(key)
@@ -216,6 +225,26 @@ def run_command(command):
     except subprocess.CalledProcessError as e:
         print(f"Failed to execute command: {e}")
 
+
+def _start_browser_if_needed(platform_name, port, command):
+    if _is_port_open("127.0.0.1", port):
+        print(f"Reusing existing {platform_name} Chromium session on port {port}.")
+        return
+    run_command(command)
+
+
+def _kill_browser_sessions():
+    password = "1"  # This should be secured
+    try:
+        subprocess.run(
+            f"echo {password} | sudo -S pkill -f 'chromium-browser|chromium|google-chrome'",
+            shell=True,
+            check=True,
+        )
+        subprocess.run(f"echo {password} | sudo -S pkill -f chromedriver", shell=True, check=True)
+    except Exception:
+        pass
+
 def stop_and_start_chromium_sessions(
             publish_xhs=False,
             publish_bilibili=False,
@@ -224,18 +253,16 @@ def stop_and_start_chromium_sessions(
             publish_y2b=False,
             publish_instagram=False
         ):
-        password = "1"  # This should be secured
         try:
-            # Commands to stop existing Chromium and ChromeDriver processes
-            try:
-                subprocess.run(
-                    f"echo {password} | sudo -S pkill -f 'chromium-browser|chromium|google-chrome'",
-                    shell=True,
-                    check=True,
-                )
-                subprocess.run(f"echo {password} | sudo -S pkill -f chromedriver", shell=True, check=True)
-            except:
-                pass
+            force_restart = os.environ.get("AUTOPUBLISH_FORCE_BROWSER_RESTART", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "y",
+            }
+            if force_restart:
+                print("Force restarting Chromium sessions because AUTOPUBLISH_FORCE_BROWSER_RESTART is set.")
+                _kill_browser_sessions()
             
             browser_bin = _resolve_browser_bin()
             display = _resolve_display()
@@ -322,17 +349,17 @@ def stop_and_start_chromium_sessions(
 
             # Check each platform flag and run the corresponding start command if True
             if publish_xhs:
-                run_command(start_commands["xhs"])
+                _start_browser_if_needed("xhs", 5003, start_commands["xhs"])
             if publish_douyin:
-                run_command(start_commands["douyin"])
+                _start_browser_if_needed("douyin", 5004, start_commands["douyin"])
             if publish_bilibili:
-                run_command(start_commands["bilibili"])
+                _start_browser_if_needed("bilibili", 5005, start_commands["bilibili"])
             if publish_shipinhao:
-                run_command(start_commands["shipinhao"])
+                _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"])
             if publish_y2b:
-                run_command(start_commands["y2b"])
+                _start_browser_if_needed("y2b", 9222, start_commands["y2b"])
             if publish_instagram:
-                run_command(start_commands["instagram"])
+                _start_browser_if_needed("instagram", 5007, start_commands["instagram"])
 
             time.sleep(10)
 
@@ -438,7 +465,7 @@ def _process_publish_job(job):
         return
 
     try:
-        print("Closing existing Chromium sessions before publishing...")
+        print("Preparing Chromium sessions before publishing...")
         stop_and_start_chromium_sessions(
             publish_xhs=publish_xhs,
             publish_bilibili=publish_bilibili,

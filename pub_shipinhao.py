@@ -35,6 +35,12 @@ SHIPINHAO_UPLOAD_INPUT_SELECTORS = [
     '.post-upload-wrap input[type="file"]',
     'input[type="file"]',
 ]
+SHIPINHAO_SHORT_TITLE_SELECTOR = (
+    'input[placeholder*="短标题"], '
+    'input[placeholder*="概括视频主要内容"], '
+    'input[placeholder*="更多流量"], '
+    '.short-title-wrap input.weui-desktop-form__input'
+)
 DEEP_QUERY_SCRIPT = r"""
 const selector = arguments[0];
 const requireVisible = !!arguments[1];
@@ -284,12 +290,21 @@ const match = document.querySelector(selector);
 if (!match) return false;
 match.scrollIntoView({block: 'center'});
 match.focus();
-match.innerHTML = '';
-match.textContent = value;
+const selection = window.getSelection();
+const range = document.createRange();
+range.selectNodeContents(match);
+selection.removeAllRanges();
+selection.addRange(range);
+document.execCommand('delete', false, null);
+const inserted = document.execCommand('insertText', false, value);
+if (!inserted) {
+  match.innerHTML = '';
+  match.textContent = value;
+}
 match.dispatchEvent(new InputEvent('input', {
   bubbles: true,
   cancelable: true,
-  data: value,
+  data: null,
   inputType: 'insertText',
 }));
 match.dispatchEvent(new Event('change', {bubbles: true}));
@@ -364,13 +379,33 @@ function findButton(label) {
   }) || null;
 }
 
+function findShortTitleInput() {
+  const selector = [
+    'input[placeholder*="短标题"]',
+    'input[placeholder*="概括视频主要内容"]',
+    'input[placeholder*="更多流量"]',
+    '.short-title-wrap input.weui-desktop-form__input',
+  ].join(',');
+  const direct = document.querySelector(selector);
+  if (direct) return direct;
+  const labels = Array.from(document.querySelectorAll('.form-item, [class*="form-item"]'));
+  for (const item of labels) {
+    const text = (item.innerText || item.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text.includes('短标题')) {
+      const input = item.querySelector('input');
+      if (input) return input;
+    }
+  }
+  return null;
+}
+
 const uploadWrap = document.querySelector('.post-upload-wrap');
 const previewVideo = uploadWrap && (uploadWrap.querySelector('video') || uploadWrap.querySelector('[src^="blob:"]'));
 const uploading = uploadWrap && uploadWrap.querySelector(
   '.ant-upload.ant-upload-drag-uploading, .ant-upload-list-item-uploading, [class*="uploading"], [class*="progress"]'
 );
 const description = document.querySelector('.input-editor[contenteditable]');
-const shortTitle = document.querySelector('input[placeholder*="概括视频主要内容"]');
+const shortTitle = findShortTitleInput();
 const publishButton = findButton('发表');
 
 return {
@@ -575,6 +610,49 @@ def set_content_frame_editable_value(driver, selector, text, duration=30):
     )
 
 
+def type_content_frame_editable_value(driver, selector, text, duration=30):
+    def _type(current_driver):
+        if not _switch_to_content_frame(current_driver):
+            return False
+        try:
+            match = current_driver.find_element(By.CSS_SELECTOR, selector)
+            current_driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'}); arguments[0].focus();",
+                match,
+            )
+            match.click()
+            time.sleep(0.2)
+            match.send_keys(Keys.CONTROL, "a")
+            match.send_keys(Keys.BACKSPACE)
+            # Long contenteditable sends are more reliable when chunked.
+            for start in range(0, len(text or ""), 500):
+                match.send_keys((text or "")[start:start + 500])
+                time.sleep(0.05)
+            current_driver.execute_script(
+                """
+                arguments[0].dispatchEvent(new InputEvent('input', {
+                  bubbles: true,
+                  cancelable: true,
+                  data: null,
+                  inputType: 'insertText',
+                }));
+                arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                arguments[0].blur();
+                """,
+                match,
+            )
+            return True
+        except Exception:
+            return False
+        finally:
+            try:
+                current_driver.switch_to.default_content()
+            except Exception:
+                pass
+
+    return WebDriverWait(driver, duration).until(_type)
+
+
 def set_content_frame_checkbox(driver, selector, checked=True, duration=30):
     return WebDriverWait(driver, duration).until(
         lambda current_driver: _execute_in_content_frame(
@@ -600,12 +678,20 @@ def _normalize_field_text(value):
     return " ".join((value or "").split())
 
 
+def remove_non_bmp(text):
+    return "".join(ch for ch in (text or "") if ord(ch) <= 0xFFFF)
+
+
 def ensure_content_frame_editable_value(driver, selector, text, duration=30):
     expected = _normalize_field_text(text)
     deadline = time.time() + duration
     last_value = None
     while time.time() < deadline:
-        set_content_frame_editable_value(driver, selector, text, duration=5)
+        try:
+            type_content_frame_editable_value(driver, selector, text, duration=5)
+        except Exception:
+            set_content_frame_editable_value(driver, selector, text, duration=5)
+        time.sleep(1)
         current = read_content_frame_field(driver, selector, "text")
         last_value = current
         normalized = _normalize_field_text(current)
@@ -1112,6 +1198,7 @@ class ShiPinHaoPublisher:
                 print(f"An error occurred while trying to close the dialog: {e}")
 
     def clean_title(self, title):
+        title = title or ""
         # Allowed special characters: 书名号(「」), 引号("“”"), 冒号(:), 加号(+), 问号(?), 百分号(%), 摄氏度(°)
         # Replace comma with space
         title = title.replace(',', ' ')
@@ -1121,6 +1208,24 @@ class ShiPinHaoPublisher:
         clean_title = ''.join(re.findall(allowed_chars_regex, title))
         
         return clean_title
+
+    def build_short_title(self, metadata, max_length=16):
+        candidates = [
+            metadata.get("title"),
+            metadata.get("brief_description"),
+            metadata.get("middle_description"),
+            metadata.get("long_description"),
+        ]
+        for candidate in candidates:
+            text = (candidate or "").strip()
+            if not text:
+                continue
+            text = re.split(r"[#\n\r。.!！？?]", text, maxsplit=1)[0].strip()
+            text = self.clean_title(text).strip()
+            text = re.sub(r"\s+", " ", text)
+            if text:
+                return text[:max_length]
+        return "精彩短片"
 
     # def set_location(self, driver):
     #     try:
@@ -1258,12 +1363,17 @@ class ShiPinHaoPublisher:
                 time.sleep(2)
 
                 # Set description
-                video_description_with_tags = self.metadata["long_description"] + " " + " ".join("#" + tag for tag in self.metadata["tags"])
+                video_description_with_tags = (
+                    (self.metadata.get("long_description") or self.metadata.get("brief_description") or "")
+                    + " "
+                    + " ".join("#" + str(tag) for tag in self.metadata.get("tags", []))
+                ).strip()
+                video_description_with_tags = remove_non_bmp(video_description_with_tags)
                 description_value = ensure_content_frame_editable_value(
                     driver,
                     ".input-editor[contenteditable]",
                     video_description_with_tags,
-                    duration=30,
+                    duration=45,
                 )
                 print(f"Shipinhao description set ({len(description_value or '')} chars).")
                 time.sleep(3)
@@ -1302,18 +1412,18 @@ class ShiPinHaoPublisher:
                 except Exception as e:
                     print(f"Collection '简单生活' not found or not clickable: {e}")
 
-                if post_upload_state.get("hasShortTitle"):
-                    title = metadata['title'] if 6 <= len(metadata['title']) <= 16 else metadata['brief_description'][:16]
+                try:
+                    title = self.build_short_title(metadata)
                     short_title_value = ensure_content_frame_input_value(
                         driver,
-                        'input[placeholder*="概括视频主要内容"]',
-                        self.clean_title(title[:16]),
+                        SHIPINHAO_SHORT_TITLE_SELECTOR,
+                        title,
                         duration=30,
                     )
                     print(f"Shipinhao short title set to: {short_title_value!r}")
                     time.sleep(3)
-                else:
-                    print("Shipinhao short title field is not present; skipping short title.")
+                except Exception as e:
+                    print(f"Shipinhao short title field is not present or not writable; skipping short title: {e}")
 
                 if os.environ.get("AUTOPUB_SHIPINHAO_WAIT_COVER", "1") == "1":
                     cover_state = wait_for_cover_ready(driver, duration=180)

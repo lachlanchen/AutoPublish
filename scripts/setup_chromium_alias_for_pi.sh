@@ -67,15 +67,51 @@ CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage"
 if [ -z "$CHROMIUM_BIN" ]; then
   echo "Chromium not found. Install with: sudo apt-get install -y chromium" >&2
 else
-  alias start_chromium_xhs='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5003 --user-data-dir="$HOME/chromium_dev_session_5003" https://creator.xiaohongshu.com/creator/post > "$HOME/chromium_dev_session_logs/chromium_xhs.log" 2>&1'
-  alias start_chromium_douyin='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5004 --user-data-dir="$HOME/chromium_dev_session_5004" https://creator.douyin.com/creator-micro/content/upload > "$HOME/chromium_dev_session_logs/chromium_douyin.log" 2>&1'
-  alias start_chromium_bilibili='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5005 --user-data-dir="$HOME/chromium_dev_session_5005" https://member.bilibili.com/platform/upload/video/frame > "$HOME/chromium_dev_session_logs/chromium_bilibili.log" 2>&1'
-  alias start_chromium_shipinhao='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5006 --user-data-dir="$HOME/chromium_dev_session_5006" https://channels.weixin.qq.com/platform/post/create > "$HOME/chromium_dev_session_logs/chromium_shipinhao.log" 2>&1'
-  alias start_chromium_instagram='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=5007 --user-data-dir="$HOME/chromium_dev_session_5007" https://www.instagram.com > "$HOME/chromium_dev_session_logs/chromium_instagram.log" 2>&1'
-  alias start_chromium_youtube='DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble --remote-debugging-port=9222 --user-data-dir="$HOME/chromium_dev_session_9222" https://youtube.com/upload > "$HOME/chromium_dev_session_logs/chromium_youtube.log" 2>&1'
+  _chromium_port_open() {
+    python3 - "$1" <<'PY' >/dev/null 2>&1
+import socket
+import sys
+with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=1):
+    pass
+PY
+  }
+
+  _start_chromium_session() {
+    local name="$1"
+    local port="$2"
+    local url="$3"
+    local profile_dir="$HOME/chromium_dev_session_${port}"
+    local log_file="$HOME/chromium_dev_session_logs/chromium_${name}.log"
+    mkdir -p "$HOME/chromium_dev_session_logs" "$profile_dir"
+    if _chromium_port_open "$port"; then
+      echo "Reusing existing Chromium session for ${name} on port ${port} (${profile_dir})."
+      return 0
+    fi
+    DISPLAY=:1 "$CHROMIUM_BIN" $CHROMIUM_FLAGS --hide-crash-restore-bubble \
+      --remote-debugging-port="$port" --user-data-dir="$profile_dir" "$url" \
+      > "$log_file" 2>&1 &
+  }
+
+  start_chromium_xhs() { _start_chromium_session xhs 5003 https://creator.xiaohongshu.com/creator/post; }
+  start_chromium_douyin() { _start_chromium_session douyin 5004 https://creator.douyin.com/creator-micro/content/upload; }
+  start_chromium_bilibili() { _start_chromium_session bilibili 5005 https://member.bilibili.com/platform/upload/video/frame; }
+  start_chromium_shipinhao() { _start_chromium_session shipinhao 5006 https://channels.weixin.qq.com/platform/post/create; }
+  start_chromium_instagram() { _start_chromium_session instagram 5007 https://www.instagram.com; }
+  start_chromium_youtube() { _start_chromium_session youtube 9222 https://youtube.com/upload; }
 fi
-alias start_chromium_without_y2b='start_chromium_xhs & start_chromium_douyin & start_chromium_bilibili'
-alias start_chromium_all='start_chromium_xhs & start_chromium_douyin & start_chromium_bilibili & start_chromium_shipinhao & start_chromium_instagram & start_chromium_youtube'
+start_chromium_without_y2b() {
+  start_chromium_xhs
+  start_chromium_douyin
+  start_chromium_bilibili
+}
+start_chromium_all() {
+  start_chromium_xhs
+  start_chromium_douyin
+  start_chromium_bilibili
+  start_chromium_shipinhao
+  start_chromium_instagram
+  start_chromium_youtube
+}
 EOF
 
 chmod 644 "${TARGET_FILE}"
