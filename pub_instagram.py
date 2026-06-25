@@ -63,6 +63,10 @@ def _load_metadata_from_dir(metadata_dir: Path):
     return {}
 
 
+def remove_non_bmp(text):
+    return "".join(ch for ch in (text or "") if ord(ch) <= 0xFFFF)
+
+
 class InstagramPublisher:
     def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
         self.driver = driver
@@ -257,7 +261,7 @@ class InstagramPublisher:
         else:
             caption = en_caption or zh_caption
 
-        return caption[:2200]
+        return remove_non_bmp(caption)[:2200]
 
     def _upload_video(self):
         driver = self.driver
