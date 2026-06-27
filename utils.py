@@ -11,10 +11,16 @@ import os
 import base64
 import traceback
 import smtplib
+import tempfile
+import uuid
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
 from email import encoders
+from html import escape
+
+from PIL import Image, UnidentifiedImageError
 
 # import cv2
 import numpy as np
@@ -59,15 +65,29 @@ class QRCodeProcessor:
     @staticmethod
     def find_and_crop_qr_code(image_path, margin_ratio=0.1):
         # Load the image and convert from BGR to RGB
-        image = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
-        qreader = QReader()
-        detections, decoded_texts = qreader.detect_and_decode(image=image, return_detections=True)
+        source_image = cv2.imread(image_path)
+        if source_image is None:
+            print(f"Could not read QR source image: {image_path}")
+            return None
 
-        if not decoded_texts:
+        image = cv2.cvtColor(source_image, cv2.COLOR_BGR2RGB)
+        qreader = QReader()
+        try:
+            first, second = qreader.detect_and_decode(image=image, return_detections=True)
+        except Exception as exc:
+            print(f"QR detection failed: {exc}")
+            return None
+
+        if first and isinstance(first[0], dict):
+            detections, decoded_texts = first, second
+        else:
+            decoded_texts, detections = first, second
+
+        if not detections:
             print("No QR code found.")
             return None
 
-        for url, details in zip(detections, decoded_texts):
+        for details, decoded_text in zip(detections, decoded_texts):
             if details and 'bbox_xyxy' in details:
                 # Ensure bounding box coordinates are integers
                 bbox = [int(coord) for coord in details['bbox_xyxy']]
@@ -90,11 +110,33 @@ class QRCodeProcessor:
 
                 # Crop the image with margins
                 cropped_image = image[y1:y2, x1:x2]
-                cv2.imwrite("cropped_qr_code.jpg", cropped_image)
                 return cv2.cvtColor(cropped_image, cv2.COLOR_RGB2BGR)  # Convert back to BGR for further processing
 
         print("QR code detected but not decodable.")
         return None
+
+    @staticmethod
+    def build_watch_friendly_png(source_path, output_path=None, image_size=248, canvas_size=320):
+        """Create a high-contrast QR PNG that renders reliably in Apple Watch Mail."""
+        if output_path is None:
+            output_path = os.path.join(tempfile.gettempdir(), f"autopub-login-qr-{uuid.uuid4().hex}.png")
+
+        crop = QRCodeProcessor.find_and_crop_qr_code(source_path)
+        if crop is not None:
+            image = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
+        else:
+            image = Image.open(source_path)
+
+        image = image.convert("L")
+        image = image.point(lambda pixel: 0 if pixel < 165 else 255, mode="1").convert("L")
+        resampling = getattr(Image, "Resampling", Image)
+        image = image.resize((image_size, image_size), resampling.NEAREST)
+
+        canvas = Image.new("L", (canvas_size, canvas_size), 255)
+        offset = ((canvas_size - image_size) // 2, (canvas_size - image_size) // 2)
+        canvas.paste(image, offset)
+        canvas.save(output_path, format="PNG", optimize=False)
+        return output_path
 
 class SendMail:
     def __init__(
@@ -120,26 +162,39 @@ class SendMail:
             print("SMTP not configured. Missing FROM_EMAIL, TO_EMAIL, or APP_PASSWORD.")
             return False
 
-        msg = MIMEMultipart("mixed")
+        msg = MIMEMultipart("related")
         msg["From"] = self.from_email
         msg["To"] = self.to_email
         msg["Subject"] = subject
 
         body = MIMEMultipart("alternative")
         body.attach(MIMEText(content, "plain"))
-
-        cropped_image = QRCodeProcessor.find_and_crop_qr_code(attachment_path)
-        if cropped_image is not None:
-            _, buffer = cv2.imencode(".png", cropped_image)
-            encoded_cropped = base64.b64encode(buffer).decode()
+        qr_cid = f"autopub-login-qr-{uuid.uuid4().hex}"
+        qr_png_path = None
+        try:
+            qr_png_path = QRCodeProcessor.build_watch_friendly_png(attachment_path)
             html_content = (
-                f"<html><body><p>{content}</p>"
-                f"<img src='data:image/png;base64,{encoded_cropped}' "
-                f"alt='Cropped QR Code'></body></html>"
+                "<html><body>"
+                f"<p>{escape(content).replace(chr(10), '<br>')}</p>"
+                f"<img src=\"cid:{qr_cid}\" alt=\"Login QR code\" width=\"320\" height=\"320\" "
+                "style=\"display:block;width:320px;height:320px;border:0;outline:0;\">"
+                "</body></html>"
             )
             body.attach(MIMEText(html_content, "html"))
+        except (OSError, UnidentifiedImageError, cv2.error) as exc:
+            print(f"Warning: Could not prepare watch-friendly QR image: {exc}")
 
         msg.attach(body)
+
+        if qr_png_path:
+            try:
+                with open(qr_png_path, "rb") as qr_file:
+                    qr_part = MIMEImage(qr_file.read(), _subtype="png")
+                qr_part.add_header("Content-ID", f"<{qr_cid}>")
+                qr_part.add_header("Content-Disposition", "inline", filename="autopub-login-qr.png")
+                msg.attach(qr_part)
+            except Exception as exc:
+                print(f"Warning: Could not attach inline QR image {qr_png_path}: {exc}")
 
         try:
             with open(attachment_path, "rb") as attachment:
