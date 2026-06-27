@@ -9,5 +9,7 @@ logs*/*
 temp/*
 temp*/
 .env
+.env.bak_*
+cropped_qr_code.jpg
 ignore_*
 _ignore_*

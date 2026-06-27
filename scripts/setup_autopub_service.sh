@@ -14,7 +14,6 @@ AUTOPUB_DATA_PATH="${HOME_PATH}/AutoPublishDATA"
 HOME_MOUNT_UNIT="home-${USER_NAME}.mount"
 DISKMECH_MOUNT_UNIT="home-${USER_NAME}-DiskMech.mount"
 AUTOPUB_DATA_MOUNT_UNIT="home-${USER_NAME}-AutoPublishDATA.mount"
-REPO_MOUNT_UNIT="$(systemd-escape -p --suffix=mount "$REPO_DIR" 2>/dev/null || true)"
 
 if [[ "$EUID" -ne 0 ]]; then
   echo "Please run as root: sudo -E $0"
@@ -29,8 +28,8 @@ cat > "$SERVICE_PATH" <<SERVICE
 [Unit]
 Description=AutoPublish tmux service
 Wants=network-online.target
-After=network-online.target ${HOME_MOUNT_UNIT} ${DISKMECH_MOUNT_UNIT} ${AUTOPUB_DATA_MOUNT_UNIT} ${REPO_MOUNT_UNIT}
-RequiresMountsFor=${HOME_PATH} ${DISKMECH_PATH} ${AUTOPUB_DATA_PATH} ${REPO_DIR}
+After=network-online.target ${HOME_MOUNT_UNIT} ${DISKMECH_MOUNT_UNIT} ${AUTOPUB_DATA_MOUNT_UNIT}
+RequiresMountsFor=${HOME_PATH} ${DISKMECH_PATH} ${AUTOPUB_DATA_PATH}
 
 [Service]
 Type=oneshot
