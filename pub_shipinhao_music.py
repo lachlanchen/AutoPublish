@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import traceback
@@ -40,6 +41,7 @@ SHIPINHAO_MUSIC_PROOF_INPUT_SELECTORS = [
     'input[type="file"][accept*="zip"]',
     'input[type="file"][accept*="rar"]',
 ]
+SHIPINHAO_MUSIC_MANAGEMENT_URL = "https://channels.weixin.qq.com/platform/post/music"
 
 
 MUSIC_PAGE_STATE_SCRIPT = r"""
@@ -227,6 +229,338 @@ return {exists: !!button, disabled: disabled(button), className: button ? (butto
 """
 
 
+MUSIC_MANAGEMENT_STATE_SCRIPT = r"""
+const desiredTab = arguments[0] || '';
+const shouldClick = !!arguments[1];
+const maxDepth = 8;
+
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function queryAllDeep(root, selector, depth, acc) {
+  if (!root || depth > maxDepth || !root.querySelectorAll) return acc;
+  for (const el of root.querySelectorAll(selector)) {
+    acc.push(el);
+  }
+  for (const el of root.querySelectorAll('*')) {
+    if (el.shadowRoot) {
+      queryAllDeep(el.shadowRoot, selector, depth + 1, acc);
+    }
+  }
+  return acc;
+}
+
+function all(selector) {
+  return queryAllDeep(document, selector, 0, []);
+}
+
+function click(el) {
+  el.scrollIntoView({block: 'center'});
+  el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
+  el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+  if (typeof el.click === 'function') el.click();
+  el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+}
+
+const tabNodes = all('li.weui-desktop-tab__nav, .weui-desktop-tab__nav, [role="tab"], button, a')
+  .filter((el) => isVisible(el))
+  .map((el) => ({
+    el,
+    text: norm(el.innerText || el.textContent),
+    className: String(el.className || ''),
+  }))
+  .filter((item) => item.text === '专辑' || item.text === '音乐' || item.text.includes('专辑') || item.text.includes('音乐'));
+
+let clicked = false;
+if (shouldClick && desiredTab) {
+  const target = tabNodes.find((item) => item.text === desiredTab) || tabNodes.find((item) => item.text.includes(desiredTab));
+  if (target) {
+    click(target.el);
+    clicked = true;
+  }
+}
+
+const headers = all('th')
+  .filter(isVisible)
+  .map((el) => norm(el.innerText || el.textContent))
+  .filter(Boolean);
+
+const rows = all('tbody tr, .ant-table-tbody tr')
+  .filter(isVisible)
+  .map((row) => {
+    const cells = Array.from(row.querySelectorAll('td')).map((cell) => norm(cell.innerText || cell.textContent)).filter(Boolean);
+    return {
+      text: norm(row.innerText || row.textContent),
+      cells,
+      className: String(row.className || ''),
+    };
+  })
+  .filter((row) => row.text && !row.text.includes('暂无数据'));
+
+const tableTexts = all('.ant-table, .finder-table-wrap, .album-list-wrap, .music-list-wrap, table')
+  .filter(isVisible)
+  .map((el) => norm(el.innerText || el.textContent))
+  .filter(Boolean)
+  .slice(0, 8);
+
+const activeTabs = tabNodes
+  .filter((item) => /current|active|selected/i.test(item.className))
+  .map((item) => item.text);
+
+const bodyText = norm([
+  document.body && (document.body.innerText || document.body.textContent || ''),
+  ...all('wujie-app, .post-view, .router-view, .finder-table-wrap').map((el) => el.innerText || el.textContent || ''),
+].join(' '));
+
+return {
+  clicked,
+  desiredTab,
+  activeTabs,
+  tabs: tabNodes.map((item) => ({text: item.text, className: item.className})),
+  headers,
+  rows,
+  rowCount: rows.length,
+  tableTexts,
+  empty: bodyText.includes('暂无数据'),
+  bodyText: bodyText.slice(0, 2000),
+  url: location.href,
+};
+"""
+
+
+MUSIC_GLOBAL_STATE_SCRIPT = r"""
+const maxDepth = 8;
+
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function queryAllDeep(root, selector, depth, acc) {
+  if (!root || depth > maxDepth || !root.querySelectorAll) return acc;
+  for (const el of root.querySelectorAll(selector)) {
+    acc.push(el);
+  }
+  for (const el of root.querySelectorAll('*')) {
+    if (el.shadowRoot) {
+      queryAllDeep(el.shadowRoot, selector, depth + 1, acc);
+    }
+  }
+  return acc;
+}
+
+const candidates = queryAllDeep(document, '.weui-desktop-dialog__wrp, .weui-toptips, .common-toptip', 0, []);
+const visibleMessages = candidates
+  .filter(isVisible)
+  .map((el) => norm(el.innerText || el.textContent))
+  .filter(Boolean);
+return {
+  url: location.href,
+  title: document.title || '',
+  visibleMessages,
+  bodyText: norm(document.body && (document.body.innerText || document.body.textContent) || '').slice(0, 1600),
+};
+"""
+
+
+MUSIC_FORM_STATE_SCRIPT = r"""
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+function disabled(el) {
+  if (!el) return true;
+  const className = String(el.className || '');
+  return !!el.disabled || el.getAttribute('disabled') !== null || el.getAttribute('aria-disabled') === 'true' || /disabled/i.test(className);
+}
+function scopeFor(label) {
+  const labels = Array.from(document.querySelectorAll('.label-font, .normal-input-wrap, .weui-desktop-form__control-group, *'))
+    .filter((el) => isVisible(el) && norm(el.innerText || el.textContent).includes(label));
+  labels.sort((a, b) => norm(a.innerText || a.textContent).length - norm(b.innerText || b.textContent).length);
+  const labelEl = labels[0];
+  return labelEl ? (labelEl.closest('.normal-input-wrap, .weui-desktop-form__control-group') || labelEl.parentElement) : null;
+}
+function fieldValue(label) {
+  const scope = scopeFor(label);
+  if (!scope) return {found: false, value: ''};
+  const field = scope.querySelector('input:not([type="file"]):not([type="hidden"]), textarea, [contenteditable="true"]');
+  const dropdown = scope.querySelector('.weui-desktop-form__dropdowncascade__dt');
+  let value = '';
+  if (field) {
+    value = field.value || field.innerText || field.textContent || '';
+  } else if (dropdown) {
+    value = dropdown.innerText || dropdown.textContent || '';
+  }
+  return {
+    found: true,
+    value: norm(value),
+    text: norm(scope.innerText || scope.textContent).slice(0, 300),
+  };
+}
+const button = Array.from(document.querySelectorAll('button'))
+  .find((el) => isVisible(el) && norm(el.innerText || el.textContent) === '发表音乐');
+const fields = {};
+for (const label of ['歌曲名称', '歌曲版本', '歌词内容', '歌曲曲风', '语言', '演唱者', '词作者', '曲作者', '音乐制作人', '专辑名称', '专辑简介']) {
+  fields[label] = fieldValue(label);
+}
+return {
+  fields,
+  publishButton: {
+    exists: !!button,
+    disabled: disabled(button),
+    className: button ? String(button.className || '') : '',
+  },
+  bodyText: norm(document.body && (document.body.innerText || document.body.textContent) || '').slice(0, 1800),
+};
+"""
+
+
+MUSIC_PROOF_UPLOAD_STATE_SCRIPT = r"""
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+const proofScopes = Array.from(document.querySelectorAll('.normal-input-wrap, .weui-desktop-form__control-group, .all-pic-wrap, .content'))
+  .filter((el) => isVisible(el) && /证明文件|原创证明|\.zip|\.rar|删除|%/.test(norm(el.innerText || el.textContent)));
+const text = norm(proofScopes.map((el) => el.innerText || el.textContent || '').join(' '));
+const hasArchive = /\.zip|\.rar/i.test(text);
+const hasProgress = /\d+(?:\.\d+)?%/.test(text);
+const publishButton = Array.from(document.querySelectorAll('button'))
+  .find((el) => isVisible(el) && norm(el.innerText || el.textContent) === '发表音乐');
+const publishReady = !!publishButton
+  && !publishButton.disabled
+  && publishButton.getAttribute('disabled') === null
+  && publishButton.getAttribute('aria-disabled') !== 'true'
+  && !/disabled/i.test(String(publishButton.className || ''));
+return {
+  ok: !hasArchive || !hasProgress || publishReady,
+  hasArchive,
+  hasProgress,
+  publishReady,
+  text: text.slice(0, 800),
+};
+"""
+
+
+SHOW_NEW_ALBUM_FIELDS_SCRIPT = r"""
+const albumName = arguments[0] || '';
+const albumIntro = arguments[1] || albumName;
+
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+function findRootVm() {
+  const seen = new Set();
+  function walk(root) {
+    if (!root || seen.has(root)) return null;
+    seen.add(root);
+    const elements = root.querySelectorAll ? Array.from(root.querySelectorAll('*')) : [];
+    for (const el of elements) {
+      for (const key of Object.keys(el).filter((name) => name.startsWith('__vue'))) {
+        const vm = el[key];
+        if (vm && vm.postMusicStore && vm.$refs && vm.$refs.albumInfo) {
+          return vm;
+        }
+      }
+      if (el.shadowRoot) {
+        const nested = walk(el.shadowRoot);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+  return walk(document);
+}
+
+const root = findRootVm();
+const albumComponent = root && root.$refs && root.$refs.albumInfo;
+const beforeText = albumComponent && albumComponent.$el ? norm(albumComponent.$el.innerText || albumComponent.$el.textContent) : '';
+if (!albumComponent) {
+  return {ok: false, reason: 'album-component-not-found', beforeText};
+}
+
+if (!beforeText.includes('专辑名称')) {
+  if (typeof albumComponent.handleAlbumListEmpty === 'function') {
+    try {
+      albumComponent.handleAlbumListEmpty();
+    } catch (error) {
+      // Keep going; direct state update below is the fallback for newer builds.
+    }
+  }
+  const store = albumComponent.postMusicStore || (root && root.postMusicStore);
+  if (store) {
+    store.shouldCreateNewAlbum = true;
+    store.albumInfo = {
+      albumName: '',
+      coverUrl: '',
+      introduction: '',
+      issueTime: Math.floor(Date.now() / 1000),
+    };
+    if (root.$set) {
+      root.$set(store, 'shouldCreateNewAlbum', true);
+      root.$set(store, 'albumInfo', store.albumInfo);
+    }
+  }
+  albumComponent.currentAlbumName = '新建专辑';
+  albumComponent.currentSelectVal = '-1';
+  albumComponent.showListBody = false;
+  if (typeof albumComponent.$forceUpdate === 'function') albumComponent.$forceUpdate();
+  if (root && typeof root.$forceUpdate === 'function') root.$forceUpdate();
+}
+
+return new Promise((resolve) => setTimeout(() => {
+  const text = albumComponent.$el ? norm(albumComponent.$el.innerText || albumComponent.$el.textContent) : '';
+  resolve({
+    ok: text.includes('专辑名称'),
+    beforeText,
+    afterText: text.slice(0, 800),
+    currentAlbumName: albumComponent.currentAlbumName,
+    currentSelectVal: albumComponent.currentSelectVal,
+  });
+}, 500));
+"""
+
+
 CHECK_MUSIC_AGREEMENT_SCRIPT = r"""
 function norm(value) {
   return (value || '').replace(/\s+/g, ' ').trim();
@@ -280,24 +614,128 @@ function isVisible(el) {
 }
 function click(el) {
   el.scrollIntoView({block: 'center'});
+  el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
   el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
   if (typeof el.click === 'function') el.click();
   el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
   el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
 }
 
-const labelEl = Array.from(document.querySelectorAll('*')).find((el) => isVisible(el) && norm(el.innerText || el.textContent).includes(label));
+const genreLeafMap = {
+  '流行': '城市流行',
+  '国语流行': '城市流行',
+  '中文流行': '城市流行',
+  '华语流行': '城市流行',
+  '英文流行': '欧美流行',
+  '英语流行': '欧美流行',
+  '日文流行': 'J-pop',
+  '日语流行': 'J-pop',
+  '日本流行': 'J-pop',
+};
+const languageMap = {
+  '中文': '普通话',
+  '汉语': '普通话',
+  '国语': '普通话',
+  '普通话': '普通话',
+  '英文': '英语',
+  '英语': '英语',
+  '日文': '日语',
+  '日语': '日语',
+  '日本語': '日语',
+};
+
+function visibleText(el) {
+  return norm(el.innerText || el.textContent);
+}
+
+function leafTarget(label, optionText) {
+  if (label.includes('歌曲曲风')) return genreLeafMap[optionText] || optionText;
+  if (label.includes('语言')) return languageMap[optionText] || optionText;
+  return optionText;
+}
+
+function optionCandidates(scope, text) {
+  const selector = '.weui-desktop-dropdown__list-ele, .weui-desktop-dropdown__list-ele__text, li, span, button, div';
+  return Array.from(scope.querySelectorAll(selector))
+    .filter((el) => visibleText(el) === text && (isVisible(el) || el.closest('.weui-desktop-dropdowncascade-menu__wrp')));
+}
+
+function clickOption(scope, text, preferLeaf) {
+  const candidates = optionCandidates(scope, text);
+  if (!candidates.length) return null;
+  let match = null;
+  if (preferLeaf) {
+    match = candidates.find((el) => el.tagName === 'LI' && !String(el.className || '').includes('module-has-options'));
+  }
+  match = match
+    || candidates.find((el) => el.tagName === 'LI')
+    || candidates.find((el) => !String(el.className || '').includes('tooltip'))
+    || candidates[0];
+  click(match.closest('li, button') || match);
+  return {
+    text: visibleText(match),
+    className: String(match.className || ''),
+    tag: match.tagName,
+  };
+}
+
+const labelCandidates = Array.from(document.querySelectorAll('.label-font, .weui-desktop-form__control-group, .normal-input-wrap, *'))
+  .filter((el) => isVisible(el) && visibleText(el).includes(label))
+  .map((el) => ({
+    el,
+    text: visibleText(el),
+    className: String(el.className || ''),
+  }));
+labelCandidates.sort((a, b) => {
+  const aExact = a.text === label ? 0 : 1;
+  const bExact = b.text === label ? 0 : 1;
+  const aLabelClass = /label-font|control-group|normal-input-wrap/.test(a.className) ? 0 : 1;
+  const bLabelClass = /label-font|control-group|normal-input-wrap/.test(b.className) ? 0 : 1;
+  return aExact - bExact || aLabelClass - bLabelClass || a.text.length - b.text.length;
+});
+const labelEl = (labelCandidates[0] || {}).el;
 if (!labelEl) return {ok: false, reason: 'label-not-found'};
-const scope = labelEl.closest('.form-item, .cell-center, .weui-desktop-form__input-area') || labelEl.parentElement || labelEl;
-const clickable = Array.from(scope.querySelectorAll('button, input, .weui-desktop-form__dropdown, .weui-desktop-dropdown, .display, .display-text, .arrow-icon, div, span'))
-  .find((el) => isVisible(el) && el !== labelEl) || scope;
+const scope = labelEl.closest('.normal-input-wrap, .weui-desktop-form__control-group, .form-item, .cell-center, .weui-desktop-form__input-area') || labelEl.parentElement || labelEl;
+const currentValue = norm((scope.querySelector('input:not([type="hidden"]):not([type="file"])') || {}).value || '');
+const dropdownValue = norm((scope.querySelector('.weui-desktop-form__dropdowncascade__dt') || {}).innerText || '');
+const targetText = leafTarget(label, optionText);
+if (currentValue === targetText || dropdownValue === targetText || dropdownValue.includes(targetText)) {
+  return {ok: true, selected: targetText, alreadySelected: true};
+}
+
+const clickable = scope.querySelector('.weui-desktop-form__dropdowncascade__dt')
+  || scope.querySelector('input[placeholder*="请选择"]')
+  || Array.from(scope.querySelectorAll('button, input, .weui-desktop-form__dropdown, .weui-desktop-dropdown, .display, .display-text, .arrow-icon, .content, div, span'))
+    .find((el) => isVisible(el) && el !== labelEl)
+  || scope;
 click(clickable);
 
-const options = Array.from(document.querySelectorAll('li, span, div, button')).filter((el) => isVisible(el) && norm(el.innerText || el.textContent).includes(optionText));
-const option = options.find((el) => norm(el.innerText || el.textContent) === optionText) || options[0];
-if (!option) return {ok: false, reason: 'option-not-found'};
+if (label.includes('歌曲曲风') && targetText !== optionText) {
+  const parent = clickOption(scope, optionText, false);
+  const leaf = clickOption(scope, targetText, true);
+  const updated = norm((scope.querySelector('.weui-desktop-form__dropdowncascade__dt') || {}).innerText || '');
+  if (leaf && updated.includes(targetText)) {
+    return {ok: true, selected: updated, parent, leaf};
+  }
+  return {ok: false, reason: 'genre-leaf-not-selected', parent, leaf, wanted: targetText, updated, scopeText: visibleText(scope).slice(0, 500)};
+}
+
+const scoped = clickOption(scope, targetText, true);
+if (scoped) {
+  const updatedInput = norm((scope.querySelector('input:not([type="hidden"]):not([type="file"])') || {}).value || '');
+  const updatedDropdown = norm((scope.querySelector('.weui-desktop-form__dropdowncascade__dt') || {}).innerText || '');
+  const updated = updatedInput || updatedDropdown || visibleText(scope);
+  if (updated.includes(targetText) || scoped.text === targetText) {
+    return {ok: true, selected: updated, option: scoped};
+  }
+}
+
+const globalOptions = Array.from(document.querySelectorAll('li, span, div, button'))
+  .filter((el) => isVisible(el) && visibleText(el) === targetText);
+const option = globalOptions.find((el) => el.tagName === 'LI') || globalOptions[0];
+if (!option) return {ok: false, reason: 'option-not-found', wanted: targetText, scopeText: visibleText(scope).slice(0, 500)};
 click(option.closest('li, button') || option);
-return {ok: true, selected: norm(option.innerText || option.textContent)};
+return {ok: true, selected: visibleText(option), option: {tag: option.tagName, className: String(option.className || '')}};
 """
 
 
@@ -338,27 +776,30 @@ def _metadata_text(metadata, *keys, default=""):
 def _normalize_language(value):
     text = str(value or "").strip()
     mapping = {
-        "zh": "中文",
-        "zh-cn": "中文",
-        "zh-hans": "中文",
-        "zh-hant": "中文",
-        "cn": "中文",
-        "chinese": "中文",
-        "中文": "中文",
-        "en": "英文",
-        "english": "英文",
-        "英文": "英文",
-        "ja": "日文",
-        "jp": "日文",
-        "japanese": "日文",
-        "日文": "日文",
-        "日本語": "日文",
-        "mul": "中文",
-        "mixed": "中文",
-        "多语言": "中文",
-        "混合": "中文",
+        "zh": "普通话",
+        "zh-cn": "普通话",
+        "zh-hans": "普通话",
+        "zh-hant": "普通话",
+        "cn": "普通话",
+        "chinese": "普通话",
+        "中文": "普通话",
+        "普通话": "普通话",
+        "en": "英语",
+        "english": "英语",
+        "英文": "英语",
+        "英语": "英语",
+        "ja": "日语",
+        "jp": "日语",
+        "japanese": "日语",
+        "日文": "日语",
+        "日语": "日语",
+        "日本語": "日语",
+        "mul": "普通话",
+        "mixed": "普通话",
+        "多语言": "普通话",
+        "混合": "普通话",
     }
-    return mapping.get(text.lower(), text or "中文")
+    return mapping.get(text.lower(), text or "普通话")
 
 
 def _music_page_state(driver):
@@ -463,14 +904,22 @@ def _click_music_text(driver, texts, exact=False, duration=10):
     )
 
 
-def _select_music_option(driver, label, option, duration=8):
+def _select_music_option(driver, label, option, duration=8, required=False):
     if not option:
         return None
     try:
-        return WebDriverWait(driver, duration).until(
-            lambda current_driver: _execute_in_content_frame(current_driver, SELECT_BY_LABEL_SCRIPT, label, option)
-        )
+        def _select(current_driver):
+            result = _execute_in_content_frame(current_driver, SELECT_BY_LABEL_SCRIPT, label, option)
+            if isinstance(result, dict) and result.get("ok"):
+                return result
+            return False
+
+        result = WebDriverWait(driver, duration).until(_select)
+        print(f"Shipinhao music option selected: {label}={option} -> {result}")
+        return result
     except Exception as exc:
+        if required:
+            raise
         print(f"Optional Shipinhao music option not selected ({label}={option}): {exc}")
         return None
 
@@ -511,6 +960,132 @@ def _click_button_if_ready(driver, text="完成", duration=8):
     print(f"Shipinhao music optional button ready: {state}")
     click_content_frame_css(driver, "button", duration=10, text=text, exact=True)
     return True
+
+
+def _music_global_state(driver):
+    try:
+        driver.switch_to.default_content()
+    except Exception:
+        pass
+    try:
+        state = driver.execute_script(MUSIC_GLOBAL_STATE_SCRIPT)
+        return state if isinstance(state, dict) else {}
+    except Exception:
+        return {}
+
+
+def _music_form_state(driver):
+    try:
+        state = _execute_in_content_frame(driver, MUSIC_FORM_STATE_SCRIPT)
+        return state if isinstance(state, dict) else {}
+    except Exception:
+        return {}
+
+
+def _wait_for_music_proof_upload(driver, duration=45):
+    deadline = time.time() + duration
+    last_state = None
+    while time.time() < deadline:
+        state = _execute_in_content_frame(driver, MUSIC_PROOF_UPLOAD_STATE_SCRIPT)
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("ok"):
+                print(f"Shipinhao music proof upload ready: {state}")
+                return state
+        time.sleep(1)
+    raise TimeoutException(f"Timed out waiting for Shipinhao music proof upload. Last state: {last_state}")
+
+
+def _ensure_new_album_fields(driver, album_name, album_intro, duration=8):
+    """Switch the album area from existing-album selector to new-album fields.
+
+    Shipinhao changed the form after the account has at least one album: the
+    album section initially shows only "选择专辑". The desktop page still supports
+    new album creation from this song form, but the visible control is a Vue
+    component rather than a plain input. Use the component state only to reveal
+    the standard inputs; the actual values are still filled through normal DOM
+    input events below.
+    """
+    deadline = time.time() + duration
+    last_state = None
+    while time.time() < deadline:
+        state = _execute_in_content_frame(driver, SHOW_NEW_ALBUM_FIELDS_SCRIPT, album_name, album_intro)
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("ok"):
+                print(f"Shipinhao music new-album fields ready: {json.dumps(state, ensure_ascii=False)}")
+                return state
+        time.sleep(0.5)
+    print(f"Shipinhao music new-album fields were not revealed: {last_state}")
+    return last_state
+
+
+def _raise_on_visible_music_error(driver):
+    state = _music_global_state(driver)
+    messages = [str(message) for message in state.get("visibleMessages") or [] if message]
+    if messages:
+        print(f"Shipinhao music visible messages: {json.dumps(messages, ensure_ascii=False)}")
+    error_markers = [
+        "表单信息不完整",
+        "暂时无法使用该功能",
+        "无法使用该功能",
+        "不满足",
+        "未满足",
+        "上传失败",
+        "发表失败",
+        "发布失败",
+        "错误",
+    ]
+    for message in messages:
+        if any(marker in message for marker in error_markers):
+            raise RuntimeError(f"Shipinhao music submit failed: {message}")
+    return state
+
+
+def read_shipinhao_music_management(driver, tabs=("专辑", "音乐"), settle_seconds=2):
+    """Return visible Shipinhao music-management state for album and song tabs.
+
+    Shipinhao currently exposes album (专辑) as a management tab and as required
+    fields inside the music publish form. There is no verified album-only
+    creation route, so this reader is intentionally non-destructive.
+    """
+    try:
+        driver.set_page_load_timeout(int(os.environ.get("SHIPINHAO_MUSIC_PAGE_LOAD_TIMEOUT", "20")))
+    except Exception:
+        pass
+    try:
+        driver.get(SHIPINHAO_MUSIC_MANAGEMENT_URL)
+    except TimeoutException:
+        try:
+            driver.execute_script("window.stop();")
+        except Exception:
+            pass
+    dismiss_alert(driver)
+    time.sleep(max(1, settle_seconds))
+
+    snapshots = {}
+    for tab in tabs:
+        state = _execute_in_content_frame(driver, MUSIC_MANAGEMENT_STATE_SCRIPT, tab, True)
+        time.sleep(max(1, settle_seconds))
+        state = _execute_in_content_frame(driver, MUSIC_MANAGEMENT_STATE_SCRIPT, tab, False)
+        snapshots[tab] = state if isinstance(state, dict) else {"error": "state-unavailable", "raw": state}
+    return {
+        "management_url": SHIPINHAO_MUSIC_MANAGEMENT_URL,
+        "captured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "tabs": snapshots,
+    }
+
+
+def save_shipinhao_music_management_snapshot(driver, label="music_management"):
+    snapshot = read_shipinhao_music_management(driver)
+    logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    safe_label = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in label)[:80]
+    path = os.path.join(logs_dir, f"shipinhao-{safe_label}.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(snapshot, handle, ensure_ascii=False, indent=2)
+    print(f"Saved Shipinhao music management snapshot to {path}")
+    return snapshot
 
 
 class ShiPinHaoMusicPublisher:
@@ -598,7 +1173,7 @@ class ShiPinHaoMusicPublisher:
                 break
         if not proof_path:
             print("No Shipinhao music original-proof archive provided.")
-            return
+            return False
 
         try:
             find_any_in_content_frame(
@@ -614,8 +1189,10 @@ class ShiPinHaoMusicPublisher:
                 duration=10,
             )
             print(f"Shipinhao music original proof selected: {proof_path}")
+            return True
         except Exception as exc:
             print(f"Optional Shipinhao music original proof upload skipped: {exc}")
+            return False
 
     def _fill_music_fields(self):
         metadata = self.metadata
@@ -664,6 +1241,7 @@ class ShiPinHaoMusicPublisher:
             required=True,
             duration=30,
         )
+        _select_music_option(self.driver, "歌曲版本", "完整版", duration=8, required=True)
 
         try:
             _click_music_text(self.driver, ["歌词内容", "添加歌词", "填写歌词"], exact=False, duration=5)
@@ -700,7 +1278,7 @@ class ShiPinHaoMusicPublisher:
             duration=10,
         )
 
-        _select_music_option(self.driver, "歌曲曲风", genre or "流行", duration=8)
+        _select_music_option(self.driver, "歌曲曲风", genre or "流行", duration=8, required=True)
         _select_music_option(self.driver, "语言", language, duration=8)
         _set_music_field(
             self.driver,
@@ -754,6 +1332,7 @@ class ShiPinHaoMusicPublisher:
 
         _check_music_agreement(self.driver, duration=8)
 
+        _ensure_new_album_fields(self.driver, album_name, album_intro[:1000], duration=8)
         _set_music_field(
             self.driver,
             ["专辑名称"],
@@ -791,7 +1370,8 @@ class ShiPinHaoMusicPublisher:
             time.sleep(3)
             if _click_button_if_ready(driver, text="确认", duration=8):
                 time.sleep(3)
-            self._upload_original_proof()
+            if self._upload_original_proof():
+                _wait_for_music_proof_upload(driver, duration=45)
 
             if self.test:
                 user_input = input("Do you want to publish this music now? Type 'yes' to confirm: ").strip().lower()
@@ -799,11 +1379,29 @@ class ShiPinHaoMusicPublisher:
                 user_input = "yes"
 
             if user_input == "yes":
+                form_state = _music_form_state(driver)
+                if form_state:
+                    print(f"Shipinhao music form state before submit: {json.dumps(form_state, ensure_ascii=False)}")
                 state = _wait_for_button_ready(driver, text="发表音乐", duration=90)
                 print(f"Shipinhao music publish button ready: {state}")
                 click_content_frame_css(driver, "button", duration=20, text="发表音乐", exact=True)
-                time.sleep(10)
+                time.sleep(3)
+                _raise_on_visible_music_error(driver)
+                time.sleep(7)
                 print("Shipinhao music submitted.")
+                try:
+                    management = save_shipinhao_music_management_snapshot(driver, "music_after_submit")
+                    summary = {
+                        name: {
+                            "rowCount": (state or {}).get("rowCount"),
+                            "activeTabs": (state or {}).get("activeTabs"),
+                            "empty": (state or {}).get("empty"),
+                        }
+                        for name, state in (management.get("tabs") or {}).items()
+                    }
+                    print(f"Shipinhao music management summary after submit: {json.dumps(summary, ensure_ascii=False)}")
+                except Exception as exc:
+                    print(f"Optional Shipinhao music management verification failed: {exc}")
             else:
                 print("Shipinhao music publishing cancelled by user.")
 

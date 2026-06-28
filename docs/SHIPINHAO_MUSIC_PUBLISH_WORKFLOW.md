@@ -19,6 +19,18 @@ Important distinction:
 So the automation should treat each ZIP package as one music publish, while
 also filling the album fields for the song.
 
+As of 2026-06-29, no standalone desktop `发表专辑` creation route has been
+verified. The `专辑` screen under music management is a list/management tab. Do
+not create a separate album-only publisher that pretends to publish without a
+song. Use the music publisher for creation and the zhuanji manager for
+read-only album/song state.
+
+Relevant code:
+
+- `pub_shipinhao_music.py`: real song publish flow through `发表音乐`
+- `pub_shipinhao_zhuanji.py`: read-only management helper for `专辑` and `音乐`
+  tabs
+
 ## Live Hosts And Repos
 
 - Local AutoPublish submodule:
@@ -69,6 +81,42 @@ https://channels.weixin.qq.com/platform/post/create
 ```
 
 The normal video route opens `发表动态` and will never expose the music form.
+
+Management/list route:
+
+```text
+https://channels.weixin.qq.com/platform/post/music
+```
+
+This route contains two visible tabs:
+
+- `专辑`: columns `专辑封面`, `专辑名称`, `歌曲数`, `发布时间`, `状态`
+- `音乐`: columns `歌曲名称`, `所属专辑`, `发布时间`, `播放`, `点赞`,
+  `评论`, `转发`, `状态`, `操作`
+
+Read the live tab state from the Pi:
+
+```bash
+ssh lachlan@lazyingart
+cd ~/Projects/autopub
+/home/lachlan/venvs/autopub/bin/python pub_shipinhao_zhuanji.py
+```
+
+The script saves:
+
+```text
+~/Projects/autopub/logs/shipinhao-zhuanji-management.json
+```
+
+Final proof must come from this management reader, not from the submit click
+alone. In the verified 2026-06-29 run it showed:
+
+- `专辑(2)`: `アヤちゃん 光の雨` and `One Sky, Three Lights`, both `已上架`
+- `音乐(2)`: `アヤちゃん 光の雨` as `审核中`; `One Sky, Three Lights` as
+  `已上架`
+
+Treat `button clicked` as submitted, not final listing proof, unless a
+management row or backend status is observed.
 
 ## Page Readiness
 
@@ -127,6 +175,18 @@ Recommended values:
 - Japanese songs: use `日文` or `日语`, whichever appears in the dropdown.
 - Artist / author / producer fields: `Musia 慕莎` is safe when no separate
   performer is provided.
+
+Album-field behavior changed after the account had at least one album. A fresh
+form may initially show only:
+
+```text
+专辑信息 / 选择专辑 / 请选择专辑
+```
+
+The page still supports creating a new album from the song form. The automation
+switches the Vue album component to `新建专辑`, then fills `专辑名称`,
+`专辑封面`, and `专辑简介`. Keep this fallback: otherwise the final publish
+button remains disabled on accounts with an existing album.
 
 ## Audio Requirements
 
@@ -201,7 +261,9 @@ proof/
 LazyEdit packages these proof files inside the outer music ZIP and also creates
 a nested `proof/<slug>_original_proof.zip`. AutoPublish can upload that nested
 archive to Shipinhao if the live page exposes an original-proof `.zip/.rar`
-input.
+input. The page can leave stale `0%` text beside a proof archive even when the
+final `发表音乐` button is already enabled; the uploader treats an enabled final
+button as proof-upload-ready.
 
 ## LazyEdit Package Contract
 
@@ -267,14 +329,34 @@ curl -fsS -X POST http://lazyingart:8081/publish \
 - The final submit button is exactly `发表音乐`.
 - A button with class `weui-desktop-btn_disabled` is disabled even if Selenium
   says the DOM button exists.
+- After clicking `发表音乐`, check visible global dialogs/toptips before leaving
+  the form. Account/eligibility errors can appear outside the content iframe.
 - The cover-crop overlay has a visible `确认` button that must be clicked.
 - Broad DOM clicks can disturb form state. Selection helpers must target the
   label scope and then the visible dropdown option.
 - After cover confirmation, re-check core fields (`歌曲名称`, lyrics,
   `专辑名称`, `专辑简介`) before final submission, because bad dropdown clicks
   can clear or focus fields unexpectedly.
+- After submission, collect a management snapshot for both `专辑` and `音乐`.
+  Empty tabs may mean the item is still unavailable, hidden during review, or
+  rejected before listing; do not blindly mark it as listed.
 - Do not publish the next song until the current song is either confirmed done
   or failed with a captured snapshot.
+
+The current frontend JS bundle exposes these internal method names:
+
+```text
+getAlbums       -> /post/get_albums
+getSongs        -> /post/get_songs
+saveSong        -> /post/save_song
+issueSongBySinger -> /post/issue_song_by_singer
+takeDownAlbum   -> /post/take_down_album
+takeDownSong    -> /post/take_down_song
+```
+
+They are useful for future debugging, but direct calls still need the site's
+request wrapper/auth context. The supported automation path remains Selenium UI
+control plus management-tab verification.
 
 ## Current Musia Defaults
 
