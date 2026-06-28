@@ -266,6 +266,8 @@ def _candidate_music_urls():
             if url:
                 yield url
     defaults = [
+        "https://channels.weixin.qq.com/micro/content/post/createMusic",
+        "https://channels.weixin.qq.com/platform/post/createMusic",
         "https://channels.weixin.qq.com/platform/music/create",
         "https://channels.weixin.qq.com/platform/post/music",
         "https://channels.weixin.qq.com/platform/audio/create",
@@ -349,9 +351,9 @@ def _enter_music_form(driver, duration=20):
             return last_state
         if last_state.get("hasEntry") and not clicked_entry:
             print("Opening Shipinhao music upload form from music management page...")
-            _click_music_text(driver, ["发表音乐", "上传一首歌曲", "添加音乐"], exact=False, duration=8)
+            _click_music_text(driver, ["发表音乐", "上传一首歌曲", "添加音乐"], exact=False, duration=12)
             clicked_entry = True
-            time.sleep(2)
+            time.sleep(4)
             continue
         time.sleep(1)
     raise TimeoutException(f"Timed out entering Shipinhao music upload form. Last state: {last_state}")
