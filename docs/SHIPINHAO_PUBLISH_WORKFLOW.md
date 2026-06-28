@@ -9,6 +9,10 @@ This is the verified workflow for diagnosing and deploying ShiPinHao publish fix
 - Live deploy path on host: `~/Projects/autopub`
 - Live tmux session on host: `autopub`
 
+Music publishing uses a separate route and a separate publisher. See
+`docs/SHIPINHAO_MUSIC_PUBLISH_WORKFLOW.md` before changing
+`pub_shipinhao_music.py`.
+
 ## Diagnose the live failure
 
 On `lazyingart`, inspect the running pane:
