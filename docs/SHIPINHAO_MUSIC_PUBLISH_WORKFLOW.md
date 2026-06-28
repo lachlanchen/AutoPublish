@@ -188,6 +188,57 @@ switches the Vue album component to `新建专辑`, then fills `专辑名称`,
 `专辑封面`, and `专辑简介`. Keep this fallback: otherwise the final publish
 button remains disabled on accounts with an existing album.
 
+## Verified 2026-06-29 Publish Details
+
+Two Musia songs were published through this flow:
+
+- `One Sky, Three Lights`
+- `アヤちゃん 光の雨`
+
+Final management verification:
+
+- `专辑(2)`: both albums listed and `已上架`
+- `音乐(2)`: `One Sky, Three Lights` listed as `已上架`;
+  `アヤちゃん 光の雨` listed as `审核中`
+
+Fields that were actually filled during the successful run:
+
+- `歌曲名称`
+- `歌曲版本`: `完整版`
+- `歌词内容`
+- `歌曲曲风`: `流行 / 城市流行`
+- `演唱者`
+- `词作者`
+- `曲作者`
+- `音乐制作人`
+- `是否已在其他平台发表`
+- `专辑名称`
+- `专辑封面`, including the square-cover confirmation dialog
+- `专辑简介`
+- `我已阅读《视频号音乐人发表须知》`
+- original-proof archive when the proof upload input was visible
+
+Fields and cases to understand carefully:
+
+- `作品类型` was left on the page default `原创`. The code did not click an
+  extra `声明原创` control because the music metadata had
+  `declare_original=false` and the current create-music form did not expose the
+  same video-style `声明原创` dialog.
+- `原创证明 / 证明文件` is different from declaring original rights. The code
+  uploaded the nested `proof/<slug>_original_proof.zip` when the `.zip/.rar`
+  proof input was visible.
+- `音乐人说`, `歌曲简介`, and `歌曲故事` were attempted from `music_story`, but
+  the verified create form did not expose those fields. The log line was:
+  `Optional Shipinhao music field not found`. In this UI, the story text was
+  therefore not submitted as a separate `音乐人说` field.
+- The story/background still enters the package metadata and was used as
+  `专辑简介` fallback/description material. Do not claim a separate `音乐人说`
+  was filled unless a future form state or management detail page proves it.
+- Language selection is optional and can fail silently on this page. The Aya
+  run tried `日语`, but the form-state snapshot still showed `普通话`. If music
+  language matters for review or discovery, inspect the live language dropdown
+  and patch the selector before submit.
+
 ## Audio Requirements
 
 Shipinhao rejected an MP3 with this error:
