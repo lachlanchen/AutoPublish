@@ -214,7 +214,7 @@ function norm(value) {
 function disabled(el) {
   if (!el) return true;
   const className = (el.className || '').toString();
-  return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(className);
+  return !!el.disabled || el.getAttribute('disabled') !== null || el.getAttribute('aria-disabled') === 'true' || /disabled/i.test(className);
 }
 const button = Array.from(document.querySelectorAll('button')).find((el) => norm(el.innerText || el.textContent) === targetText);
 return {exists: !!button, disabled: disabled(button), className: button ? (button.className || '').toString() : null};
@@ -532,6 +532,18 @@ class ShiPinHaoMusicPublisher:
         author = _metadata_text(metadata, "author", "artist", "composer", default="Musia 慕莎")
         genre = _metadata_text(metadata, "genre", "style", default="")
         language = _normalize_language(_metadata_text(metadata, "language", "song_language", default="中文"))
+        album_name = _metadata_text(metadata, "album_name", "album", "song_title", "music_title", "title", default=title)
+        album_intro = _metadata_text(
+            metadata,
+            "album_intro",
+            "album_description",
+            "brief_description",
+            "music_story",
+            "story",
+            "middle_description",
+            "long_description",
+            default=story or title,
+        )
 
         _set_music_field(
             self.driver,
@@ -592,6 +604,23 @@ class ShiPinHaoMusicPublisher:
             _click_music_text(self.driver, ["我已阅读并同意", "微信视频号音乐服务平台使用协议", "同意"], exact=False, duration=8)
         except Exception as exc:
             print(f"Optional Shipinhao music agreement checkbox not set: {exc}")
+
+        _set_music_field(
+            self.driver,
+            ["专辑名称"],
+            ["专辑名称", "请填写专辑名称"],
+            album_name,
+            required=True,
+            duration=15,
+        )
+        _set_music_field(
+            self.driver,
+            ["专辑简介"],
+            ["专辑简介", "填写专辑简介"],
+            album_intro[:1000],
+            required=True,
+            duration=15,
+        )
 
     def publish(self):
         if self.retry_count >= 3:
