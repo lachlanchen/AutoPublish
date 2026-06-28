@@ -320,10 +320,22 @@ def _wait_for_music_page_ready(driver, duration=45):
 
 def _find_music_page(driver):
     last_error = None
+    try:
+        driver.set_page_load_timeout(int(os.environ.get("SHIPINHAO_MUSIC_PAGE_LOAD_TIMEOUT", "20")))
+    except Exception:
+        pass
     for url in _candidate_music_urls():
         try:
             print(f"Trying Shipinhao music URL: {url}")
-            driver.get(url)
+            try:
+                driver.get(url)
+            except TimeoutException as exc:
+                last_error = exc
+                print(f"Shipinhao music URL load timed out, stopping page load: {url}: {exc}")
+                try:
+                    driver.execute_script("window.stop();")
+                except Exception:
+                    pass
             dismiss_alert(driver)
             time.sleep(3)
             state = _wait_for_music_page_ready(driver, duration=12)
