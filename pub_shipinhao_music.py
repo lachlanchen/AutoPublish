@@ -42,9 +42,15 @@ const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')).m
   accept: el.getAttribute('accept') || '',
   multiple: !!el.multiple,
 }));
-const markers = ['发表音乐', '添加音乐', '歌曲名称', '歌词内容', '音乐人说', '歌曲语言', '歌曲曲风'];
+const hasAudioInput = fileInputs.some((item) => /audio|mp3|wav/i.test(item.accept));
+const formMarkers = ['添加音乐', '歌曲名称', '歌词内容', '音乐人说', '歌曲语言', '歌曲曲风'];
+const entryMarkers = ['发表音乐', '上传一首歌曲'];
+const unavailableMarkers = ['暂时无法使用该功能', '无法使用该功能'];
 return {
-  ready: markers.some((marker) => text.includes(marker)) || fileInputs.some((item) => /audio|mp3|wav/i.test(item.accept)),
+  ready: hasAudioInput || formMarkers.some((marker) => text.includes(marker)),
+  hasAudioInput,
+  hasEntry: entryMarkers.some((marker) => text.includes(marker)),
+  unavailable: unavailableMarkers.some((marker) => text.includes(marker)),
   text: text.slice(0, 1200),
   fileInputs,
   url: location.href,
@@ -311,11 +317,35 @@ def _wait_for_music_page_ready(driver, duration=45):
     deadline = time.time() + duration
     while time.time() < deadline:
         last_state = _music_page_state(driver)
+        if last_state.get("unavailable"):
+            raise RuntimeError("Shipinhao music upload is unavailable for this account or route.")
         if last_state.get("ready"):
             print(f"Shipinhao music page ready: {last_state}")
             return last_state
         time.sleep(1)
     raise TimeoutException(f"Timed out waiting for Shipinhao music form. Last state: {last_state}")
+
+
+def _enter_music_form(driver, duration=20):
+    """Open the actual music upload form from the music-management page."""
+    deadline = time.time() + duration
+    last_state = None
+    clicked_entry = False
+    while time.time() < deadline:
+        last_state = _music_page_state(driver)
+        if last_state.get("unavailable"):
+            raise RuntimeError("Shipinhao music upload is unavailable for this account or route.")
+        if last_state.get("ready"):
+            print(f"Shipinhao music upload form ready: {last_state}")
+            return last_state
+        if last_state.get("hasEntry") and not clicked_entry:
+            print("Opening Shipinhao music upload form from music management page...")
+            _click_music_text(driver, ["发表音乐", "上传一首歌曲", "添加音乐"], exact=False, duration=8)
+            clicked_entry = True
+            time.sleep(2)
+            continue
+        time.sleep(1)
+    raise TimeoutException(f"Timed out entering Shipinhao music upload form. Last state: {last_state}")
 
 
 def _find_music_page(driver):
@@ -339,6 +369,8 @@ def _find_music_page(driver):
             dismiss_alert(driver)
             time.sleep(3)
             state = _wait_for_music_page_ready(driver, duration=12)
+            if state.get("hasEntry") and not state.get("hasAudioInput"):
+                state = _enter_music_form(driver, duration=20)
             return url, state
         except Exception as exc:
             last_error = exc
