@@ -212,6 +212,7 @@ function norm(value) {
   return (value || '').replace(/\s+/g, ' ').trim();
 }
 function disabled(el) {
+  if (!el) return true;
   const className = (el.className || '').toString();
   return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(className);
 }
@@ -442,6 +443,16 @@ def _wait_for_button_ready(driver, text="完成", duration=60):
     raise TimeoutException(f"Timed out waiting for Shipinhao music button {text!r}. Last state: {last_state}")
 
 
+def _click_button_if_ready(driver, text="完成", duration=8):
+    try:
+        state = _wait_for_button_ready(driver, text=text, duration=duration)
+    except TimeoutException:
+        return False
+    print(f"Shipinhao music optional button ready: {state}")
+    click_content_frame_css(driver, "button", duration=10, text=text, exact=True)
+    return True
+
+
 class ShiPinHaoMusicPublisher:
     def __init__(self, driver, audio_path, cover_path, metadata, test=False):
         self.driver = driver
@@ -598,6 +609,8 @@ class ShiPinHaoMusicPublisher:
             self._fill_music_fields()
             self._upload_images()
             time.sleep(3)
+            if _click_button_if_ready(driver, text="完成", duration=8):
+                time.sleep(3)
 
             if self.test:
                 user_input = input("Do you want to publish this music now? Type 'yes' to confirm: ").strip().lower()
@@ -605,9 +618,9 @@ class ShiPinHaoMusicPublisher:
                 user_input = "yes"
 
             if user_input == "yes":
-                state = _wait_for_button_ready(driver, text="完成", duration=90)
+                state = _wait_for_button_ready(driver, text="发表音乐", duration=90)
                 print(f"Shipinhao music publish button ready: {state}")
-                click_content_frame_css(driver, "button", duration=20, text="完成", exact=True)
+                click_content_frame_css(driver, "button", duration=20, text="发表音乐", exact=True)
                 time.sleep(10)
                 print("Shipinhao music submitted.")
             else:
