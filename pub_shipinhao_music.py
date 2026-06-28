@@ -319,7 +319,7 @@ def _wait_for_music_page_ready(driver, duration=45):
         last_state = _music_page_state(driver)
         if last_state.get("unavailable"):
             raise RuntimeError("Shipinhao music upload is unavailable for this account or route.")
-        if last_state.get("ready"):
+        if last_state.get("ready") or last_state.get("hasEntry"):
             print(f"Shipinhao music page ready: {last_state}")
             return last_state
         time.sleep(1)
