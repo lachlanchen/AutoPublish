@@ -227,6 +227,43 @@ return {exists: !!button, disabled: disabled(button), className: button ? (butto
 """
 
 
+CHECK_MUSIC_AGREEMENT_SCRIPT = r"""
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+const wrappers = Array.from(document.querySelectorAll('label, .ant-checkbox-wrapper, .original-proto-wrapper, div, span'))
+  .filter((el) => isVisible(el) && norm(el.innerText || el.textContent).includes('我已阅读'));
+for (const wrapper of wrappers) {
+  const input = wrapper.querySelector('input[type="checkbox"]')
+    || wrapper.closest('label, .ant-checkbox-wrapper, .original-proto-wrapper')?.querySelector('input[type="checkbox"]');
+  if (input) {
+    input.scrollIntoView({block: 'center'});
+    if (!input.checked) {
+      input.click();
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      input.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+    return {ok: true, checked: input.checked, method: 'input'};
+  }
+  const label = wrapper.closest('label, .ant-checkbox-wrapper') || wrapper;
+  label.scrollIntoView({block: 'center'});
+  label.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+  if (typeof label.click === 'function') label.click();
+  label.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+  label.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+  return {ok: true, checked: !!(label.querySelector('input[type="checkbox"]') || {}).checked, method: 'label'};
+}
+return {ok: false};
+"""
+
+
 SELECT_BY_LABEL_SCRIPT = r"""
 const label = arguments[0] || '';
 const optionText = arguments[1] || '';
@@ -438,6 +475,21 @@ def _select_music_option(driver, label, option, duration=8):
         return None
 
 
+def _check_music_agreement(driver, duration=8):
+    deadline = time.time() + duration
+    last_state = None
+    while time.time() < deadline:
+        state = _execute_in_content_frame(driver, CHECK_MUSIC_AGREEMENT_SCRIPT)
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("ok") and state.get("checked"):
+                print(f"Shipinhao music agreement checked: {state}")
+                return state
+        time.sleep(1)
+    print(f"Optional Shipinhao music agreement checkbox not set: {last_state}")
+    return last_state
+
+
 def _wait_for_button_ready(driver, text="完成", duration=60):
     deadline = time.time() + duration
     last_state = None
@@ -578,8 +630,19 @@ class ShiPinHaoMusicPublisher:
             default="",
         )
         author = _metadata_text(metadata, "author", "artist", "composer", default="Musia 慕莎")
+        singer = _metadata_text(metadata, "singer", "vocalist", "performer", "artist", "author", default=author)
+        lyricist = _metadata_text(metadata, "lyricist", "lyrics_author", "author", "artist", default=author)
+        composer = _metadata_text(metadata, "composer", "music_author", "author", "artist", default=author)
+        producer = _metadata_text(metadata, "producer", "music_producer", "author", "artist", default=author)
+        band = _metadata_text(metadata, "band", "group", default="")
         genre = _metadata_text(metadata, "genre", "style", default="")
         language = _normalize_language(_metadata_text(metadata, "language", "song_language", default="中文"))
+        published_elsewhere = bool(
+            metadata.get("published_elsewhere")
+            or metadata.get("source_url")
+            or metadata.get("canonical_url")
+            or metadata.get("website_url")
+        )
         album_name = _metadata_text(metadata, "album_name", "album", "song_title", "music_title", "title", default=title)
         album_intro = _metadata_text(
             metadata,
@@ -637,9 +700,50 @@ class ShiPinHaoMusicPublisher:
             duration=10,
         )
 
-        _select_music_option(self.driver, "歌曲语言", language, duration=8)
-        if genre:
-            _select_music_option(self.driver, "歌曲曲风", genre, duration=8)
+        _select_music_option(self.driver, "歌曲曲风", genre or "流行", duration=8)
+        _select_music_option(self.driver, "语言", language, duration=8)
+        _set_music_field(
+            self.driver,
+            ["演唱者"],
+            ["演唱者", "歌手", "singer", "performer"],
+            singer,
+            required=False,
+            duration=10,
+        )
+        _set_music_field(
+            self.driver,
+            ["词作者"],
+            ["词作者", "作词", "lyricist"],
+            lyricist,
+            required=False,
+            duration=10,
+        )
+        _set_music_field(
+            self.driver,
+            ["曲作者"],
+            ["曲作者", "作曲", "composer"],
+            composer,
+            required=False,
+            duration=10,
+        )
+        _set_music_field(
+            self.driver,
+            ["音乐制作人"],
+            ["音乐制作人", "制作人", "producer"],
+            producer,
+            required=False,
+            duration=10,
+        )
+        if band:
+            _set_music_field(
+                self.driver,
+                ["乐队"],
+                ["乐队", "band"],
+                band,
+                required=False,
+                duration=8,
+            )
+        _select_music_option(self.driver, "是否已在其他平台发表", "是" if published_elsewhere else "否", duration=8)
 
         if bool(metadata.get("declare_original", False)):
             try:
@@ -648,10 +752,7 @@ class ShiPinHaoMusicPublisher:
             except Exception as exc:
                 print(f"Optional music original declaration click failed: {exc}")
 
-        try:
-            _click_music_text(self.driver, ["我已阅读并同意", "微信视频号音乐服务平台使用协议", "同意"], exact=False, duration=8)
-        except Exception as exc:
-            print(f"Optional Shipinhao music agreement checkbox not set: {exc}")
+        _check_music_agreement(self.driver, duration=8)
 
         _set_music_field(
             self.driver,
