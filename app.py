@@ -20,6 +20,7 @@ from pub_bilibili import BilibiliPublisher
 from pub_douyin import DouyinPublisher
 from pub_y2b import YouTubePublisher
 from pub_shipinhao import ShiPinHaoPublisher
+from pub_shipinhao_music import ShiPinHaoMusicPublisher
 from pub_instagram import InstagramPublisher
 from login_xiaohongshu import XiaoHongShuLogin
 from login_douyin import DouyinLogin
@@ -250,6 +251,7 @@ def stop_and_start_chromium_sessions(
             publish_bilibili=False,
             publish_douyin=False,
             publish_shipinhao=False,
+            publish_shipinhao_music=False,
             publish_y2b=False,
             publish_instagram=False
         ):
@@ -354,7 +356,7 @@ def stop_and_start_chromium_sessions(
                 _start_browser_if_needed("douyin", 5004, start_commands["douyin"])
             if publish_bilibili:
                 _start_browser_if_needed("bilibili", 5005, start_commands["bilibili"])
-            if publish_shipinhao:
+            if publish_shipinhao or publish_shipinhao_music:
                 _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"])
             if publish_y2b:
                 _start_browser_if_needed("y2b", 9222, start_commands["y2b"])
@@ -439,6 +441,7 @@ def publish_platform(publisher, platform_name):
         platform_key = {
             "XiaoHongShu": "xhs",
             "ShiPinHao": "shipinhao",
+            "ShiPinHaoMusic": "shipinhao_music",
             "Instagram": "ins",
             "YouTube": "y2b",
             "Douyin": "douyin",
@@ -454,12 +457,21 @@ def _process_publish_job(job):
     publish_bilibili = job.get("publish_bilibili", False)
     publish_douyin = job.get("publish_douyin", False)
     publish_shipinhao = job.get("publish_shipinhao", False)
+    publish_shipinhao_music = job.get("publish_shipinhao_music", False)
     publish_y2b = job.get("publish_y2b", False)
     publish_instagram = job.get("publish_instagram", False)
     test_mode = job.get("test_mode", False)
 
     if not any(
-        [publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b, publish_instagram]
+        [
+            publish_xhs,
+            publish_bilibili,
+            publish_douyin,
+            publish_shipinhao,
+            publish_shipinhao_music,
+            publish_y2b,
+            publish_instagram,
+        ]
     ):
         print("No publish targets selected. Skipping job.")
         return
@@ -471,6 +483,7 @@ def _process_publish_job(job):
             publish_bilibili=publish_bilibili,
             publish_douyin=publish_douyin,
             publish_shipinhao=publish_shipinhao,
+            publish_shipinhao_music=publish_shipinhao_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
         )
@@ -494,20 +507,40 @@ def _process_publish_job(job):
 
     with open(metadata_json_path, 'r', encoding='utf-8') as json_file:
         metadata = json.load(json_file)
-        metadata["title"] = clean_title(metadata["title"])
+        metadata["title"] = clean_title(
+            metadata.get("title")
+            or metadata.get("song_title")
+            or metadata.get("music_title")
+            or Path(filename).stem
+        )
         fields_to_clean = ["brief_description", "middle_description", "long_description"]
         for field in fields_to_clean:
-            metadata[field] = clean_bmp(metadata[field])
+            metadata[field] = clean_bmp(metadata.get(field, ""))
 
-        metadata_en = metadata["english_version"]
-        metadata_en["title"] = metadata_en["title"]
+        metadata_en = metadata.get("english_version")
+        if not isinstance(metadata_en, dict):
+            metadata_en = metadata.copy()
+        metadata_en["title"] = metadata_en.get("title") or metadata["title"]
         for field in fields_to_clean:
-            metadata_en[field] = clean_bmp(metadata_en[field])
+            metadata_en[field] = clean_bmp(metadata_en.get(field, ""))
 
     video_filename = metadata.get('video_filename', None)
+    music_filename = (
+        metadata.get("music_filename")
+        or metadata.get("audio_filename")
+        or metadata.get("song_filename")
+    )
     cover_filename = metadata.get('cover_filename', None)
     path_mp4 = os.path.join(transcription_dir, video_filename) if video_filename else None
+    path_music = os.path.join(transcription_dir, music_filename) if music_filename else None
     path_cover = os.path.join(transcription_dir, cover_filename) if cover_filename else None
+
+    if any([publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b, publish_instagram]):
+        if not path_mp4 or not os.path.exists(path_mp4):
+            raise FileNotFoundError(f"Video file not found in package: {video_filename}")
+    if publish_shipinhao_music:
+        if not path_music or not os.path.exists(path_music):
+            raise FileNotFoundError(f"Music/audio file not found in package: {music_filename}")
 
     publishers = []
     if publish_xhs:
@@ -522,6 +555,15 @@ def _process_publish_job(job):
     if publish_shipinhao:
         pub_shipinhaolisher = ShiPinHaoPublisher(create_new_driver(port=5006), path_mp4, path_cover, metadata, test_mode)
         publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
+    if publish_shipinhao_music:
+        pub_shipinhao_music = ShiPinHaoMusicPublisher(
+            create_new_driver(port=5006),
+            path_music,
+            path_cover,
+            metadata,
+            test_mode,
+        )
+        publishers.append((pub_shipinhao_music, 'ShiPinHaoMusic'))
     if publish_instagram:
         pub_instagramlisher = InstagramPublisher(create_new_driver(port=5007), path_mp4, path_cover, metadata, test_mode)
         publishers.append((pub_instagramlisher, 'Instagram'))
@@ -538,6 +580,8 @@ def _process_publish_job(job):
             bring_to_front(["哔哩哔哩"])
         elif name == 'ShiPinHao':
             bring_to_front(["视频号", "视频号助手"])
+        elif name == 'ShiPinHaoMusic':
+            bring_to_front(["视频号", "视频号助手", "发表音乐"])
         elif name == 'Instagram':
             bring_to_front(["Instagram"])
         elif name == 'YouTube':
@@ -603,7 +647,7 @@ def clean_title(title):
 # Define the clean_bmp function
 def clean_bmp(text):
     # Replace non-BMP characters with spaces
-    cleaned_text = ''.join(char if ord(char) < 65536 else '' for char in text)
+    cleaned_text = ''.join(char if ord(char) < 65536 else '' for char in (text or ""))
     return cleaned_text
 
 
@@ -650,6 +694,7 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_bilibili=False,
             publish_douyin=False,
             publish_shipinhao=False,
+            publish_shipinhao_music=False,
             publish_y2b=False,
             publish_instagram=False
         ):
@@ -659,6 +704,7 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_bilibili=publish_bilibili,
             publish_douyin=publish_douyin,
             publish_shipinhao=publish_shipinhao,
+            publish_shipinhao_music=publish_shipinhao_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
         )
@@ -685,6 +731,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
         publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
         publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
+        publish_shipinhao_music = self.get_argument('publish_shipinhao_music', 'false').lower() == 'true'
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         publish_instagram = self.get_argument('publish_instagram', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
@@ -695,6 +742,7 @@ class PublishHandler(tornado.web.RequestHandler):
             'bilibili': 'ignore_bilibili',
             'douyin': 'ignore_douyin',
             'shipinhao': 'ignore_shipinhao',
+            'shipinhao_music': 'ignore_shipinhao_music',
             'y2b': 'ignore_y2b',
             'instagram': 'ignore_instagram',
         }
@@ -706,6 +754,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_bilibili = check_ignore_file(publish_bilibili, ignore_files['bilibili'])
         publish_douyin = check_ignore_file(publish_douyin, ignore_files['douyin'])
         publish_shipinhao = check_ignore_file(publish_shipinhao, ignore_files['shipinhao'])
+        publish_shipinhao_music = check_ignore_file(publish_shipinhao_music, ignore_files['shipinhao_music'])
         publish_y2b = check_ignore_file(publish_y2b, ignore_files['y2b'])
         publish_instagram = check_ignore_file(publish_instagram, ignore_files['instagram'])
 
@@ -738,6 +787,8 @@ class PublishHandler(tornado.web.RequestHandler):
             platforms.append("bilibili")
         if publish_shipinhao:
             platforms.append("shipinhao")
+        if publish_shipinhao_music:
+            platforms.append("shipinhao_music")
         if publish_y2b:
             platforms.append("youtube")
         if publish_instagram:
@@ -753,6 +804,7 @@ class PublishHandler(tornado.web.RequestHandler):
             "publish_bilibili": publish_bilibili,
             "publish_douyin": publish_douyin,
             "publish_shipinhao": publish_shipinhao,
+            "publish_shipinhao_music": publish_shipinhao_music,
             "publish_y2b": publish_y2b,
             "publish_instagram": publish_instagram,
             "test_mode": test_mode,

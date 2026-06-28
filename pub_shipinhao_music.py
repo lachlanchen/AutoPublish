@@ -1,0 +1,574 @@
+import os
+import time
+import traceback
+
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+
+from login_shipinhao import ShiPinHaoLogin
+from pub_shipinhao import (
+    _execute_in_content_frame,
+    click_content_frame_css,
+    dismiss_alert,
+    dismiss_overlays,
+    find_any_in_content_frame,
+    remove_non_bmp,
+    save_debug_snapshot,
+    send_file_to_content_frame,
+)
+from utils import bring_to_front, close_extra_tabs
+
+
+SHIPINHAO_MUSIC_WINDOW_PATTERNS = ["视频号", "视频号助手", "发表音乐", "音乐"]
+SHIPINHAO_MUSIC_UPLOAD_INPUT_SELECTORS = [
+    'input[type="file"][accept*="audio"]',
+    'input[type="file"][accept*="mp3"]',
+    'input[type="file"][accept*="wav"]',
+    'input[type="file"][accept*=".mp3"]',
+    'input[type="file"][accept*=".wav"]',
+    'input[type="file"]:not([accept*="video"]):not([accept*="image"])',
+]
+SHIPINHAO_MUSIC_IMAGE_INPUT_SELECTORS = [
+    'input[type="file"][accept*="image"]',
+    'input[type="file"][accept*="png"]',
+    'input[type="file"][accept*="jpg"]',
+    'input[type="file"][accept*="jpeg"]',
+]
+
+
+MUSIC_PAGE_STATE_SCRIPT = r"""
+const text = (document.body && document.body.innerText || '').replace(/\s+/g, ' ').trim();
+const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')).map((el) => ({
+  accept: el.getAttribute('accept') || '',
+  multiple: !!el.multiple,
+}));
+const markers = ['发表音乐', '添加音乐', '歌曲名称', '歌词内容', '音乐人说', '歌曲语言', '歌曲曲风'];
+return {
+  ready: markers.some((marker) => text.includes(marker)) || fileInputs.some((item) => /audio|mp3|wav/i.test(item.accept)),
+  text: text.slice(0, 1200),
+  fileInputs,
+  url: location.href,
+};
+"""
+
+
+SET_FIELD_BY_HINT_SCRIPT = r"""
+const labels = Array.isArray(arguments[0]) ? arguments[0] : [arguments[0]];
+const hints = Array.isArray(arguments[1]) ? arguments[1] : [arguments[1]];
+const value = arguments[2] || '';
+
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function setValue(el, value) {
+  el.scrollIntoView({block: 'center'});
+  el.focus();
+  if ((el.getAttribute('contenteditable') || '').toLowerCase() === 'true') {
+    el.innerHTML = '';
+    el.textContent = value;
+    el.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      data: value,
+      inputType: 'insertText',
+    }));
+    el.dispatchEvent(new Event('change', {bubbles: true}));
+    el.blur();
+    return norm(el.innerText || el.textContent);
+  }
+  const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+  const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+  if (descriptor && descriptor.set) {
+    descriptor.set.call(el, value);
+  } else {
+    el.value = value;
+  }
+  el.dispatchEvent(new Event('input', {bubbles: true}));
+  el.dispatchEvent(new Event('change', {bubbles: true}));
+  el.blur();
+  return el.value || '';
+}
+
+const fields = Array.from(document.querySelectorAll(
+  'input:not([type="file"]):not([type="hidden"]), textarea, [contenteditable="true"]'
+));
+
+function fieldText(el) {
+  return norm([
+    el.getAttribute('placeholder'),
+    el.getAttribute('aria-label'),
+    el.getAttribute('name'),
+    el.getAttribute('title'),
+    el.getAttribute('data-placeholder'),
+    el.className,
+  ].join(' '));
+}
+
+for (const hint of hints.filter(Boolean)) {
+  const match = fields.find((el) => fieldText(el).includes(hint) && isVisible(el))
+    || fields.find((el) => fieldText(el).includes(hint));
+  if (match) {
+    return {ok: true, value: setValue(match, value), method: 'hint', hint, tag: match.tagName};
+  }
+}
+
+const textNodes = Array.from(document.querySelectorAll('*')).filter((el) => {
+  const text = norm(el.innerText || el.textContent);
+  return text && labels.some((label) => label && text.includes(label));
+});
+
+for (const labelEl of textNodes) {
+  let scope = labelEl.closest('.form-item, .weui-desktop-dialog__bd, .weui-desktop-form__input-area, .cell-center, .post-with-link, .music-form-item');
+  let cursor = labelEl;
+  while (!scope && cursor && cursor.parentElement) {
+    cursor = cursor.parentElement;
+    const localFields = cursor.querySelectorAll
+      ? cursor.querySelectorAll('input:not([type="file"]):not([type="hidden"]), textarea, [contenteditable="true"]')
+      : [];
+    if (localFields.length) {
+      scope = cursor;
+      break;
+    }
+  }
+  const candidates = scope && scope.querySelectorAll
+    ? Array.from(scope.querySelectorAll('input:not([type="file"]):not([type="hidden"]), textarea, [contenteditable="true"]'))
+    : [];
+  const field = candidates.find(isVisible) || candidates[0];
+  if (field) {
+    return {ok: true, value: setValue(field, value), method: 'label', label: norm(labelEl.innerText || labelEl.textContent), tag: field.tagName};
+  }
+}
+
+return {ok: false, labels, hints, available: fields.map(fieldText).filter(Boolean).slice(0, 40)};
+"""
+
+
+CLICK_TEXT_SCRIPT = r"""
+const texts = Array.isArray(arguments[0]) ? arguments[0] : [arguments[0]];
+const exact = !!arguments[1];
+
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+
+function matchText(el) {
+  const text = norm(el.innerText || el.textContent);
+  if (!text) return false;
+  return texts.some((target) => exact ? text === target : text.includes(target));
+}
+
+const candidates = Array.from(document.querySelectorAll('button, label, a, span, div, input[type="checkbox"]'));
+const match = candidates.find((el) => isVisible(el) && matchText(el));
+if (!match) return false;
+const target = match.closest('button, label, a, .weui-desktop-btn_wrp, .ant-checkbox-wrapper') || match;
+target.scrollIntoView({block: 'center'});
+target.dispatchEvent(new MouseEvent('mouseover', {bubbles: true, cancelable: true, view: window}));
+target.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+if (typeof target.click === 'function') target.click();
+target.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+target.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+return true;
+"""
+
+
+BUTTON_STATE_SCRIPT = r"""
+const targetText = arguments[0] || '完成';
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function disabled(el) {
+  const className = (el.className || '').toString();
+  return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(className);
+}
+const button = Array.from(document.querySelectorAll('button')).find((el) => norm(el.innerText || el.textContent) === targetText);
+return {exists: !!button, disabled: disabled(button), className: button ? (button.className || '').toString() : null};
+"""
+
+
+SELECT_BY_LABEL_SCRIPT = r"""
+const label = arguments[0] || '';
+const optionText = arguments[1] || '';
+
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+function click(el) {
+  el.scrollIntoView({block: 'center'});
+  el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
+  if (typeof el.click === 'function') el.click();
+  el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+}
+
+const labelEl = Array.from(document.querySelectorAll('*')).find((el) => isVisible(el) && norm(el.innerText || el.textContent).includes(label));
+if (!labelEl) return {ok: false, reason: 'label-not-found'};
+const scope = labelEl.closest('.form-item, .cell-center, .weui-desktop-form__input-area') || labelEl.parentElement || labelEl;
+const clickable = Array.from(scope.querySelectorAll('button, input, .weui-desktop-form__dropdown, .weui-desktop-dropdown, .display, .display-text, .arrow-icon, div, span'))
+  .find((el) => isVisible(el) && el !== labelEl) || scope;
+click(clickable);
+
+const options = Array.from(document.querySelectorAll('li, span, div, button')).filter((el) => isVisible(el) && norm(el.innerText || el.textContent).includes(optionText));
+const option = options.find((el) => norm(el.innerText || el.textContent) === optionText) || options[0];
+if (!option) return {ok: false, reason: 'option-not-found'};
+click(option.closest('li, button') || option);
+return {ok: true, selected: norm(option.innerText || option.textContent)};
+"""
+
+
+def _candidate_music_urls():
+    env_urls = os.environ.get("SHIPINHAO_MUSIC_CREATE_URLS") or os.environ.get("SHIPINHAO_MUSIC_CREATE_URL")
+    if env_urls:
+        for url in env_urls.split(","):
+            url = url.strip()
+            if url:
+                yield url
+    defaults = [
+        "https://channels.weixin.qq.com/platform/music/create",
+        "https://channels.weixin.qq.com/platform/post/music",
+        "https://channels.weixin.qq.com/platform/audio/create",
+        "https://channels.weixin.qq.com/platform/audio",
+        "https://channels.weixin.qq.com/platform/music",
+        "https://channels.weixin.qq.com/platform/post/create?type=music",
+    ]
+    for url in defaults:
+        yield url
+
+
+def _metadata_text(metadata, *keys, default=""):
+    for key in keys:
+        value = metadata.get(key)
+        if value is None:
+            continue
+        if isinstance(value, (list, tuple)):
+            value = "\n".join(str(item) for item in value if item)
+        text = str(value).strip()
+        if text:
+            return remove_non_bmp(text)
+    return default
+
+
+def _normalize_language(value):
+    text = str(value or "").strip()
+    mapping = {
+        "zh": "中文",
+        "zh-cn": "中文",
+        "zh-hans": "中文",
+        "zh-hant": "中文",
+        "cn": "中文",
+        "chinese": "中文",
+        "中文": "中文",
+        "en": "英文",
+        "english": "英文",
+        "英文": "英文",
+        "ja": "日文",
+        "jp": "日文",
+        "japanese": "日文",
+        "日文": "日文",
+        "日本語": "日文",
+        "mul": "中文",
+        "mixed": "中文",
+        "多语言": "中文",
+        "混合": "中文",
+    }
+    return mapping.get(text.lower(), text or "中文")
+
+
+def _music_page_state(driver):
+    state = _execute_in_content_frame(driver, MUSIC_PAGE_STATE_SCRIPT)
+    return state if isinstance(state, dict) else {}
+
+
+def _wait_for_music_page_ready(driver, duration=45):
+    last_state = None
+    deadline = time.time() + duration
+    while time.time() < deadline:
+        last_state = _music_page_state(driver)
+        if last_state.get("ready"):
+            print(f"Shipinhao music page ready: {last_state}")
+            return last_state
+        time.sleep(1)
+    raise TimeoutException(f"Timed out waiting for Shipinhao music form. Last state: {last_state}")
+
+
+def _find_music_page(driver):
+    last_error = None
+    for url in _candidate_music_urls():
+        try:
+            print(f"Trying Shipinhao music URL: {url}")
+            driver.get(url)
+            dismiss_alert(driver)
+            time.sleep(3)
+            state = _wait_for_music_page_ready(driver, duration=12)
+            return url, state
+        except Exception as exc:
+            last_error = exc
+            print(f"Music URL candidate did not expose form: {url}: {exc}")
+    save_debug_snapshot(driver, "music_route_not_found")
+    raise RuntimeError(f"Could not find a usable Shipinhao music publish route: {last_error}")
+
+
+def _set_music_field(driver, labels, hints, value, required=False, duration=20):
+    value = remove_non_bmp(value or "")
+    if not value:
+        if required:
+            raise ValueError(f"Missing value for music field {labels}")
+        return None
+
+    def _set(current_driver):
+        result = _execute_in_content_frame(current_driver, SET_FIELD_BY_HINT_SCRIPT, labels, hints, value)
+        if isinstance(result, dict) and result.get("ok"):
+            return result
+        return False
+
+    try:
+        result = WebDriverWait(driver, duration).until(_set)
+        print(f"Shipinhao music field set: {labels} -> {result}")
+        return result
+    except Exception:
+        if required:
+            raise
+        print(f"Optional Shipinhao music field not found: labels={labels} hints={hints}")
+        return None
+
+
+def _click_music_text(driver, texts, exact=False, duration=10):
+    return WebDriverWait(driver, duration).until(
+        lambda current_driver: _execute_in_content_frame(current_driver, CLICK_TEXT_SCRIPT, texts, exact)
+    )
+
+
+def _select_music_option(driver, label, option, duration=8):
+    if not option:
+        return None
+    try:
+        return WebDriverWait(driver, duration).until(
+            lambda current_driver: _execute_in_content_frame(current_driver, SELECT_BY_LABEL_SCRIPT, label, option)
+        )
+    except Exception as exc:
+        print(f"Optional Shipinhao music option not selected ({label}={option}): {exc}")
+        return None
+
+
+def _wait_for_button_ready(driver, text="完成", duration=60):
+    deadline = time.time() + duration
+    last_state = None
+    while time.time() < deadline:
+        state = _execute_in_content_frame(driver, BUTTON_STATE_SCRIPT, text)
+        if isinstance(state, dict):
+            last_state = state
+            if state.get("exists") and not state.get("disabled"):
+                return state
+        time.sleep(1)
+    raise TimeoutException(f"Timed out waiting for Shipinhao music button {text!r}. Last state: {last_state}")
+
+
+class ShiPinHaoMusicPublisher:
+    def __init__(self, driver, audio_path, cover_path, metadata, test=False):
+        self.driver = driver
+        self.audio_path = audio_path
+        self.cover_path = cover_path
+        self.metadata = metadata or {}
+        self.test = test
+        self.retry_count = 0
+
+        shi_pin_hao_login = ShiPinHaoLogin(driver)
+        shi_pin_hao_login.check_and_act()
+
+    def _upload_audio(self):
+        if not self.audio_path or not os.path.exists(self.audio_path):
+            raise FileNotFoundError(f"Shipinhao music file missing: {self.audio_path}")
+        find_any_in_content_frame(
+            self.driver,
+            SHIPINHAO_MUSIC_UPLOAD_INPUT_SELECTORS,
+            duration=30,
+            visible=False,
+        )
+        send_file_to_content_frame(
+            self.driver,
+            SHIPINHAO_MUSIC_UPLOAD_INPUT_SELECTORS,
+            self.audio_path,
+            duration=30,
+        )
+        print(f"Shipinhao music audio selected: {self.audio_path}")
+
+    def _upload_images(self):
+        image_paths = []
+        for path in self.metadata.get("background_image_paths") or []:
+            if path and os.path.exists(path):
+                image_paths.append(path)
+        filenames = self.metadata.get("background_image_filenames") or []
+        package_root = os.path.dirname(self.audio_path)
+        for name in filenames:
+            path = os.path.join(package_root, name)
+            if os.path.exists(path):
+                image_paths.append(path)
+        if self.cover_path and os.path.exists(self.cover_path):
+            image_paths.insert(0, self.cover_path)
+
+        unique_paths = []
+        for path in image_paths:
+            if path not in unique_paths:
+                unique_paths.append(path)
+        if not unique_paths:
+            print("No Shipinhao music background image provided.")
+            return
+
+        try:
+            send_file_to_content_frame(
+                self.driver,
+                SHIPINHAO_MUSIC_IMAGE_INPUT_SELECTORS,
+                unique_paths[0],
+                duration=20,
+            )
+            print(f"Shipinhao music background image selected: {unique_paths[0]}")
+        except Exception as exc:
+            print(f"Optional Shipinhao music background upload failed: {exc}")
+
+    def _fill_music_fields(self):
+        metadata = self.metadata
+        title = _metadata_text(metadata, "song_title", "music_title", "title", default=os.path.splitext(os.path.basename(self.audio_path))[0])
+        lyrics = _metadata_text(metadata, "lyrics", "song_lyrics", "lyric_text", default="")
+        story = _metadata_text(
+            metadata,
+            "music_story",
+            "story",
+            "middle_description",
+            "brief_description",
+            default="",
+        )
+        author = _metadata_text(metadata, "author", "artist", "composer", default="Musia 慕莎")
+        genre = _metadata_text(metadata, "genre", "style", default="")
+        language = _normalize_language(_metadata_text(metadata, "language", "song_language", default="中文"))
+
+        _set_music_field(
+            self.driver,
+            ["歌曲名称", "音乐名称", "歌名"],
+            ["歌曲名称", "音乐名称", "歌名", "song", "title"],
+            title,
+            required=True,
+            duration=30,
+        )
+
+        try:
+            _click_music_text(self.driver, ["歌词内容", "添加歌词", "填写歌词"], exact=False, duration=5)
+            time.sleep(1)
+        except Exception:
+            pass
+        _set_music_field(
+            self.driver,
+            ["歌词内容", "歌词"],
+            ["歌词", "歌词内容", "请输入歌词", "lyrics"],
+            lyrics,
+            required=bool(lyrics),
+            duration=20,
+        )
+        try:
+            _click_music_text(self.driver, ["确定", "保存"], exact=True, duration=4)
+        except Exception:
+            pass
+
+        _set_music_field(
+            self.driver,
+            ["作者信息", "作者", "音乐人"],
+            ["作者", "音乐人", "artist", "author"],
+            author,
+            required=False,
+            duration=10,
+        )
+        _set_music_field(
+            self.driver,
+            ["音乐人说", "歌曲简介", "歌曲故事"],
+            ["音乐人说", "歌曲简介", "歌曲故事", "story", "description"],
+            story[:300],
+            required=False,
+            duration=10,
+        )
+
+        _select_music_option(self.driver, "歌曲语言", language, duration=8)
+        if genre:
+            _select_music_option(self.driver, "歌曲曲风", genre, duration=8)
+
+        if bool(metadata.get("declare_original", False)):
+            try:
+                _click_music_text(self.driver, ["声明原创"], exact=False, duration=5)
+                time.sleep(1)
+            except Exception as exc:
+                print(f"Optional music original declaration click failed: {exc}")
+
+        try:
+            _click_music_text(self.driver, ["我已阅读并同意", "微信视频号音乐服务平台使用协议", "同意"], exact=False, duration=8)
+        except Exception as exc:
+            print(f"Optional Shipinhao music agreement checkbox not set: {exc}")
+
+    def publish(self):
+        if self.retry_count >= 3:
+            raise RuntimeError("Maximum retry attempts reached. Shipinhao music process failed.")
+
+        try:
+            driver = self.driver
+            print("Starting the music publishing process on ShiPinHao...")
+            bring_to_front(SHIPINHAO_MUSIC_WINDOW_PATTERNS)
+            close_extra_tabs(driver)
+            _find_music_page(driver)
+            dismiss_alert(driver)
+            dismiss_overlays(driver)
+
+            self._upload_audio()
+            time.sleep(8)
+            self._fill_music_fields()
+            self._upload_images()
+            time.sleep(3)
+
+            if self.test:
+                user_input = input("Do you want to publish this music now? Type 'yes' to confirm: ").strip().lower()
+            else:
+                user_input = "yes"
+
+            if user_input == "yes":
+                state = _wait_for_button_ready(driver, text="完成", duration=90)
+                print(f"Shipinhao music publish button ready: {state}")
+                click_content_frame_css(driver, "button", duration=20, text="完成", exact=True)
+                time.sleep(10)
+                print("Shipinhao music submitted.")
+            else:
+                print("Shipinhao music publishing cancelled by user.")
+
+            self.retry_count = 0
+            return True
+        except Exception as exc:
+            print(f"Shipinhao music publish error: {exc}")
+            traceback.print_exc()
+            save_debug_snapshot(self.driver, f"music_publish_attempt_{self.retry_count + 1}")
+            self.retry_count += 1
+            if self.retry_count >= 3:
+                raise RuntimeError("Maximum retry attempts reached. Shipinhao music process failed.") from exc
+            print(f"Retrying Shipinhao music publish... Attempt {self.retry_count}")
+            return self.publish()
