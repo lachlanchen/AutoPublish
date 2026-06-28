@@ -266,8 +266,8 @@ def _candidate_music_urls():
             if url:
                 yield url
     defaults = [
-        "https://channels.weixin.qq.com/micro/content/post/createMusic",
         "https://channels.weixin.qq.com/platform/post/createMusic",
+        "https://channels.weixin.qq.com/micro/content/post/createMusic",
         "https://channels.weixin.qq.com/platform/music/create",
         "https://channels.weixin.qq.com/platform/post/music",
         "https://channels.weixin.qq.com/platform/audio/create",
