@@ -185,7 +185,15 @@ function matchText(el) {
 }
 
 const candidates = Array.from(document.querySelectorAll('button, label, a, span, div, input[type="checkbox"]'));
-const match = candidates.find((el) => isVisible(el) && matchText(el));
+const matches = candidates.filter((el) => isVisible(el) && matchText(el));
+matches.sort((a, b) => {
+  const aText = norm(a.innerText || a.textContent);
+  const bText = norm(b.innerText || b.textContent);
+  const aExact = texts.some((target) => aText === target) ? 0 : 1;
+  const bExact = texts.some((target) => bText === target) ? 0 : 1;
+  return aExact - bExact || aText.length - bText.length;
+});
+const match = matches[0];
 if (!match) return false;
 const target = match.closest('button, label, a, .weui-desktop-btn_wrp, .ant-checkbox-wrapper') || match;
 target.scrollIntoView({block: 'center'});
