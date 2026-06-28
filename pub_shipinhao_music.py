@@ -34,6 +34,12 @@ SHIPINHAO_MUSIC_IMAGE_INPUT_SELECTORS = [
     'input[type="file"][accept*="jpg"]',
     'input[type="file"][accept*="jpeg"]',
 ]
+SHIPINHAO_MUSIC_PROOF_INPUT_SELECTORS = [
+    'input[type="file"][accept*=".zip"]',
+    'input[type="file"][accept*=".rar"]',
+    'input[type="file"][accept*="zip"]',
+    'input[type="file"][accept*="rar"]',
+]
 
 
 MUSIC_PAGE_STATE_SCRIPT = r"""
@@ -517,6 +523,48 @@ class ShiPinHaoMusicPublisher:
         except Exception as exc:
             print(f"Optional Shipinhao music background upload failed: {exc}")
 
+    def _upload_original_proof(self):
+        package_root = os.path.dirname(self.audio_path)
+        proof_candidates = []
+        proof_filename = _metadata_text(
+            self.metadata,
+            "original_proof_filename",
+            "proof_zip_filename",
+            default="",
+        )
+        if proof_filename:
+            proof_candidates.append(proof_filename)
+        for filename in self.metadata.get("proof_filenames") or []:
+            if str(filename).lower().endswith((".zip", ".rar")):
+                proof_candidates.append(filename)
+
+        proof_path = None
+        for candidate in proof_candidates:
+            candidate_path = candidate if os.path.isabs(str(candidate)) else os.path.join(package_root, str(candidate))
+            if os.path.exists(candidate_path):
+                proof_path = candidate_path
+                break
+        if not proof_path:
+            print("No Shipinhao music original-proof archive provided.")
+            return
+
+        try:
+            find_any_in_content_frame(
+                self.driver,
+                SHIPINHAO_MUSIC_PROOF_INPUT_SELECTORS,
+                duration=5,
+                visible=False,
+            )
+            send_file_to_content_frame(
+                self.driver,
+                SHIPINHAO_MUSIC_PROOF_INPUT_SELECTORS,
+                proof_path,
+                duration=10,
+            )
+            print(f"Shipinhao music original proof selected: {proof_path}")
+        except Exception as exc:
+            print(f"Optional Shipinhao music original proof upload skipped: {exc}")
+
     def _fill_music_fields(self):
         metadata = self.metadata
         title = _metadata_text(metadata, "song_title", "music_title", "title", default=os.path.splitext(os.path.basename(self.audio_path))[0])
@@ -640,8 +688,9 @@ class ShiPinHaoMusicPublisher:
             self._fill_music_fields()
             self._upload_images()
             time.sleep(3)
-            if _click_button_if_ready(driver, text="完成", duration=8):
+            if _click_button_if_ready(driver, text="确认", duration=8):
                 time.sleep(3)
+            self._upload_original_proof()
 
             if self.test:
                 user_input = input("Do you want to publish this music now? Type 'yes' to confirm: ").strip().lower()

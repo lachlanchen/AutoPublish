@@ -198,6 +198,11 @@ proof/
   prompt-or-run-note.md
 ```
 
+LazyEdit packages these proof files inside the outer music ZIP and also creates
+a nested `proof/<slug>_original_proof.zip`. AutoPublish can upload that nested
+archive to Shipinhao if the live page exposes an original-proof `.zip/.rar`
+input.
+
 ## LazyEdit Package Contract
 
 LazyEdit should create the music ZIP. AutoPublish consumes the ZIP.
@@ -210,6 +215,19 @@ metadata.json
 lyrics.txt or lyrics.json
 manifest.json
 covers/
+proof/                                  optional raw proof screenshots/files
+proof/*_original_proof.zip              optional uploadable 原创证明 archive
+```
+
+When screenshots are provided, the metadata should include:
+
+```json
+{
+  "original_proof_filename": "proof/<slug>_original_proof.zip",
+  "proof_zip_filename": "proof/<slug>_original_proof.zip",
+  "website_screenshot_filename": "proof/website-screenshot.png",
+  "webapp_screenshot_filename": "proof/webapp-screenshot.png"
+}
 ```
 
 Example LazyEdit package command:
@@ -229,6 +247,8 @@ python scripts/lazyedit_music_package.py \
   --lyrics-json /home/lachlan/ProjectsLFS/Musia/path/to/lyrics.json \
   --cover /home/lachlan/ProjectsLFS/Musia/path/to/cover.png \
   --cover-video /home/lachlan/ProjectsLFS/Musia/path/to/related-video.mp4 \
+  --website-screenshot /home/lachlan/ProjectsLFS/Musia/path/to/fun-lazying-art-song-page.png \
+  --webapp-screenshot /home/lachlan/ProjectsLFS/Musia/path/to/musia-generation-session.png \
   --cover-count 9 \
   --output-slug song-title-music
 ```
