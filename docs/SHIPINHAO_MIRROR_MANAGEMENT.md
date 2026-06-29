@@ -17,6 +17,9 @@ The implementation lives in:
 - Inventory existing Shipinhao rows without publishing anything.
 - Match Shipinhao rows back to LazyEdit publish metadata by title text and
   publish time.
+- Preserve row image/cover URLs, links, publish metadata fingerprints, local
+  cover hashes, ZIP fingerprints, and LazyEdit publish job history in a local
+  SQLite mirror database.
 - Build safe plans for maintenance tasks such as missing-description repair.
 - Keep post-management code separate from upload/publish code.
 
@@ -35,6 +38,11 @@ cd ~/Projects/autopub
 The script attaches to port `5006` by default. If the tab is already on the
 right page and you do not want navigation, pass `--url ""`.
 
+Inventory rows now include visible text, links, row attributes, and cover/image
+URLs discovered from `img`, `video[poster]`, and CSS background images. This
+lets future management tools compare row state with local LazyEdit cover files
+instead of relying only on row text.
+
 ## LazyEdit Metadata Index
 
 Build the metadata index from LazyEdit `DATA`:
@@ -48,8 +56,60 @@ python AutoPublish/scripts/shipinhao_mirror_manager.py export-metadata \
 ```
 
 The exported record includes the metadata path, folder name, title,
-description, tags, cover path, publish category, and file mtime. The current
-matching logic uses text evidence first, then publish-time proximity.
+description, tags, cover path, cover SHA-256, metadata SHA-256, ZIP head hash,
+publish category, local video path, and file mtime. The current matching logic
+uses text evidence first, then publish-time proximity. Cover/image evidence is
+stored in the mirror database for future stronger comparisons and manual
+audits.
+
+## LazyEdit Publish History
+
+When run on the LazyEdit host, export local publish jobs from Postgres:
+
+```bash
+cd /home/lachlan/DiskMech/Projects/lazyedit
+python AutoPublish/scripts/shipinhao_mirror_manager.py export-publish-history \
+  --limit 500 \
+  --output /tmp/lazyedit_shipinhao_publish_history.json
+```
+
+By default this filters to jobs whose platform flags include `shipinhao`.
+Use `--all-platforms` only for broad audits.
+
+## Persistent Mirror Database
+
+The stronger management workflow keeps a SQLite mirror DB independent from
+publication. It can be rebuilt at any time from a platform mirror, LazyEdit
+metadata index, and optional publish history:
+
+```bash
+python AutoPublish/scripts/shipinhao_mirror_manager.py sync-db \
+  --db /tmp/shipinhao_management.sqlite \
+  --mirror /tmp/shipinhao_mirror.json \
+  --metadata-index /tmp/lazyedit_shipinhao_metadata_index.json \
+  --publish-history /tmp/lazyedit_shipinhao_publish_history.json \
+  --output-plan /tmp/shipinhao_description_plan.json
+```
+
+Inspect the summary and planned repairs:
+
+```bash
+python AutoPublish/scripts/shipinhao_mirror_manager.py db-report \
+  --db /tmp/shipinhao_management.sqlite \
+  --limit 20
+```
+
+The DB tables are:
+
+- `shipinhao_rows`: mirrored platform rows with stable row keys, links, image
+  URLs, visible descriptions, category guesses, and first/last seen times.
+- `lazyedit_metadata`: local publish metadata, description text, cover hashes,
+  ZIP hashes, and routing fields.
+- `lazyedit_publish_jobs`: LazyEdit publish queue/history rows, remote job ids,
+  ZIP paths, status, errors, and timestamps.
+- `shipinhao_matches`: current row-to-metadata match plans.
+- `shipinhao_apply_attempts`: every dry-run or real apply attempt and its
+  result.
 
 ## Description Repair Planning
 
@@ -85,6 +145,7 @@ Dry-run apply:
 ```bash
 ssh lachlan@lazyingart 'cd ~/Projects/autopub && /home/lachlan/venvs/autopub/bin/python scripts/shipinhao_mirror_manager.py apply-descriptions \
   --plan /tmp/shipinhao_description_plan.json \
+  --db /tmp/shipinhao_management.sqlite \
   --output /tmp/shipinhao_description_apply_dryrun.json'
 ```
 
@@ -93,6 +154,7 @@ Real apply requires `--apply`:
 ```bash
 ssh lachlan@lazyingart 'cd ~/Projects/autopub && /home/lachlan/venvs/autopub/bin/python scripts/shipinhao_mirror_manager.py apply-descriptions \
   --plan /tmp/shipinhao_description_plan.json \
+  --db /tmp/shipinhao_management.sqlite \
   --apply \
   --limit 1 \
   --output /tmp/shipinhao_description_apply_limit1.json'
@@ -127,6 +189,10 @@ visible UI.
 
 No description changes should be assumed unless a post-apply mirror confirms
 the visible row text changed.
+
+The mirror DB records these unsupported attempts in `shipinhao_apply_attempts`
+so future tooling can see that a row was identified correctly but blocked by
+the platform UI.
 
 ## 2026-06-29 Test Result
 

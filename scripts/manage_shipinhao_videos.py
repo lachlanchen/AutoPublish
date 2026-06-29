@@ -79,6 +79,39 @@ function absHref(href) {
   if (!href) return '';
   try { return new URL(href, window.location.href).href; } catch (e) { return href; }
 }
+function absUrl(url) {
+  if (!url) return '';
+  try { return new URL(url, window.location.href).href; } catch (e) { return url; }
+}
+function backgroundUrls(el) {
+  const style = window.getComputedStyle(el);
+  const value = style && style.backgroundImage || '';
+  const urls = [];
+  for (const match of value.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+    urls.push(absUrl(match[1]));
+  }
+  return urls;
+}
+function rowImages(row) {
+  const urls = [];
+  for (const img of Array.from(row.querySelectorAll('img'))) {
+    urls.push(absUrl(img.currentSrc || img.src || img.getAttribute('src') || img.getAttribute('data-src') || ''));
+  }
+  for (const video of Array.from(row.querySelectorAll('video'))) {
+    urls.push(absUrl(video.poster || video.getAttribute('poster') || ''));
+  }
+  for (const el of Array.from(row.querySelectorAll('[style]'))) {
+    urls.push(...backgroundUrls(el));
+  }
+  return Array.from(new Set(urls.filter(Boolean)));
+}
+function dataAttrs(row) {
+  const attrs = {};
+  for (const attr of Array.from(row.attributes || [])) {
+    if (/^(data-|id$|aria-label$)/.test(attr.name)) attrs[attr.name] = attr.value;
+  }
+  return attrs;
+}
 const selectors = [
   '.post-feed-item',
   '.ant-table-row',
@@ -117,6 +150,8 @@ for (const selector of selectors) {
     rows.push({
       title: title || rowText.slice(0, 120),
       links,
+      images: rowImages(row),
+      attrs: dataAttrs(row),
       text: rowText.slice(0, 1200)
     });
   }
