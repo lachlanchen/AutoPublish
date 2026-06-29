@@ -52,13 +52,8 @@ MUSIC_KEYWORDS = (
     "one sky",
     "three lights",
     "hikari ame",
-    "music",
-    "song",
     "lyrics",
     "lyric",
-    "歌曲",
-    "音樂",
-    "音乐",
     "歌詞",
     "歌词",
 )
