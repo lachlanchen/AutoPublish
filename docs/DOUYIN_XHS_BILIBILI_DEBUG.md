@@ -25,14 +25,20 @@ On the Raspberry Pi, Chromium must be started with software rendering flags.
 AutoPublish uses:
 
 ```bash
-AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage"
+AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage --password-store=basic"
 ```
 
 The same flags are used by `scripts/debug_platform_logins.py`. Keep this close
-to the manual `start_chromium_*` aliases. Do not use DevTools `/json/new` as a
-generic blank-tab repair: on the Pi it can create extra empty windows and make
-creator SPAs harder to recover. Navigation retries should stay inside the
-existing tab/profile so the login session remains shared.
+to the manual `start_chromium_*` aliases. The `--password-store=basic` flag is
+important on the Pi: after reboot or undervoltage events, the desktop keyring
+can be locked and Chromium can hang at `Loading...` before creating a usable
+page target. This flag keeps cookies in the Chromium profile while avoiding the
+keyring modal.
+
+Do not use DevTools `/json/new` as a generic blank-tab repair: on the Pi it can
+create extra empty windows and make creator SPAs harder to recover. Navigation
+retries should stay inside the existing tab/profile so the login session
+remains shared.
 
 ## Login-Only Debug
 

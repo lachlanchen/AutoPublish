@@ -156,7 +156,7 @@ def _build_start_command(name, port, url, browser_bin, display, profile_dir, log
     log_file = os.path.join(log_dir, f"{prefix}_{name}.log")
     browser_flags = os.environ.get(
         "AUTOPUBLISH_CHROMIUM_FLAGS",
-        "--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage",
+        "--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage --password-store=basic",
     )
     return (
         f'DISPLAY={display} "{browser_bin}" --hide-crash-restore-bubble '
