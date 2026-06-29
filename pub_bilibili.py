@@ -10,7 +10,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 # from webdriver_manager.chrome import ChromeDriverManager
 
-from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front, close_extra_tabs
+from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front, close_extra_tabs, safe_get, log_html_snapshot
 from login_bilibili import BilibiliLogin
 
 import traceback
@@ -76,6 +76,35 @@ class BilibiliPublisher:
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)  # your actual implementation
 
+    def _find_visible(self, xpaths):
+        for xpath in xpaths:
+            try:
+                elements = self.driver.find_elements(By.XPATH, xpath)
+            except Exception:
+                continue
+            for element in elements:
+                try:
+                    if element.is_displayed():
+                        return element, xpath
+                except Exception:
+                    continue
+        return None, None
+
+    def _safe_click(self, element):
+        try:
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        except Exception:
+            pass
+        try:
+            element.click()
+            return True
+        except Exception:
+            try:
+                self.driver.execute_script("arguments[0].click();", element)
+                return True
+            except Exception:
+                return False
+
     def download_image(self, url, local_path='./temp/'):
         response = requests.get(url)
         if response.status_code == 200:
@@ -97,8 +126,13 @@ class BilibiliPublisher:
         except NoAlertPresentException:
             print("No alert present")
 
-        outer_element = self.driver.find_element(By.CSS_SELECTOR, outer_element_selector)
-        inner_element = self.driver.find_element(By.CSS_SELECTOR, inner_element_selector)
+        try:
+            outer_element = self.driver.find_element(By.CSS_SELECTOR, outer_element_selector)
+            inner_element = self.driver.find_element(By.CSS_SELECTOR, inner_element_selector)
+        except Exception as exc:
+            print(f"Captcha crop elements not found, saving full screenshot instead: {exc}")
+            self.driver.save_screenshot(output_filename)
+            return
         # img_selector = self.driver.find_element(By.CSS_SELECTOR, image_element_selector)
 
 
@@ -157,8 +191,11 @@ class BilibiliPublisher:
 
         print(f"Vertical difference between outer element and image: {vertical_difference}")
 
-        # Use the capture_and_crop_screenshot to take and save the screenshot
-        self.capture_and_crop_screenshot(outer_element_selector, inner_element_selector, image_element_selector, file_path)
+        try:
+            self.capture_and_crop_screenshot(outer_element_selector, inner_element_selector, image_element_selector, file_path)
+        except Exception as exc:
+            print(f"Captcha screenshot crop failed, saving full screenshot instead: {exc}")
+            self.driver.save_screenshot(file_path)
 
         try:
             self.download_image(url, local_path=local_path)
@@ -168,22 +205,44 @@ class BilibiliPublisher:
         print(f"Screenshot saved as {file_path}")
         return file_path, vertical_difference
 
-    def solve_captcha(self):
+    def _captcha_present(self):
+        try:
+            return bool(self.driver.execute_script("""
+                return !!document.querySelector(
+                    '.geetest_panel_box, .geetest_panel, .geetest_box, .geetest_widget'
+                );
+            """))
+        except Exception:
+            return False
+
+    def solve_captcha(self, max_retries=5):
         time.sleep(3)
 
         # Execute JavaScript to check if the CAPTCHA popup is present
-        is_captcha_present = self.driver.execute_script("""
-            return document.querySelector('.geetest_panel_box') !== null;
-        """)
+        is_captcha_present = self._captcha_present()
+
+        if not is_captcha_present:
+            print("No CAPTCHA detected.")
+            return False
+
+        missing = [
+            key for key in ("TULING_USERNAME", "TULING_PASSWORD", "TULING_ID")
+            if not os.environ.get(key)
+        ]
+        if missing:
+            raise RuntimeError(f"Bilibili CAPTCHA detected but missing env vars: {', '.join(missing)}")
         
-        max_retries = 99
         retry = 0
         while is_captcha_present and retry < max_retries:
             print("CAPTCHA detected. Solving...")
             # Execute JavaScript to get the CAPTCHA image URL
             captcha_image_url = self.driver.execute_script("""
-                let captchaImageElement = document.querySelector('.geetest_item_wrap');
-                return captchaImageElement ? captchaImageElement.style.backgroundImage.slice(5, -2) : '';
+                let captchaImageElement = document.querySelector('.geetest_item_wrap, .geetest_item_img');
+                if (!captchaImageElement) return '';
+                let background = captchaImageElement.style.backgroundImage || '';
+                if (background.startsWith('url(')) return background.slice(5, -2);
+                if (captchaImageElement.src) return captchaImageElement.src;
+                return '';
             """)
 
             if captcha_image_url:
@@ -191,6 +250,8 @@ class BilibiliPublisher:
                 img_path, vertical_difference = self.take_screenshot(captcha_image_url)
                 result = b64_api(username=os.environ.get('TULING_USERNAME'), password=os.environ.get('TULING_PASSWORD'), img_path=img_path, ID=os.environ.get('TULING_ID'))
                 print(result)
+                if not isinstance(result, dict) or "data" not in result:
+                    raise RuntimeError(f"Unexpected Tuling CAPTCHA response: {result}")
 
                 # Use the result to simulate the clicks on the CAPTCHA image
                 for key in [f'顺序{i}' for i in range(1, 10)]:  # Add more keys if there are more click points
@@ -223,22 +284,87 @@ class BilibiliPublisher:
                 print("CAPTCHA solved and confirmed.")
             else:
                 print("Failed to get CAPTCHA image URL.")
+                self.driver.save_screenshot(f"/tmp/bilibili_captcha_missing_{retry}.png")
 
             
 
             try:
                 time.sleep(3)
-                is_captcha_present = self.driver.execute_script("""
-                    return document.querySelector('.geetest_panel_box') !== null;
-                """)
+                is_captcha_present = self._captcha_present()
             except:
                 print("CAPTCHA confirmed. ")
                 is_captcha_present = False
 
+            if not is_captcha_present:
+                print("CAPTCHA no longer visible.")
+                return True
+
             retry += 1
 
-        else:
-            print("No CAPTCHA detected.")
+        raise RuntimeError("Bilibili CAPTCHA was still visible after solver retries.")
+
+    def _click_submit_and_confirm(self, timeout=180):
+        start_url = self.driver.current_url
+        submit_xpaths = [
+            '//*[normalize-space()="立即投稿"]/ancestor::button[1]',
+            '//button[.//*[normalize-space()="立即投稿"]]',
+            '//button[contains(normalize-space(.),"立即投稿")]',
+            '//*[normalize-space()="立即投稿"]',
+        ]
+        success_xpaths = [
+            '//*[contains(text(),"投稿成功")]',
+            '//*[contains(text(),"发布成功")]',
+            '//*[contains(text(),"稿件投递成功")]',
+            '//*[contains(text(),"审核中")]',
+            '//*[contains(text(),"稿件管理")]',
+        ]
+        failure_xpaths = [
+            '//*[contains(text(),"投稿失败")]',
+            '//*[contains(text(),"发布失败")]',
+            '//*[contains(text(),"提交失败")]',
+            '//*[contains(text(),"上传失败")]',
+        ]
+
+        submit_button, submit_xpath = self._find_visible(submit_xpaths)
+        if submit_button is None:
+            log_html_snapshot(self.driver, "bilibili", "submit_button_missing")
+            raise RuntimeError("Bilibili submit button was not found.")
+        if not self._safe_click(submit_button):
+            raise RuntimeError(f"Failed to click Bilibili submit button: {submit_xpath}")
+        print(f"Clicked Bilibili submit button using selector: {submit_xpath}")
+
+        start_time = time.time()
+        while time.time() - start_time <= timeout:
+            if self._captcha_present():
+                self.solve_captcha(max_retries=5)
+                time.sleep(5)
+
+            failure_element, failure_xpath = self._find_visible(failure_xpaths)
+            if failure_element is not None:
+                text = (failure_element.text or "").strip()
+                log_html_snapshot(self.driver, "bilibili", "publish_failed")
+                raise RuntimeError(f"Bilibili publish failed: {failure_xpath} text={text!r}")
+
+            success_element, success_xpath = self._find_visible(success_xpaths)
+            if success_element is not None:
+                print(f"Bilibili publish confirmed via page state: {success_xpath}")
+                return True
+
+            current_url = self.driver.current_url
+            if current_url != start_url and ("upload-manager" in current_url or "platform" in current_url):
+                print(f"Bilibili publish likely completed; URL changed to {current_url}")
+                return True
+
+            submit_button, _ = self._find_visible(submit_xpaths)
+            if submit_button is None and current_url != start_url:
+                print(f"Bilibili submit button disappeared after URL changed to {current_url}.")
+                return True
+
+            print(f"Waiting for Bilibili publish confirmation... Current URL: {current_url}")
+            time.sleep(5)
+
+        log_html_snapshot(self.driver, "bilibili", "publish_timeout")
+        raise RuntimeError("Timed out waiting for Bilibili publish confirmation.")
 
     def click_specific_tag_if_exists(self, tag_text):
         try:
@@ -302,7 +428,7 @@ class BilibiliPublisher:
                 test = self.test
 
                 print("Starting the publishing process on Bilibili...")
-                driver.get("https://member.bilibili.com/platform/upload/video/frame")
+                safe_get(driver, "https://member.bilibili.com/platform/upload/video/frame", timeout=45, label="Bilibili upload page")
                 time.sleep(1)
                 dismiss_alert(driver) # assumed to be handled externally
                 time.sleep(10)
@@ -435,19 +561,9 @@ class BilibiliPublisher:
                 else:
                     user_input = "yes"
                 if user_input == 'yes':
-                    for _ in range(2):
-                        try:
-                            print("Publishing the video...")
-                            publish_button_xpath = '//*[text()="立即投稿"]'
-                            time.sleep(10)
-                            driver.find_element(By.XPATH, publish_button_xpath).click()
-                            time.sleep(10)
-                            self.solve_captcha()
-                            time.sleep(10)
-                            # dismiss_alert assumed to be handled externally
-                            time.sleep(3)
-                        except:
-                            pass
+                    print("Publishing the video...")
+                    time.sleep(3)
+                    self._click_submit_and_confirm(timeout=240)
                     print("Video published successfully!")
                 else:
                     print("Publishing cancelled by the user.")

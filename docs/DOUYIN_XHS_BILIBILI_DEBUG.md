@@ -61,10 +61,11 @@ XHS_HOME_URL=https://creator.xiaohongshu.com/new/home?source=official
 XHS_PUBLISH_URL=https://creator.xiaohongshu.com/publish/publish?source=official
 ```
 
-These sites are heavy SPAs and can leave Selenium waiting in `driver.get()`
-after the usable DOM is already present. Platform login and publish code now
-uses `utils.safe_get()` with a bounded page-load timeout, then calls
-`window.stop()` and continues with the current DOM if the network load hangs.
+These sites are heavy SPAs and can leave Selenium waiting in `driver.get()`.
+Platform login and publish code now uses `utils.safe_get()`, which first
+navigates through Chrome DevTools `Page.navigate` and polls for a usable DOM.
+If CDP is unavailable, it falls back to bounded `driver.get()`, calls
+`window.stop()`, and continues with the current DOM if the network load hangs.
 
 ## Publish Behavior
 
@@ -93,6 +94,11 @@ Important fix from this update: `take_screenshot()` now uses `self.driver` and
 the actual captcha image element when calculating the vertical coordinate
 offset. The old code referenced undefined variables during that calculation,
 which could make captcha clicks less accurate.
+
+The Bilibili final submit step now confirms real completion instead of
+swallowing click/captcha exceptions. It clicks `立即投稿`, solves GeeTest when
+present, watches for publish success/failure markers or URL changes, and writes
+an HTML snapshot if the submit button or confirmation state is missing.
 
 ## Evidence On Failure
 
