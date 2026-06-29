@@ -75,10 +75,13 @@ XHS_PUBLISH_URL=https://creator.xiaohongshu.com/publish/publish?source=official
 ```
 
 These sites are heavy SPAs and can leave Selenium waiting in `driver.get()`.
-Platform login and publish code now uses `utils.safe_get()`, which first uses a
-bounded `driver.get()`, then retries with Chrome DevTools `Page.navigate` in the
-same tab, polls for a usable DOM, calls `window.stop()` if the network load
-hangs, and continues with the current DOM when enough page structure exists.
+Platform login and publish code now uses `utils.safe_get()` as a non-invasive
+bounded navigation helper. It reuses the current browser tab/profile, avoids
+creating new DevTools targets, avoids JavaScript `window.stop()` against a
+frozen renderer, and returns control to platform-specific selectors if the page
+load does not settle quickly. If a creator page looks blank, prefer restarting
+that platform's Chromium profile with the normal alias-style command instead of
+opening extra DevTools tabs.
 
 ## Publish Behavior
 

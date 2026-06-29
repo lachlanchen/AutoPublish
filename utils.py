@@ -264,29 +264,19 @@ def safe_get(driver, url, timeout=45, label=None):
     def _matches_target():
         return _url_matches_target() and _has_body()
 
-    def _navigate_current_tab_with_cdp():
-        try:
-            driver.execute_cdp_cmd("Page.navigate", {"url": url})
-            print(f"Requested {label} navigation in the current tab through CDP.")
-            return True
-        except Exception as exc:
-            print(f"Could not navigate current tab for {label} through CDP: {exc}")
-            return False
-
-    def _stop_loading():
-        try:
-            driver.execute_cdp_cmd("Page.stopLoading", {})
-        except Exception:
-            pass
-
     try:
-        driver.set_page_load_timeout(min(timeout, 12))
+        driver.set_page_load_timeout(min(timeout, 10))
     except Exception:
         pass
     try:
         driver.set_script_timeout(3)
     except Exception:
         pass
+
+    if _matches_target():
+        print(f"Already on {label}: {driver.current_url}")
+        return True
+
     try:
         driver.get(url)
         if _matches_target():
@@ -294,26 +284,15 @@ def safe_get(driver, url, timeout=45, label=None):
             return True
     except Exception as exc:
         print(f"Timed out or failed while navigating to {label}: {exc}")
-        _stop_loading()
 
     start_time = time.time()
-    while time.time() - start_time <= min(timeout, 8):
+    while time.time() - start_time <= min(timeout, 5):
         if _matches_target():
             print(f"Using partially loaded {label}: {driver.current_url}")
             return True
         time.sleep(0.5)
 
-    if _navigate_current_tab_with_cdp():
-        start_time = time.time()
-        while time.time() - start_time <= min(timeout, 20):
-            if _matches_target():
-                print(f"Using CDP-navigated {label}: {driver.current_url}")
-                return True
-            time.sleep(0.5)
-
-    print(f"Timed out waiting for usable DOM for {label}; stopping pending page load.")
-    _stop_loading()
-    print(f"Requested stop-loading for {label}; continuing with current DOM.")
+    print(f"Continuing after bounded navigation attempt for {label}: {_current_url()}")
     return False
 
 
