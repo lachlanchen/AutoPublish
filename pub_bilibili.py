@@ -17,10 +17,13 @@ import traceback
 
 import time
 import os
+import shutil
+import tempfile
 import requests
 import base64
 import os
 import json
+from urllib.parse import quote
 
 
 from selenium.common.exceptions import NoAlertPresentException
@@ -58,6 +61,9 @@ def b64_api(username, password, img_path, ID):
 
     return result
 
+
+class BilibiliRateLimitException(Exception):
+    pass
 
 
 
@@ -104,6 +110,152 @@ class BilibiliPublisher:
                 return True
             except Exception:
                 return False
+
+    def _click_first_visible(self, css_selectors=None, xpaths=None, label="element"):
+        css_selectors = css_selectors or []
+        xpaths = xpaths or []
+        for selector in css_selectors:
+            try:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+            except Exception:
+                continue
+            for element in elements:
+                try:
+                    if element.is_displayed() and self._safe_click(element):
+                        print(f"Clicked Bilibili {label}: {selector}")
+                        return True
+                except Exception:
+                    continue
+        for xpath in xpaths:
+            try:
+                elements = self.driver.find_elements(By.XPATH, xpath)
+            except Exception:
+                continue
+            for element in elements:
+                try:
+                    if element.is_displayed() and self._safe_click(element):
+                        print(f"Clicked Bilibili {label}: {xpath}")
+                        return True
+                except Exception:
+                    continue
+        return False
+
+    def _close_optional_upload_overlays(self):
+        closed = False
+        # Bilibili sometimes asks for SMS verification only to enable upload
+        # completion notifications. This is optional for publishing; close it.
+        closed |= self._click_first_visible(
+            css_selectors=[".base-verify-close"],
+            label="optional SMS verification close",
+        )
+        time.sleep(0.5 if closed else 0)
+        closed |= self._click_first_visible(
+            css_selectors=[".bcc-dialog__close"],
+            xpaths=['//*[normalize-space()="知道了"]'],
+            label="notification dialog close",
+        )
+        return closed
+
+    def _resume_upload_if_paused(self):
+        return self._click_first_visible(
+            xpaths=[
+                '//*[normalize-space()="继续上传"]',
+                '//*[contains(normalize-space(),"继续上传")]',
+            ],
+            label="continue upload",
+        )
+
+    def _upload_failure_visible(self):
+        failure_xpaths = [
+            '//*[normalize-space()="上传失败"]',
+            '//*[contains(normalize-space(),"上传失败")]',
+        ]
+        for xpath in failure_xpaths:
+            for element in self.driver.find_elements(By.XPATH, xpath):
+                try:
+                    if element.is_displayed():
+                        return True
+                except Exception:
+                    continue
+        return False
+
+    def _reset_upload_page(self):
+        upload_url = f"https://member.bilibili.com/platform/upload/video/frame?autopub_ts={int(time.time())}"
+        try:
+            self.driver.get("about:blank")
+            time.sleep(1)
+        except Exception:
+            pass
+        safe_get(self.driver, upload_url, timeout=45, label="Bilibili upload page")
+
+    def _current_upload_status_text(self, path_mp4):
+        basename = os.path.basename(path_mp4)
+        stem = os.path.splitext(basename)[0]
+        return self.driver.execute_script(
+            """
+            const names = arguments[0];
+            const rows = [];
+            const isVisible = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+            for (const el of document.querySelectorAll('*')) {
+              const ownText = (el.textContent || '').trim();
+              if (!isVisible(el) || !names.some((name) => ownText.includes(name))) continue;
+              let node = el;
+              for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
+                const text = (node.innerText || '').trim();
+                if (
+                  names.some((name) => text.includes(name)) &&
+                  /(上传完成|上传中|等待上传|上传失败|重新上传|继续上传|转码中|处理中)/.test(text)
+                ) {
+                  rows.push(text.slice(0, 600));
+                  break;
+                }
+              }
+              if (rows.length >= 8) break;
+            }
+            return rows;
+            """,
+            [basename, stem],
+        )
+
+    def _prepare_upload_file(self, path_mp4):
+        upload_dir = os.path.join(tempfile.gettempdir(), "autopub_bilibili_uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        alias_path = os.path.join(upload_dir, f"bilibili_upload_{int(time.time())}.mp4")
+        shutil.copy2(path_mp4, alias_path)
+        print(f"Prepared short Bilibili upload path: {alias_path}")
+        return alias_path
+
+    def _preupload_block_message(self, upload_mp4):
+        try:
+            size = os.path.getsize(upload_mp4)
+            name = quote(os.path.basename(upload_mp4))
+            url = (
+                "https://member.bilibili.com/preupload"
+                f"?r=upos&profile=ugcfx%2Fbup&ssl=0&version=2.14.0.0"
+                f"&build=2140000&webVersion=2.14.0&probe_version=20250923"
+                f"&upcdn=txa&zone=cs&name={name}&size={size}"
+            )
+            result = self.driver.execute_async_script(
+                """
+                const url = arguments[0];
+                const cb = arguments[arguments.length - 1];
+                fetch(url, {credentials: 'include'})
+                  .then(async (response) => cb({
+                    status: response.status,
+                    text: (await response.text()).slice(0, 1000),
+                  }))
+                  .catch((error) => cb({error: String(error)}));
+                """,
+                url,
+            )
+            text = str(result)
+            if result and result.get("status") == 406 and ("上传视频过快" in text or '"code":601' in text):
+                return "Bilibili upload rate limit: 您上传视频过快，请稍作休息后再继续。"
+            if result and result.get("status") not in (200, 204):
+                print(f"Bilibili preupload probe returned: {result}")
+        except Exception as exc:
+            print(f"Bilibili preupload probe failed: {exc}")
+        return None
 
     def download_image(self, url, local_path='./temp/'):
         response = requests.get(url)
@@ -428,7 +580,7 @@ class BilibiliPublisher:
                 test = self.test
 
                 print("Starting the publishing process on Bilibili...")
-                safe_get(driver, "https://member.bilibili.com/platform/upload/video/frame", timeout=45, label="Bilibili upload page")
+                self._reset_upload_page()
                 time.sleep(1)
                 dismiss_alert(driver) # assumed to be handled externally
                 time.sleep(10)
@@ -436,79 +588,105 @@ class BilibiliPublisher:
                 bring_to_front(["哔哩哔哩"])
                 close_extra_tabs(driver)
                 
-                print(f"Uploading video from path: {path_mp4}")
+                upload_mp4 = self._prepare_upload_file(path_mp4)
+                print(f"Uploading video from path: {upload_mp4}")
                 upload_input_xpath = '//input[@type="file" and contains(@accept,"mp4")]'
                 time.sleep(3)        
                 bring_to_front(["哔哩哔哩"])
-                driver.find_element(By.XPATH, upload_input_xpath).send_keys(path_mp4)
+                driver.find_element(By.XPATH, upload_input_xpath).send_keys(upload_mp4)
 
                 print("Waiting for the video to be uploaded...")
                 time.sleep(3)
                 # upload_status_xpath = '//*[contains(text(),"上传完成")]'
                 # failure_xpath = '//*[contains(text(),"上传失败")]'
-                upload_status_xpath = '//*[text()="上传完成"]'
-                failure_xpath = '//*[text()="上传失败"]'
+                upload_status_xpath = (
+                    '//*[normalize-space()="上传完成" or contains(normalize-space(),"上传完成")]'
+                )
                 # WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="上传完成"]')))
                 start_time = time.time()
                 timeout = 3600  # 3600 seconds timeout
+                failed_seen = 0
 
 
                 while True:
                     if time.time() - start_time > timeout:
                         raise Exception("Timeout reached while waiting for video to be uploaded or for a failure message.")
 
-                    try:
-                        # Wait until the "上传完成" element is present
-                        element = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, upload_status_xpath)))
-                        # print("uploaded element: ", element)
+                    self._close_optional_upload_overlays()
+                    if self._resume_upload_if_paused():
+                        failed_seen = 0
+                        time.sleep(5)
+                        continue
+
+                    status_rows = self._current_upload_status_text(upload_mp4)
+                    if status_rows:
+                        print("Bilibili current upload status:", " | ".join(status_rows[:2]))
+                    if any("0.0MB/0.0MB" in row and "0%" in row for row in status_rows):
+                        block_message = self._preupload_block_message(upload_mp4)
+                        if block_message:
+                            raise BilibiliRateLimitException(block_message)
+                    if any(("上传完成" in row or "重新上传" in row) for row in status_rows):
                         print("Video uploaded successfully!")
                         break
-                    except:
-                        pass  # Ignore TimeoutException here
 
-                    try:
-                        # Wait until any elements matching the "上传失败" XPath are present
-                        WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.XPATH, failure_xpath)))
-                        print("Upload failed! Raising an error to initiate retry...")
-                        raise Exception("Video upload failed.")
-                    except:
-                        pass  # Ignore TimeoutException here
+                    if any("上传失败" in row for row in status_rows) or self._upload_failure_visible():
+                        failed_seen += 1
+                        print(f"Bilibili upload failure indicator visible ({failed_seen}/3).")
+                        if failed_seen >= 3:
+                            raise Exception("Video upload failed.")
+                    else:
+                        failed_seen = 0
+
+                    # Backward compatibility if Bilibili changes the row markup,
+                    # but only after the file-specific probe had no status rows.
+                    if not status_rows:
+                        try:
+                            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, upload_status_xpath)))
+                            print("Generic Bilibili upload completion prompt detected.")
+                            break
+                        except TimeoutException:
+                            pass
 
                     time.sleep(5)  # Wait a bit before checking again
 
 
                 print("Handling cover upload.")
-                path_cover = crop_and_resize_cover_image(path_cover)
-                # Click on the '更改封面' button to start the cover upload process
-                edit_cover_button_xpath = '//*[text()="更改封面"]'
-                time.sleep(3)
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, edit_cover_button_xpath))).click()
-                # Wait for the '上传封面' option to become clickable and click it
-                upload_cover_option_xpath = '//*[text()="上传封面"]'
-                time.sleep(3)
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
-                file_input_xpath = "//input[@type='file' and @accept='image/png, image/jpeg']"
-                time.sleep(3)
-                file_input_element = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, file_input_xpath)))
-                # Send the file path to the hidden file input element
-                time.sleep(3)
-                file_input_element.send_keys(path_cover)
-                # Define the JavaScript code
-                js_code = """
-                var finishButton = [...document.querySelectorAll('.bcc-button--primary')].find(el => el.innerText.includes('完成'));
-                if (finishButton) {
-                    finishButton.click();
-                    return "Clicked '完成' button.";
-                } else {
-                    return "'完成' button not found.";
-                }
-                """
-                # Execute the JavaScript code
-                time.sleep(3)        
-                result = driver.execute_script(js_code)
-                # Print the result of the JavaScript execution
-                print(result)
-                print("Cover upload finished.")
+                try:
+                    resized_cover = crop_and_resize_cover_image(path_cover)
+                    if not resized_cover:
+                        raise RuntimeError("Bilibili cover resize failed.")
+                    # Click on the '更改封面' button to start the cover upload process
+                    edit_cover_button_xpath = '//*[text()="更改封面"]'
+                    time.sleep(3)
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, edit_cover_button_xpath))).click()
+                    # Wait for the '上传封面' option to become clickable and click it
+                    upload_cover_option_xpath = '//*[text()="上传封面"]'
+                    time.sleep(3)
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, upload_cover_option_xpath))).click()
+                    file_input_xpath = "//input[@type='file' and @accept='image/png, image/jpeg']"
+                    time.sleep(3)
+                    file_input_element = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, file_input_xpath)))
+                    # Send the file path to the hidden file input element
+                    time.sleep(3)
+                    file_input_element.send_keys(resized_cover)
+                    # Define the JavaScript code
+                    js_code = """
+                    var finishButton = [...document.querySelectorAll('.bcc-button--primary')].find(el => el.innerText.includes('完成'));
+                    if (finishButton) {
+                        finishButton.click();
+                        return "Clicked '完成' button.";
+                    } else {
+                        return "'完成' button not found.";
+                    }
+                    """
+                    # Execute the JavaScript code
+                    time.sleep(3)
+                    result = driver.execute_script(js_code)
+                    # Print the result of the JavaScript execution
+                    print(result)
+                    print("Cover upload finished.")
+                except Exception as exc:
+                    print(f"Cover upload skipped; using Bilibili default cover: {exc}")
 
                 # Enter Title
                 print("Entering title...")
@@ -569,14 +747,17 @@ class BilibiliPublisher:
                     print("Publishing cancelled by the user.")
                 
                 self.retry_count = 0  # reset retry count after successful execution
+                return True
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback.print_exc()
+                if isinstance(e, BilibiliRateLimitException):
+                    raise
                 self.retry_count += 1
                 print(f"Retrying the whole process... Attempt {self.retry_count}")
-                self.publish()  # Retry the whole process
+                return self.publish()  # Retry the whole process
         else:
-            print("Maximum retry attempts reached. Process failed.")
+            raise RuntimeError("Maximum retry attempts reached. Bilibili process failed.")
 
 def get_media_paths(catalog):
     path = pathlib.Path(catalog)

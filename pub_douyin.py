@@ -359,14 +359,15 @@ class DouyinPublisher:
                     print("Publishing cancelled by the user.")
                 
                 self.retry_count = 0  # reset retry count after successful execution
+                return True
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback.print_exc()
                 self.retry_count += 1
                 print(f"Retrying the whole process... Attempt {self.retry_count}")
-                self.publish()  # Retry the whole process
+                return self.publish()  # Retry the whole process
         else:
-            print("Maximum retry attempts reached. Process failed.")
+            raise RuntimeError("Maximum retry attempts reached. Douyin process failed.")
 
 # Rest of your code for initialization and running the publisher
 def get_media_paths(catalog):

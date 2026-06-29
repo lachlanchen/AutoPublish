@@ -3,6 +3,7 @@ from selenium import webdriver
 import pathlib
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException
@@ -70,10 +71,6 @@ class XiaoHongShuPublisher:
             '//*[contains(@class,"video-plugin-title-action") and contains(normalize-space(),"重新上传")]',
             '//*[contains(text(),"重新上传")]',
             '//*[contains(text(),"替换视频")]',
-            '//input[@placeholder="填写标题会有更多赞哦"]',
-            '//input[@placeholder="填写标题会有更多赞哦～"]',
-            '//div[contains(@class,"tiptap") and @contenteditable="true"]',
-            '//div[contains(@class,"ProseMirror") and @contenteditable="true"]',
         ]
         failure_xpaths = [
             '//*[contains(text(),"上传失败")]',
@@ -195,6 +192,38 @@ class XiaoHongShuPublisher:
         editor_text = " ".join((element.text or "").split())
         if editor_text != target_text:
             raise Exception("Failed to set XiaoHongShu description editor.")
+        try:
+            element.send_keys(Keys.ESCAPE)
+        except Exception:
+            pass
+        try:
+            driver.execute_script("if (document.activeElement) document.activeElement.blur();")
+        except Exception:
+            pass
+
+    def _click_xhs_publish_component(self):
+        elements = self.driver.find_elements(By.CSS_SELECTOR, "xhs-publish-btn")
+        for element in elements:
+            try:
+                if not element.is_displayed():
+                    continue
+                self.driver.execute_script("arguments[0].scrollIntoView(false);", element)
+                time.sleep(1)
+                rect = self.driver.execute_script(
+                    "const r = arguments[0].getBoundingClientRect();"
+                    "return {width: r.width, height: r.height};",
+                    element,
+                )
+                # XiaoHongShu renders the red publish button inside this custom
+                # element; Selenium cannot see its closed internals, so click
+                # slightly right of the host center where the red button sits.
+                x_offset = max(0, int((rect.get("width") or 0) * 0.11))
+                ActionChains(self.driver).move_to_element_with_offset(element, x_offset, 0).click().perform()
+                print("Clicked XiaoHongShu custom publish button.")
+                return True
+            except Exception as exc:
+                print(f"XiaoHongShu custom publish button click failed: {exc}")
+        return False
 
     def _click_publish_button(self):
         publish_button_xpaths = [
@@ -203,7 +232,12 @@ class XiaoHongShuPublisher:
             '//button[contains(@class,"bg-red") and .//span[normalize-space()="发布"]]',
             '//button[.//span[normalize-space()="发布"]]',
         ]
-        publish_button = self._find_clickable(publish_button_xpaths, timeout=60)
+        try:
+            publish_button = self._find_clickable(publish_button_xpaths, timeout=20)
+        except Exception:
+            if self._click_xhs_publish_component():
+                return
+            raise
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", publish_button)
         time.sleep(1)
 
@@ -495,14 +529,15 @@ class XiaoHongShuPublisher:
 
                 print("Process completed successfully!")
                 self.retry_count = 0  # reset retry count after successful execution
+                return True
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback.print_exc()
                 self.retry_count += 1
                 print(f"Retrying the whole process... Attempt {self.retry_count}")
-                self.publish()  # Retry the whole process
+                return self.publish()  # Retry the whole process
         else:
-            print("Maximum retry attempts reached. Process failed.")
+            raise RuntimeError("Maximum retry attempts reached. XiaoHongShu process failed.")
 
 def get_media_paths(catalog):
     path = pathlib.Path(catalog)

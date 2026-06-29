@@ -62,7 +62,7 @@ mkdir -p "$HOME/chromium_dev_session_logs" "$HOME/chromium_dev_session_5003" "$H
   "$HOME/chromium_dev_session_9222" 2>/dev/null || true
 
 CHROMIUM_BIN="${CHROMIUM_BIN:-$(command -v chromium-browser 2>/dev/null || command -v chromium 2>/dev/null)}"
-CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage"
+CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage --password-store=basic"
 
 if [ -z "$CHROMIUM_BIN" ]; then
   echo "Chromium not found. Install with: sudo apt-get install -y chromium" >&2

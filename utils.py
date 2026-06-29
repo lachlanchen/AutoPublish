@@ -2,6 +2,7 @@ from selenium.common.exceptions import NoAlertPresentException
 
 import os
 import subprocess
+import shutil
 
 # from sendgrid import SendGridAPIClient
 # from sendgrid.helpers.mail import Mail, Email, To, Content, Attachment
@@ -297,18 +298,25 @@ def safe_get(driver, url, timeout=45, label=None):
 
 
 def crop_and_resize_cover_image(path_cover):
+    if not path_cover or not os.path.exists(path_cover):
+        print(f"Cover image does not exist: {path_cover}")
+        return None
+
     # Define the base name and create a name for the resized cover
     base_name = os.path.basename(path_cover)
     name, ext = os.path.splitext(base_name)
     resized_name = f"{name}_resized{ext}"
     path_cover_resized = os.path.join(os.path.dirname(path_cover), resized_name)
+    ffmpeg_bin = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg") or "/usr/local/bin/ffmpeg"
     
     # FFmpeg command to crop and resize the image
     ffmpeg_command = [
-        '/usr/local/bin/ffmpeg',
+        ffmpeg_bin,
         '-y',
         '-i', path_cover,  # Input file
         '-vf', 'crop=in_w:in_h*3/4,scale=1200:900',  # Crop and scale filter
+        '-frames:v', '1',
+        '-update', '1',
         path_cover_resized  # Output file
     ]
 
@@ -316,6 +324,9 @@ def crop_and_resize_cover_image(path_cover):
     try:
         subprocess.run(ffmpeg_command, check=True)
         print(f"Resized image saved to {path_cover_resized}")
+    except FileNotFoundError as e:
+        print(f"FFmpeg not found while resizing cover image: {e}")
+        return None
     except subprocess.CalledProcessError as e:
         print(f"An error occurred during the resizing process: {e}")
         return None
