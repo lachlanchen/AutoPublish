@@ -121,3 +121,20 @@ title-fragment moves:
 ```bash
 python scripts/manage_shipinhao_videos.py move --query "visible title fragment" --collection 啦啦侠 --apply
 ```
+
+## Shipinhao Mirror Management
+
+For stronger existing-post control that is independent from publication, use:
+
+```bash
+python scripts/shipinhao_mirror_manager.py mirror --scrolls 5 --output /tmp/shipinhao_mirror.json
+python scripts/shipinhao_mirror_manager.py export-metadata --metadata-root /home/lachlan/DiskMech/Projects/lazyedit/DATA --days 45 --output /tmp/lazyedit_shipinhao_metadata_index.json
+python scripts/shipinhao_mirror_manager.py plan-descriptions --mirror /tmp/shipinhao_mirror.json --metadata-index /tmp/lazyedit_shipinhao_metadata_index.json --include-ok --output /tmp/shipinhao_description_plan.json
+```
+
+See `docs/SHIPINHAO_MIRROR_MANAGEMENT.md` for the full workflow and the
+2026-06-29 finding: old rows with completely missing descriptions can be
+matched to LazyEdit metadata, but Shipinhao's current `coverEdit` page only
+supports modifying selected existing text with a 20-character limit. Blank
+descriptions cannot be restored through the visible desktop UI; the tool now
+reports that state cleanly instead of timing out.

@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from selenium import webdriver  # noqa: E402
+from selenium.common.exceptions import StaleElementReferenceException, WebDriverException  # noqa: E402
 from selenium.webdriver.chrome.service import Service  # noqa: E402
 
 from pub_shipinhao import select_content_frame_collection  # noqa: E402
@@ -96,12 +97,23 @@ for (const selector of selectors) {
     const rowText = norm(row.innerText || row.textContent || '');
     if (!rowText || rowText.length < 4) continue;
     const links = Array.from(row.querySelectorAll('a[href]')).map((a) => absHref(a.getAttribute('href'))).filter(Boolean);
-    const titleNode =
-      row.querySelector('[class*="title"]') ||
-      row.querySelector('[class*="name"]') ||
-      row.querySelector('a[href]') ||
-      row;
-    const title = norm(titleNode.getAttribute && (titleNode.getAttribute('title') || titleNode.getAttribute('aria-label')) || titleNode.innerText || titleNode.textContent || '');
+    let title = '';
+    if (row.matches && row.matches('.post-feed-item')) {
+      const postTitle = row.querySelector('.post-title');
+      title = norm(postTitle && (postTitle.getAttribute('title') || postTitle.innerText || postTitle.textContent || ''));
+      if (!title) {
+        const timeLabel = row.querySelector('.time-label');
+        const timeText = norm(timeLabel && (timeLabel.innerText || timeLabel.textContent || ''));
+        title = timeText || rowText.slice(0, 120);
+      }
+    } else {
+      const titleNode =
+        row.querySelector('[class*="title"]') ||
+        row.querySelector('[class*="name"]') ||
+        row.querySelector('a[href]') ||
+        row;
+      title = norm(titleNode.getAttribute && (titleNode.getAttribute('title') || titleNode.getAttribute('aria-label')) || titleNode.innerText || titleNode.textContent || '');
+    }
     rows.push({
       title: title || rowText.slice(0, 120),
       links,
@@ -204,7 +216,7 @@ function visibleEnough(el) {
 }
 function click(el) {
   if (!el) return false;
-  el.scrollIntoView({block: 'center'});
+  el.scrollIntoView({block: 'center', inline: 'center'});
   el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true}));
   el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
   if (typeof el.click === 'function') el.click();
@@ -216,11 +228,14 @@ const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item,
 const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
 if (!row) return {ok: false, reason: 'row-not-found'};
 const rowText = norm(row.innerText || row.textContent || '').slice(0, 800);
-const controls = Array.from(row.querySelectorAll('button, a, span, div'));
-const target = controls.find((el) => /编辑|編輯|修改|管理|edit/i.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')));
+const controls = Array.from(row.querySelectorAll('.edit-cover-item, .edit-cover-text, .opr-item-wrap, .action-content, button, a, span, div'));
+const exact = controls.find((el) => norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '') === '修改描述和封面' && visibleEnough(el));
+const textMatch = controls.find((el) => /修改描述和封面/.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')) && visibleEnough(el));
+const fallback = controls.find((el) => /编辑|編輯|修改|edit/i.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')) && visibleEnough(el));
+const target = exact || textMatch || fallback;
 if (target) {
   click(target);
-  return {ok: true, action: 'clicked-edit', rowText};
+  return {ok: true, action: 'clicked-edit', clickedText: norm(target.innerText || target.textContent || target.getAttribute('aria-label') || ''), clickedClass: String(target.className || ''), rowText};
 }
 const link = Array.from(row.querySelectorAll('a[href]')).find((a) => /edit|post|detail|video/.test(String(a.getAttribute('href') || '')));
 if (link) {
@@ -229,6 +244,144 @@ if (link) {
 }
 click(row);
 return {ok: true, action: 'clicked-row', rowText};
+"""
+
+FIND_EDIT_TARGET_JS = r"""
+const query = (arguments[0] || '').toLowerCase();
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item, [class*="video"][class*="item"], [class*="post"][class*="item"]').filter(visibleEnough);
+const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
+if (!row) return null;
+row.scrollIntoView({block: 'center', inline: 'nearest'});
+const controls = Array.from(row.querySelectorAll('.edit-cover-item, .edit-cover-text, .opr-item-wrap, .action-content, button, a, span, div')).filter(visibleEnough);
+const exact = controls.find((el) => norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '') === '修改描述和封面');
+const textMatch = controls.find((el) => /修改描述和封面/.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')));
+const fallback = controls.find((el) => /编辑|編輯|修改|edit/i.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')));
+const target = exact || textMatch || fallback;
+if (!target) return null;
+const clickTarget = target.closest && target.closest('.edit-cover-item') || target;
+clickTarget.scrollIntoView({block: 'center', inline: 'center'});
+return clickTarget;
+"""
+
+FIND_EDIT_TARGET_COORD_JS = r"""
+const query = (arguments[0] || '').toLowerCase();
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item, [class*="video"][class*="item"], [class*="post"][class*="item"]').filter(visibleEnough);
+const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
+if (!row) return {ok: false, reason: 'row-not-found', visibleRows: rows.length};
+row.scrollIntoView({block: 'center', inline: 'nearest'});
+const wrap = Array.from(row.querySelectorAll('.edit-cover-item')).find(visibleEnough);
+const controls = Array.from(row.querySelectorAll('.edit-cover-item, .edit-cover-text, .opr-item-wrap, .action-content, button, a, span, div')).filter(visibleEnough);
+const exact = controls.find((el) => norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '') === '修改描述和封面');
+const textMatch = controls.find((el) => /修改描述和封面/.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')));
+const fallback = controls.find((el) => /编辑|編輯|修改|edit/i.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')));
+const raw = wrap || exact || textMatch || fallback;
+if (!raw) return {ok: false, reason: 'target-not-found', rowText: norm(row.innerText || row.textContent || '').slice(0, 300)};
+const target = (raw.querySelector && (raw.querySelector('.opr-item') || raw.querySelector('svg'))) || raw;
+target.scrollIntoView({block: 'center', inline: 'center'});
+const rect = target.getBoundingClientRect();
+return {
+  ok: true,
+  x: Math.round(rect.left + rect.width / 2),
+  y: Math.round(rect.top + rect.height / 2),
+  tag: target.tagName,
+  className: String(target.className || ''),
+  text: norm(raw.innerText || raw.textContent || raw.getAttribute('aria-label') || ''),
+  rect: {left: rect.left, top: rect.top, width: rect.width, height: rect.height}
+};
+"""
+
+EDIT_DIALOG_STATE_JS = r"""
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+const editors = queryAll('.input-editor[contenteditable], [contenteditable], textarea').filter(visibleEnough);
+const descriptionNode = queryAll('.edit-desc-content, .edit-select-area')
+  .filter((el) => /edit-select-area|edit-desc-content/.test(String(el.className || '')))
+  .find(visibleEnough);
+const buttons = queryAll('button, a, span, div')
+  .filter(visibleEnough)
+  .map((el) => norm(el.innerText || el.textContent || el.getAttribute('aria-label') || ''))
+  .filter(Boolean);
+return {
+  url: location.href,
+  isCoverEdit: /\/coverEdit/.test(location.href) || buttons.some((text) => text.includes('修改描述和封面')),
+  descriptionText: descriptionNode ? norm(descriptionNode.innerText || descriptionNode.textContent || '') : '',
+  hasEditor: editors.length > 0,
+  editors: editors.map((el) => ({
+    tag: el.tagName,
+    className: String(el.className || ''),
+    placeholder: el.getAttribute('placeholder') || el.getAttribute('data-placeholder') || '',
+    text: norm(el.innerText || el.textContent || el.value || '').slice(0, 120)
+  })),
+  buttons: buttons.slice(-30)
+};
+"""
+
+ACK_COVER_EDIT_HINT_JS = r"""
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+const button = queryAll('button, a, span, div')
+  .filter(visibleEnough)
+  .find((el) => /^我知道了$/.test(norm(el.innerText || el.textContent || '')));
+if (!button) return false;
+button.click();
+button.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+return true;
 """
 
 SAVE_EDIT_JS = r"""
@@ -296,13 +449,25 @@ if (!name) return {ok: false, stage: 'validate', reason: 'empty-name'};
 const collectionTab = queryAll('button, a, span, div').find((el) => /^合集(\s*\(\d+\))?$/.test(norm(el.innerText || el.textContent || '')));
 if (collectionTab) click(collectionTab);
 
-const text = roots().map((root) => norm(root.innerText || root.textContent || '')).join('\n');
-if (text.includes(name)) return {ok: true, stage: 'exists', name};
+const existingRows = queryAll('.collection-table .ant-table-row, .collection-wrap .ant-table-row, tr.ant-table-row')
+  .filter(visibleEnough)
+  .map((row) => norm(row.innerText || row.textContent || ''));
+const existingNames = existingRows.map((rowText) => {
+  const parts = rowText.split(/\s+/).filter(Boolean);
+  return parts[0] || rowText;
+});
+if (existingNames.includes(name) || existingRows.some((rowText) => rowText === name || rowText.startsWith(name + ' '))) {
+  return {ok: true, stage: 'exists', name, existingNames};
+}
 
-const create = queryAll('button, a, span, div').find((el) => norm(el.innerText || el.textContent || '') === '创建合集' && visibleEnough(el));
+const create =
+  queryAll('button.weui-desktop-btn_primary, button')
+    .find((el) => norm(el.innerText || el.textContent || '') === '创建合集' && visibleEnough(el)) ||
+  queryAll('button, a, span, div')
+    .find((el) => norm(el.innerText || el.textContent || '') === '创建合集' && visibleEnough(el) && /button|btn/i.test(String(el.className || '') + ' ' + el.tagName));
 if (!create) return {ok: false, stage: 'open-create', reason: 'create-control-not-found'};
 click(create);
-return {ok: true, stage: 'opened-create', name};
+return {ok: true, stage: 'opened-create', name, existingNames, clickedTag: create.tagName, clickedClass: String(create.className || '')};
 """
 
 FILL_COLLECTION_DIALOG_JS = r"""
@@ -403,6 +568,70 @@ def connect_driver(port: int, chromedriver: str | None = None):
     return webdriver.Chrome(service=service, options=options)
 
 
+def edit_dialog_state(driver) -> dict:
+    state = driver.execute_script(EDIT_DIALOG_STATE_JS)
+    return state if isinstance(state, dict) else {}
+
+
+def click_viewport_point(driver, x: int, y: int) -> None:
+    driver.execute_cdp_cmd(
+        "Input.dispatchMouseEvent",
+        {"type": "mouseMoved", "x": x, "y": y, "button": "none"},
+    )
+    driver.execute_cdp_cmd(
+        "Input.dispatchMouseEvent",
+        {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1},
+    )
+    driver.execute_cdp_cmd(
+        "Input.dispatchMouseEvent",
+        {"type": "mouseReleased", "x": x, "y": y, "button": "left", "clickCount": 1},
+    )
+
+
+def acknowledge_cover_edit_hint(driver) -> bool:
+    try:
+        return bool(driver.execute_script(ACK_COVER_EDIT_HINT_JS))
+    except WebDriverException:
+        return False
+
+
+def open_edit_row(driver, query: str, *, pause: float = 2.0, attempts: int = 4) -> dict:
+    """Open the Shipinhao "modify description and cover" editor for a row."""
+    last_state: dict | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            point = driver.execute_script(FIND_EDIT_TARGET_COORD_JS, query)
+            if not isinstance(point, dict) or not point.get("ok"):
+                last_state = {"ok": False, "reason": "edit-target-not-found", "attempt": attempt, "target": point}
+                time.sleep(0.8)
+                continue
+            click_viewport_point(driver, int(point["x"]), int(point["y"]))
+            deadline = time.time() + max(4.0, pause + 3.0)
+            state: dict = {}
+            while time.time() < deadline:
+                acknowledge_cover_edit_hint(driver)
+                state = edit_dialog_state(driver)
+                if state.get("hasEditor") or state.get("isCoverEdit"):
+                    return {"ok": True, "attempt": attempt, "target": point, "dialog_state": state}
+                time.sleep(0.5)
+            last_state = {"ok": False, "reason": "editor-not-open", "attempt": attempt, "dialog_state": state}
+        except StaleElementReferenceException as exc:
+            last_state = {"ok": False, "reason": "stale-element", "attempt": attempt, "error": str(exc)}
+        except WebDriverException as exc:
+            last_state = {"ok": False, "reason": "webdriver-error", "attempt": attempt, "error": str(exc)}
+        time.sleep(max(0.8, pause / 2))
+
+    # Fallback to the JavaScript dispatch path. It is less reliable in the
+    # current Vue list, but keeping it helps older layouts.
+    js_state = driver.execute_script(OPEN_EDIT_JS, query)
+    time.sleep(max(1.5, pause))
+    acknowledge_cover_edit_hint(driver)
+    dialog_state = edit_dialog_state(driver)
+    if dialog_state.get("hasEditor") or dialog_state.get("isCoverEdit"):
+        return {"ok": True, "fallback": True, "open_state": js_state, "dialog_state": dialog_state}
+    return last_state or {"ok": False, "reason": "open-failed", "open_state": js_state, "dialog_state": dialog_state}
+
+
 def classify(row: dict) -> str:
     text = f"{row.get('title', '')}\n{row.get('text', '')}".lower()
     if any(keyword in text for keyword in MUSIC_KEYWORDS):
@@ -466,10 +695,10 @@ def move_row_to_collection(driver, query: str, collection: str, *, apply: bool, 
         return {"query": query, "target_collection": collection, "dry_run": True}
 
     before_url = driver.current_url
-    open_state = driver.execute_script(OPEN_EDIT_JS, query)
+    open_state = open_edit_row(driver, query, pause=pause)
     if not isinstance(open_state, dict) or not open_state.get("ok"):
         return {"query": query, "target_collection": collection, "ok": False, "stage": "open-edit", "state": open_state}
-    time.sleep(max(2.0, pause))
+    time.sleep(max(1.0, pause))
 
     collection_state = None
     last_error = None
