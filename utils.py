@@ -278,10 +278,6 @@ def safe_get(driver, url, timeout=45, label=None):
             driver.execute_cdp_cmd("Page.stopLoading", {})
         except Exception:
             pass
-        try:
-            driver.execute_script("window.stop();")
-        except Exception:
-            pass
 
     try:
         driver.set_page_load_timeout(min(timeout, 12))
@@ -317,7 +313,7 @@ def safe_get(driver, url, timeout=45, label=None):
 
     print(f"Timed out waiting for usable DOM for {label}; stopping pending page load.")
     _stop_loading()
-    print(f"Stopped pending page load for {label}; continuing with current DOM.")
+    print(f"Requested stop-loading for {label}; continuing with current DOM.")
     return False
 
 
