@@ -15,6 +15,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from publish_routing import resolve_shipinhao_collection
 from utils import dismiss_alert, bring_to_front, close_extra_tabs, log_html_snapshot
 from login_shipinhao import ShiPinHaoLogin
 import traceback
@@ -1400,17 +1401,18 @@ class ShiPinHaoPublisher:
                 else:
                     print("Skipping location selection for ShiPinHao.")
 
-                # Set playlist
+                # Set Shipinhao collection
+                collection_name = resolve_shipinhao_collection(metadata, media_kind="video")
                 try:
                     collection_state = select_content_frame_collection(
                         driver,
-                        "简单生活",
+                        collection_name,
                         duration=20,
                     )
                     print(f"Shipinhao collection selected: {collection_state}")
                     time.sleep(2)
                 except Exception as e:
-                    print(f"Collection '简单生活' not found or not clickable: {e}")
+                    print(f"Collection {collection_name!r} not found or not clickable: {e}")
 
                 try:
                     title = self.build_short_title(metadata)

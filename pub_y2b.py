@@ -9,6 +9,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.common.exceptions import NoAlertPresentException
 import traceback
 
+from publish_routing import resolve_youtube_playlist
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 # from utils import dismiss_alert, bring_to_front
 #   This assumes you have a 'utils.py' containing these functions. 
@@ -271,7 +272,7 @@ class YouTubePublisher:
         Clicks and selects a playlist if available. 
         Adjust the playlist name as needed.
         """
-        playlist_name = self.metadata.get("playlist_name") or self.metadata.get("youtube_playlist") or "SimpleLife"
+        playlist_name = resolve_youtube_playlist(self.metadata, media_kind="video")
         try:
             dropdown_trigger = self.driver.find_element(By.CSS_SELECTOR, "ytcp-text-dropdown-trigger.dropdown")
             dropdown_trigger.click()

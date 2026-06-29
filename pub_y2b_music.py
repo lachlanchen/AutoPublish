@@ -8,6 +8,7 @@ music-specific metadata.
 
 from __future__ import annotations
 
+from publish_routing import resolve_youtube_playlist
 from pub_y2b import YouTubePublisher, remove_non_bmp
 
 
@@ -75,7 +76,8 @@ class YouTubeMusicPublisher(YouTubePublisher):
         output["brief_description"] = metadata.get("brief_description") or story
         output["middle_description"] = metadata.get("middle_description") or story
         output["tags"] = deduped_tags[:20]
-        output["youtube_playlist"] = metadata.get("youtube_playlist") or "Musia"
+        output["publish_category"] = metadata.get("publish_category") or "music"
+        output["youtube_playlist"] = metadata.get("youtube_playlist") or resolve_youtube_playlist(output, media_kind="music")
         return output
 
     def create_video_title_with_limited_tags(self, metadata):
@@ -83,5 +85,5 @@ class YouTubeMusicPublisher(YouTubePublisher):
         return title[:100]
 
     def set_playlist(self):
-        self.metadata["playlist_name"] = self.metadata.get("youtube_playlist") or self.metadata.get("playlist_name") or "Musia"
+        self.metadata["playlist_name"] = resolve_youtube_playlist(self.metadata, media_kind="music")
         return super().set_playlist()
