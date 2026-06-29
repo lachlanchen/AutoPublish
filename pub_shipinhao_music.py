@@ -924,6 +924,31 @@ def _select_music_option(driver, label, option, duration=8, required=False):
         return None
 
 
+def _shipinhao_music_genre(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return "流行"
+    normalized = raw.lower().replace("-", " ").replace("_", " ")
+    aliases = {
+        "bedroom pop": "流行",
+        "indie pop": "流行",
+        "pop": "流行",
+        "lofi": "流行",
+        "lo fi": "流行",
+        "lofi pop": "流行",
+        "lo fi pop": "流行",
+        "children": "儿童",
+        "children's": "儿童",
+        "kids": "儿童",
+        "folk": "民谣",
+        "rock": "摇滚",
+        "electronic": "电子",
+        "jazz": "爵士",
+        "classical": "古典",
+    }
+    return aliases.get(normalized, raw)
+
+
 def _check_music_agreement(driver, duration=8):
     deadline = time.time() + duration
     last_state = None
@@ -1278,7 +1303,7 @@ class ShiPinHaoMusicPublisher:
             duration=10,
         )
 
-        _select_music_option(self.driver, "歌曲曲风", genre or "流行", duration=8, required=True)
+        _select_music_option(self.driver, "歌曲曲风", _shipinhao_music_genre(genre), duration=8, required=True)
         _select_music_option(self.driver, "语言", language, duration=8)
         _set_music_field(
             self.driver,
