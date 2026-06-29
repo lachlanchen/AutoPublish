@@ -46,6 +46,12 @@ class DouyinLogin:
         password = password.strip()
         return password or None
 
+    def _login_wait_seconds(self):
+        try:
+            return max(60, int(os.environ.get("AUTOPUBLISH_LOGIN_WAIT_SECONDS", "1800")))
+        except Exception:
+            return 1800
+
     def create_new_driver(self):
         print("Creating new WebDriver instance...")
         options = webdriver.ChromeOptions()
@@ -212,7 +218,7 @@ class DouyinLogin:
         print("Checking login status...")
         if self.is_already_logged_in():
             print("Already logged in.")
-            return
+            return True
 
         try:
             self.click_login_button()
@@ -224,14 +230,24 @@ class DouyinLogin:
                     self.report_layout_change()
                 else:
                     print("QR code not detected yet.")
-                return
+                    self.take_screenshot_and_send_email(
+                        subject="Douyin Login QR Not Detected",
+                        content="Douyin login is required, but the QR image was not detected. Please inspect the attached screenshot.",
+                    )
+                raise RuntimeError("Douyin login QR was not detected.")
 
             self.take_screenshot_and_send_email()
         except Exception:
-            print("Login UI not found, maybe already logged in.")
+            if self.is_already_logged_in():
+                print("Login UI not found because Douyin is already logged in.")
+                return True
+            print("Douyin login UI was not usable.")
+            traceback.print_exc()
+            raise
 
         start_time = time.time()
-        while time.time() - start_time < 600:  # 10 minutes
+        wait_seconds = self._login_wait_seconds()
+        while time.time() - start_time < wait_seconds:
             if self.is_qr_outdated():
                 self.refresh_qr_code()
                 time.sleep(5)  # Wait for the QR code to refresh
@@ -244,9 +260,11 @@ class DouyinLogin:
 
             if self.is_already_logged_in():
                 print("Logged in successfully, stopping checks.")
-                break
+                return True
 
             time.sleep(5)
+
+        raise RuntimeError(f"Douyin login was not completed within {wait_seconds} seconds.")
 
     def _expected_account_names(self):
         env_names = os.environ.get("DOUYIN_ACCOUNT_NAMES") or os.environ.get("DOUYIN_ACCOUNT_NAME")

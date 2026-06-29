@@ -25,6 +25,7 @@ from pub_shipinhao_music import ShiPinHaoMusicPublisher
 from pub_instagram import InstagramPublisher
 from login_xiaohongshu import XiaoHongShuLogin
 from login_douyin import DouyinLogin
+from login_bilibili import BilibiliLogin
 from login_shipinhao import ShiPinHaoLogin
 from login_instagram import InstagramLogin
 from selenium.webdriver.chrome.service import Service
@@ -400,6 +401,10 @@ def refresh_browsers(ports_patterns):
                         elif port == 5004:
                             douyin_login = DouyinLogin(create_new_driver(port=port))
                             douyin_login.check_and_act()
+
+                        elif port == 5005:
+                            bilibili_login = BilibiliLogin(create_new_driver(port=port))
+                            bilibili_login.check_and_act()
 
                         elif port == 5006:
                             shi_pin_hao_login = ShiPinHaoLogin(create_new_driver(port=port))

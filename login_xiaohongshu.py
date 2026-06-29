@@ -23,6 +23,12 @@ class XiaoHongShuLogin:
         self.driver = driver if driver else self.create_new_driver()
         self.refresh_count = 0
 
+    def _login_wait_seconds(self):
+        try:
+            return max(60, int(os.environ.get("AUTOPUBLISH_LOGIN_WAIT_SECONDS", "1800")))
+        except Exception:
+            return 1800
+
     def create_new_driver(self):
         print("Creating new WebDriver instance...")
         options = webdriver.ChromeOptions()
@@ -121,7 +127,7 @@ class XiaoHongShuLogin:
 
         if self.find_lazying_art():
             print("Already logged in. ")
-            return
+            return True
 
 
         try:
@@ -140,10 +146,17 @@ class XiaoHongShuLogin:
             self.take_screenshot_and_send_email()
             
         except TimeoutException:
-            print("Already logged in or the page did not load as expected.")
-            return
+            if self.find_lazying_art():
+                print("Already logged in or the page did not load as expected.")
+                return True
+            self.take_screenshot_and_send_email(
+                subject="XiaoHongShu Login Page Changed",
+                content="XiaoHongShu login is required, but the expected QR login box was not found. Please inspect the attached screenshot.",
+            )
+            raise RuntimeError("XiaoHongShu login box was not found.")
 
-        end_time = time.time() + 600  # 30 minutes from now
+        wait_seconds = self._login_wait_seconds()
+        end_time = time.time() + wait_seconds
         last_refresh_time = time.time()
         last_email_time = time.time() - 30  # Initialize to send email immediately
 
@@ -165,9 +178,11 @@ class XiaoHongShuLogin:
 
             if not self.needs_login():
                 print("Logged in successfully, stopping checks.")
-                break  # Break the loop if logged in
+                return True
 
             time.sleep(5)  # Wait for 5 seconds before checking again
+
+        raise RuntimeError(f"XiaoHongShu login was not completed within {wait_seconds} seconds.")
 
     def is_qr_outdated(self):
         outdated_message = "二维码已失效，请刷新"
@@ -225,12 +240,12 @@ class XiaoHongShuLogin:
             print("No SMS login box detected, might already be logged in or the page did not load as expected.")
             return False
 
-    def take_screenshot_and_send_email(self):
+    def take_screenshot_and_send_email(self, subject=None, content=None):
         screenshot_path = '/tmp/xiaohongshu-login.png'
         self.driver.save_screenshot(screenshot_path)
         self.mailer.send_email(
-            'XiaoHongShu Login Required',
-            'Login is required. Please see the attached screenshot including the QR code.',
+            subject or 'XiaoHongShu Login Required',
+            content or 'Login is required. Please see the attached screenshot including the QR code.',
             screenshot_path,
             'xiaohongshu-login.png'
         )

@@ -11,6 +11,7 @@ from selenium.webdriver.chrome.options import Options
 # from webdriver_manager.chrome import ChromeDriverManager
 
 from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front, close_extra_tabs
+from login_bilibili import BilibiliLogin
 
 import traceback
 
@@ -68,6 +69,9 @@ class BilibiliPublisher:
         self.metadata = metadata
         self.test = test
         self.retry_count = 0  # initialize retry count
+
+        bilibili_login = BilibiliLogin(driver)
+        bilibili_login.check_and_act()
 
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         time.sleep(3)  # your actual implementation
@@ -142,8 +146,8 @@ class BilibiliPublisher:
             img_selector = self.driver.find_element(By.CSS_SELECTOR, image_element_selector)
 
             # Get the bounding rectangle and calculate differences
-            outer_rect = driver.execute_script("return arguments[0].getBoundingClientRect();", outer_element)
-            img_rect = driver.execute_script("return arguments[0].getBoundingClientRect();", img_element)
+            outer_rect = self.driver.execute_script("return arguments[0].getBoundingClientRect();", outer_element)
+            img_rect = self.driver.execute_script("return arguments[0].getBoundingClientRect();", img_selector)
 
             # Calculate vertical (top) difference
             print("img_rect['top']: ", img_rect['top'], "outer_rect['top']: ", outer_rect['top'])
