@@ -79,7 +79,7 @@ def _resolve_chromedriver_path() -> str:
 def _browser_flags() -> list[str]:
     value = os.environ.get(
         "AUTOPUBLISH_CHROMIUM_FLAGS",
-        "--disable-gpu --use-gl=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage",
+        "--disable-gpu --use-gl=swiftshader --use-angle=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage --remote-allow-origins=*",
     )
     return [part for part in value.split() if part]
 
