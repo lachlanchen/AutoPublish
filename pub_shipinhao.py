@@ -16,6 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from publish_routing import resolve_shipinhao_collection
+from publish_verification import verify_publish_in_management
 from utils import dismiss_alert, bring_to_front, close_extra_tabs, log_html_snapshot
 from login_shipinhao import ShiPinHaoLogin
 import traceback
@@ -23,6 +24,7 @@ import traceback
 import re
 
 SHIPINHAO_CREATE_URL = "https://channels.weixin.qq.com/platform/post/create"
+SHIPINHAO_MANAGEMENT_URL = "https://channels.weixin.qq.com/platform/post/list"
 SHIPINHAO_WINDOW_PATTERNS = ["视频号", "视频号助手", "发表动态", "视频管理"]
 SHIPINHAO_READY_SELECTORS = [
     ".post-create-wrap",
@@ -1511,6 +1513,14 @@ class ShiPinHaoPublisher:
                         exact=True,
                     )
                     time.sleep(10)
+                    verify_publish_in_management(
+                        driver,
+                        SHIPINHAO_MANAGEMENT_URL,
+                        metadata,
+                        platform_name="Shipinhao",
+                        timeout=int(os.environ.get("AUTOPUB_SHIPINHAO_VERIFY_TIMEOUT", "300")),
+                        include_english=False,
+                    )
                     print("Publishing...")
                 else:
                     print("Publishing cancelled by user.")

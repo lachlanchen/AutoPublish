@@ -14,6 +14,12 @@ from utils import dismiss_alert, bring_to_front, close_extra_tabs, safe_get
 from login_douyin import DouyinLogin
 
 import traceback
+import os
+
+from publish_verification import verify_publish_in_management
+
+
+DOUYIN_MANAGEMENT_URL = "https://creator.douyin.com/creator-micro/content/manage"
 
 class UploadFailedException(Exception):
     """Exception raised when the video upload fails."""
@@ -78,6 +84,16 @@ class DouyinPublisher:
         if not self._safe_click(element):
             raise WebDriverException("Failed to click element.")
 
+    def _click_any(self, xpaths, timeout=5):
+        for xpath in xpaths:
+            try:
+                element = self._find_first([xpath], timeout=timeout)
+                if self._safe_click(element):
+                    return True
+            except Exception:
+                continue
+        return False
+
     def _body_text(self):
         try:
             return self.driver.execute_script("return document.body ? document.body.innerText : '';") or ""
@@ -108,6 +124,29 @@ class DouyinPublisher:
         )
         time.sleep(5)
         return True
+
+    def _allow_draft_reuse(self):
+        return os.environ.get("AUTOPUB_DOUYIN_REUSE_DRAFT", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+
+    def _replace_existing_draft_video(self, path_mp4):
+        """Replace a resumed Douyin draft instead of publishing stale uploaded media."""
+        print("Douyin draft reuse is disabled; replacing the draft video with the requested file.")
+        self._click_any(
+            [
+                '//*[normalize-space()="重新上传"]',
+                '//*[contains(text(),"重新上传")]/ancestor::button[1]',
+                '//*[contains(text(),"替换视频")]/ancestor::button[1]',
+                '//*[contains(text(),"替换视频")]',
+            ],
+            timeout=8,
+        )
+        time.sleep(3)
+        self._upload_video_file(path_mp4)
 
     def _upload_video_file(self, path_mp4):
         print("Uploading video file to Douyin...")
@@ -270,6 +309,8 @@ class DouyinPublisher:
                 if draft_upload_failed:
                     print("Existing Douyin draft has a failed upload; reuploading inside the draft.")
                     self._upload_video_file(path_mp4)
+                elif resumed_draft and not self._allow_draft_reuse():
+                    self._replace_existing_draft_video(path_mp4)
                 elif resumed_draft or self._find_any(reupload_xpaths, timeout=5, visible=False):
                     print("Using existing Douyin draft/upload; skipping video upload.")
                 else:
@@ -433,6 +474,13 @@ class DouyinPublisher:
                     time.sleep(10)
                     dismiss_alert(driver)
                     time.sleep(3)
+                    verify_publish_in_management(
+                        driver,
+                        DOUYIN_MANAGEMENT_URL,
+                        metadata,
+                        platform_name="Douyin",
+                        timeout=int(os.environ.get("AUTOPUB_DOUYIN_VERIFY_TIMEOUT", "240")),
+                    )
                     print("Video published successfully!")
                 else:
                     print("Publishing cancelled by the user.")
