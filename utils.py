@@ -20,6 +20,8 @@ from email.mime.image import MIMEImage
 from email import encoders
 from html import escape
 from urllib.parse import urlsplit
+import urllib.parse
+import urllib.request
 
 from PIL import Image, UnidentifiedImageError
 
@@ -254,6 +256,41 @@ def safe_get(driver, url, timeout=45, label=None):
         except Exception:
             return False
 
+    def _debugger_port():
+        try:
+            chrome_options = driver.capabilities.get("goog:chromeOptions", {})
+            address = chrome_options.get("debuggerAddress", "")
+            if ":" in address:
+                return int(address.rsplit(":", 1)[1])
+        except Exception:
+            pass
+        return None
+
+    def _open_debug_tab():
+        port = _debugger_port()
+        if not port:
+            return False
+        try:
+            encoded_url = urllib.parse.quote(url, safe=":/?&=%")
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{port}/json/new?{encoded_url}",
+                method="PUT",
+            )
+            with urllib.request.urlopen(request, timeout=5):
+                pass
+            time.sleep(2)
+            try:
+                handles = driver.window_handles
+                if handles:
+                    driver.switch_to.window(handles[-1])
+            except Exception:
+                pass
+            print(f"Opened {label} through DevTools because WebDriver navigation was blank.")
+            return True
+        except Exception as exc:
+            print(f"Could not open {label} through DevTools: {exc}")
+            return False
+
     try:
         driver.set_page_load_timeout(min(timeout, 20))
     except Exception:
@@ -272,6 +309,14 @@ def safe_get(driver, url, timeout=45, label=None):
             print(f"Using partially loaded {label}: {driver.current_url}")
             return True
         time.sleep(0.5)
+
+    if _open_debug_tab():
+        start_time = time.time()
+        while time.time() - start_time <= min(timeout, 20):
+            if _matches_target():
+                print(f"Using DevTools-opened {label}: {driver.current_url}")
+                return True
+            time.sleep(0.5)
 
     print(f"Timed out waiting for usable DOM for {label}; stopping pending page load.")
     try:
