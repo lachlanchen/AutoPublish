@@ -22,6 +22,7 @@ from pub_bilibili import BilibiliPublisher
 from pub_douyin import DouyinPublisher
 from pub_y2b import YouTubePublisher
 from pub_y2b_music import YouTubeMusicPublisher
+from pub_bandcamp_music import BandcampMusicPublisher
 from pub_shipinhao import ShiPinHaoPublisher
 from pub_shipinhao_music import ShiPinHaoMusicPublisher
 from pub_instagram import InstagramPublisher
@@ -269,6 +270,7 @@ def stop_and_start_chromium_sessions(
             publish_shipinhao=False,
             publish_shipinhao_music=False,
             publish_youtube_music=False,
+            publish_bandcamp_music=False,
             publish_y2b=False,
             publish_instagram=False
         ):
@@ -346,6 +348,16 @@ def stop_and_start_chromium_sessions(
                     log_dir,
                     session_prefix,
                 ),
+                "bandcamp": _build_start_command(
+                    "bandcamp",
+                    5008,
+                    "https://bandcamp.com",
+                    browser_bin,
+                    display,
+                    _session_dir(5008),
+                    log_dir,
+                    session_prefix,
+                ),
                 "y2b": _build_start_command(
                     "y2b",
                     9222,
@@ -378,6 +390,8 @@ def stop_and_start_chromium_sessions(
                 _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"], "https://channels.weixin.qq.com/platform/post/create")
             if publish_y2b or publish_youtube_music:
                 _start_browser_if_needed("y2b", 9222, start_commands["y2b"], "https://youtube.com/upload")
+            if publish_bandcamp_music:
+                _start_browser_if_needed("bandcamp", 5008, start_commands["bandcamp"], "https://bandcamp.com")
             if publish_instagram:
                 _start_browser_if_needed("instagram", 5007, start_commands["instagram"], "https://www.instagram.com")
 
@@ -465,6 +479,7 @@ def publish_platform(publisher, platform_name):
             "ShiPinHao": "shipinhao",
             "ShiPinHaoMusic": "shipinhao_music",
             "YouTubeMusic": "youtube_music",
+            "BandcampMusic": "bandcamp_music",
             "Instagram": "ins",
             "YouTube": "y2b",
             "Douyin": "douyin",
@@ -482,6 +497,7 @@ def _process_publish_job(job):
     publish_shipinhao = job.get("publish_shipinhao", False)
     publish_shipinhao_music = job.get("publish_shipinhao_music", False)
     publish_youtube_music = job.get("publish_youtube_music", False)
+    publish_bandcamp_music = job.get("publish_bandcamp_music", False)
     publish_y2b = job.get("publish_y2b", False)
     publish_instagram = job.get("publish_instagram", False)
     test_mode = job.get("test_mode", False)
@@ -494,6 +510,7 @@ def _process_publish_job(job):
             publish_shipinhao,
             publish_shipinhao_music,
             publish_youtube_music,
+            publish_bandcamp_music,
             publish_y2b,
             publish_instagram,
         ]
@@ -510,6 +527,7 @@ def _process_publish_job(job):
             publish_shipinhao=publish_shipinhao,
             publish_shipinhao_music=publish_shipinhao_music,
             publish_youtube_music=publish_youtube_music,
+            publish_bandcamp_music=publish_bandcamp_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
         )
@@ -582,6 +600,11 @@ def _process_publish_job(job):
     if publish_shipinhao_music:
         if not path_music or not os.path.exists(path_music):
             raise FileNotFoundError(f"Music/audio file not found in package: {music_filename}")
+    bandcamp_music_filename = metadata.get("bandcamp_audio_filename") or music_filename
+    path_bandcamp_music = os.path.join(transcription_dir, bandcamp_music_filename) if bandcamp_music_filename else None
+    if publish_bandcamp_music:
+        if not path_bandcamp_music or not os.path.exists(path_bandcamp_music):
+            raise FileNotFoundError(f"Bandcamp music file not found in package: {bandcamp_music_filename}")
 
     publishers = []
     if publish_xhs:
@@ -614,6 +637,15 @@ def _process_publish_job(job):
             test_mode,
         )
         publishers.append((pub_youtube_music, 'YouTubeMusic'))
+    if publish_bandcamp_music:
+        pub_bandcamp_music = BandcampMusicPublisher(
+            create_new_driver(port=5008),
+            path_bandcamp_music,
+            path_cover,
+            metadata_en,
+            test_mode,
+        )
+        publishers.append((pub_bandcamp_music, 'BandcampMusic'))
     if publish_instagram:
         pub_instagramlisher = InstagramPublisher(create_new_driver(port=5007), path_mp4, path_cover, metadata, test_mode)
         publishers.append((pub_instagramlisher, 'Instagram'))
@@ -634,6 +666,8 @@ def _process_publish_job(job):
             bring_to_front(["视频号", "视频号助手", "发表音乐"])
         elif name == 'YouTubeMusic':
             bring_to_front(["YouTube"])
+        elif name == 'BandcampMusic':
+            bring_to_front(["Bandcamp", "bandcamp"])
         elif name == 'Instagram':
             bring_to_front(["Instagram"])
         elif name == 'YouTube':
@@ -748,6 +782,7 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_shipinhao=False,
             publish_shipinhao_music=False,
             publish_youtube_music=False,
+            publish_bandcamp_music=False,
             publish_y2b=False,
             publish_instagram=False
         ):
@@ -759,6 +794,7 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_shipinhao=publish_shipinhao,
             publish_shipinhao_music=publish_shipinhao_music,
             publish_youtube_music=publish_youtube_music,
+            publish_bandcamp_music=publish_bandcamp_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
         )
@@ -787,6 +823,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
         publish_shipinhao_music = self.get_argument('publish_shipinhao_music', 'false').lower() == 'true'
         publish_youtube_music = self.get_argument('publish_youtube_music', 'false').lower() == 'true'
+        publish_bandcamp_music = self.get_argument('publish_bandcamp_music', 'false').lower() == 'true'
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         publish_instagram = self.get_argument('publish_instagram', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
@@ -799,6 +836,7 @@ class PublishHandler(tornado.web.RequestHandler):
             'shipinhao': 'ignore_shipinhao',
             'shipinhao_music': 'ignore_shipinhao_music',
             'youtube_music': 'ignore_youtube_music',
+            'bandcamp_music': 'ignore_bandcamp_music',
             'y2b': 'ignore_y2b',
             'instagram': 'ignore_instagram',
         }
@@ -812,6 +850,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_shipinhao = check_ignore_file(publish_shipinhao, ignore_files['shipinhao'])
         publish_shipinhao_music = check_ignore_file(publish_shipinhao_music, ignore_files['shipinhao_music'])
         publish_youtube_music = check_ignore_file(publish_youtube_music, ignore_files['youtube_music'])
+        publish_bandcamp_music = check_ignore_file(publish_bandcamp_music, ignore_files['bandcamp_music'])
         publish_y2b = check_ignore_file(publish_y2b, ignore_files['y2b'])
         publish_instagram = check_ignore_file(publish_instagram, ignore_files['instagram'])
 
@@ -848,6 +887,8 @@ class PublishHandler(tornado.web.RequestHandler):
             platforms.append("shipinhao_music")
         if publish_youtube_music:
             platforms.append("youtube_music")
+        if publish_bandcamp_music:
+            platforms.append("bandcamp_music")
         if publish_y2b:
             platforms.append("youtube")
         if publish_instagram:
@@ -865,6 +906,7 @@ class PublishHandler(tornado.web.RequestHandler):
             "publish_shipinhao": publish_shipinhao,
             "publish_shipinhao_music": publish_shipinhao_music,
             "publish_youtube_music": publish_youtube_music,
+            "publish_bandcamp_music": publish_bandcamp_music,
             "publish_y2b": publish_y2b,
             "publish_instagram": publish_instagram,
             "test_mode": test_mode,
