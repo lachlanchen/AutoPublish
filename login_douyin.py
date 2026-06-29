@@ -231,6 +231,9 @@ class DouyinLogin:
             time.sleep(5)  # Allow some time for the QR code to load
 
             if not self.wait_for_qr_code():
+                if self.is_already_logged_in():
+                    print("Douyin is already logged in after opening the login UI.")
+                    return True
                 if not self.is_login_ui_visible():
                     self.report_layout_change()
                 else:
