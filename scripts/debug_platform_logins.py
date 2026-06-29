@@ -160,6 +160,7 @@ def main() -> int:
     if args.login_wait_seconds:
         os.environ["AUTOPUBLISH_LOGIN_WAIT_SECONDS"] = str(args.login_wait_seconds)
 
+    os.environ["DISPLAY"] = _resolve_display()
     load_env()
     from login_bilibili import BilibiliLogin
     from login_douyin import DouyinLogin

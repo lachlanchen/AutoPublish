@@ -271,6 +271,7 @@ def stop_and_start_chromium_sessions(
             
             browser_bin = _resolve_browser_bin()
             display = _resolve_display()
+            os.environ["DISPLAY"] = display
             session_prefix = _resolve_session_prefix(browser_bin)
             log_dir = _resolve_logs_dir(session_prefix)
             os.makedirs(log_dir, exist_ok=True)

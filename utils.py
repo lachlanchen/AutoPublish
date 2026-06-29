@@ -262,6 +262,8 @@ def crop_and_resize_cover_image(path_cover):
 
 def bring_to_front(window_name_pattern):
     try:
+        if not os.environ.get("DISPLAY"):
+            os.environ["DISPLAY"] = ":1" if os.path.exists("/tmp/.X11-unix/X1") else ":0"
         # List all Chromium windows
         window_list = subprocess.check_output(["xdotool", "search", "--name", "Chromium"]).decode().strip().split('\n')
         # Iterate through the list of window IDs
