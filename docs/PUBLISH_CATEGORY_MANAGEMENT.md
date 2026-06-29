@@ -106,13 +106,17 @@ Existing-post Shipinhao collection editing is not as stable as upload-time
 collection selection. Use the candidate report first:
 
 ```bash
+python scripts/manage_shipinhao_videos.py ensure-collection --collection Musia --apply
+python scripts/manage_shipinhao_videos.py ensure-collection --collection 啦啦侠 --apply
 python scripts/manage_shipinhao_videos.py move-lalachan --lalachan-collection 啦啦侠 --scrolls 80 --output /tmp/shipinhao_lalachan_candidates.json
 python scripts/manage_shipinhao_videos.py move-music --music-collection Musia --scrolls 80 --output /tmp/shipinhao_music_candidates.json
 python scripts/manage_shipinhao_videos.py move-classified --lalachan-collection 啦啦侠 --music-collection Musia --scrolls 80 --output /tmp/shipinhao_classified_candidates.json
 ```
 
-Then verify the account exposes collection editing before doing any automated
-bulk move. Prefer small recent-page batches or exact title-fragment moves:
+`ensure-collection` creates the missing collection name if the account does not
+already show it. Then verify the account exposes collection editing before
+doing any automated bulk move. Prefer small recent-page batches or exact
+title-fragment moves:
 
 ```bash
 python scripts/manage_shipinhao_videos.py move --query "visible title fragment" --collection 啦啦侠 --apply

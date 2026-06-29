@@ -260,6 +260,122 @@ click(target);
 return {ok: true, text: norm(target.innerText || target.textContent || target.getAttribute('aria-label') || '')};
 """
 
+ENSURE_COLLECTION_JS = r"""
+const name = (arguments[0] || '').trim();
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+function click(el) {
+  if (!el) return false;
+  el.scrollIntoView({block: 'center'});
+  if (typeof el.click === 'function') el.click();
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+  return true;
+}
+function setValue(input, value) {
+  const proto = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+  setter.call(input, value);
+  input.dispatchEvent(new Event('input', {bubbles: true}));
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+}
+if (!name) return {ok: false, stage: 'validate', reason: 'empty-name'};
+
+const collectionTab = queryAll('button, a, span, div').find((el) => /^合集(\s*\(\d+\))?$/.test(norm(el.innerText || el.textContent || '')));
+if (collectionTab) click(collectionTab);
+
+const text = roots().map((root) => norm(root.innerText || root.textContent || '')).join('\n');
+if (text.includes(name)) return {ok: true, stage: 'exists', name};
+
+const create = queryAll('button, a, span, div').find((el) => norm(el.innerText || el.textContent || '') === '创建合集' && visibleEnough(el));
+if (!create) return {ok: false, stage: 'open-create', reason: 'create-control-not-found'};
+click(create);
+return {ok: true, stage: 'opened-create', name};
+"""
+
+FILL_COLLECTION_DIALOG_JS = r"""
+const name = (arguments[0] || '').trim();
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+function click(el) {
+  if (!el) return false;
+  el.scrollIntoView({block: 'center'});
+  if (typeof el.click === 'function') el.click();
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+  return true;
+}
+function setValue(input, value) {
+  const proto = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+  setter.call(input, value);
+  input.dispatchEvent(new Event('input', {bubbles: true}));
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+}
+const inputs = queryAll('input[type="text"], input').filter(visibleEnough);
+const input = inputs.find((el) => /合集|标题|標題|有趣/.test(el.getAttribute('placeholder') || '')) || inputs[0];
+if (!input) return {ok: false, stage: 'fill-name', reason: 'input-not-found'};
+setValue(input, name);
+const buttons = queryAll('button, a, span, div').filter(visibleEnough);
+const submit = buttons.find((el) => /^创建$/.test(norm(el.innerText || el.textContent || '')) && !/disabled/.test(String(el.className || '')));
+if (!submit) return {ok: false, stage: 'submit', reason: 'submit-control-not-found'};
+click(submit);
+return {ok: true, stage: 'submitted', name};
+"""
+
+ACK_COLLECTION_SUCCESS_JS = r"""
+function norm(text) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+function click(el) {
+  if (!el) return false;
+  el.scrollIntoView({block: 'center'});
+  if (typeof el.click === 'function') el.click();
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+  return true;
+}
+const button = queryAll('button, a, span, div').filter(visibleEnough).find((el) => /^(我知道了|确定|確認)$/.test(norm(el.innerText || el.textContent || '')));
+if (!button) return false;
+click(button);
+return true;
+"""
+
 
 def resolve_chromedriver(chromedriver: str | None = None) -> str | None:
     if chromedriver:
@@ -394,9 +510,29 @@ def move_row_to_collection(driver, query: str, collection: str, *, apply: bool, 
     }
 
 
+def ensure_collection(driver, name: str, *, apply: bool, pause: float = 1.5) -> dict:
+    if not name:
+        raise ValueError("collection name is required")
+    if not apply:
+        return {"name": name, "dry_run": True}
+    open_state = driver.execute_script(ENSURE_COLLECTION_JS, name)
+    if isinstance(open_state, dict) and open_state.get("stage") == "exists":
+        return open_state
+    if not isinstance(open_state, dict) or not open_state.get("ok"):
+        return {"ok": False, "name": name, "stage": "open-create", "state": open_state}
+    time.sleep(pause)
+    fill_state = driver.execute_script(FILL_COLLECTION_DIALOG_JS, name)
+    if not isinstance(fill_state, dict) or not fill_state.get("ok"):
+        return {"ok": False, "name": name, "stage": "fill-dialog", "open_state": open_state, "state": fill_state}
+    time.sleep(max(2.0, pause))
+    ack_state = driver.execute_script(ACK_COLLECTION_SUCCESS_JS)
+    time.sleep(max(2.0, pause))
+    return {"ok": True, "name": name, "open_state": open_state, "fill_state": fill_state, "ack_state": bool(ack_state)}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage Shipinhao video rows by attached browser session.")
-    parser.add_argument("command", choices=["inventory", "link", "delete", "move", "move-lalachan", "move-music", "move-classified"])
+    parser.add_argument("command", choices=["inventory", "link", "delete", "ensure-collection", "move", "move-lalachan", "move-music", "move-classified"])
     parser.add_argument("--port", type=int, default=5006)
     parser.add_argument("--chromedriver")
     parser.add_argument("--url", default=DEFAULT_MANAGEMENT_URL, help="Use empty string to keep current tab.")
@@ -428,6 +564,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "delete":
         print(json.dumps(delete_row(driver, args.query or "", title_contains=args.title_contains, apply=args.apply), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "ensure-collection":
+        print(json.dumps(ensure_collection(driver, args.collection or args.query or "", apply=args.apply, pause=args.pause), ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "move":
