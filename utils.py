@@ -264,22 +264,41 @@ def bring_to_front(window_name_pattern):
     try:
         if not os.environ.get("DISPLAY"):
             os.environ["DISPLAY"] = ":1" if os.path.exists("/tmp/.X11-unix/X1") else ":0"
-        # List all Chromium windows
-        window_list = subprocess.check_output(["xdotool", "search", "--name", "Chromium"]).decode().strip().split('\n')
+        search_commands = [
+            ["xdotool", "search", "--onlyvisible", "--name", "Chromium"],
+            ["xdotool", "search", "--name", "Chromium"],
+            ["xdotool", "search", "--onlyvisible", "--class", "chromium"],
+            ["xdotool", "search", "--class", "chromium"],
+        ]
+        window_list = []
+        last_error = ""
+        for command in search_commands:
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.stdout.strip():
+                window_list = result.stdout.strip().splitlines()
+                break
+            last_error = (result.stderr or "").strip()
+        if not window_list:
+            print(f"No Chromium windows found by xdotool. {last_error}")
+            return
         # Iterate through the list of window IDs
         for window_id in window_list:
             # Get the name of each window using its ID
-            window_name = subprocess.check_output(["xdotool", "getwindowname", window_id]).decode().strip()
+            try:
+                window_name = subprocess.check_output(["xdotool", "getwindowname", window_id]).decode().strip()
+            except subprocess.CalledProcessError:
+                continue
             # Check if the window name matches any of the patterns provided
             if any(text in window_name for text in window_name_pattern):
                 # If a match is found, activate the window
-                subprocess.run(["xdotool", "windowactivate", "--sync", window_id])
+                subprocess.run(["xdotool", "windowactivate", "--sync", window_id], check=False)
                 # Optionally, add a brief pause to ensure the window comes to the front
                 subprocess.run(["sleep", "1"])
                 break  # Exit the loop after the first match
     except subprocess.CalledProcessError as e:
         print(f"Error: {e.output.decode()}")
-        traceback.print_exc()
+    except Exception as e:
+        print(f"Could not bring browser window to front: {e}")
 
 
 def close_extra_tabs(driver):
