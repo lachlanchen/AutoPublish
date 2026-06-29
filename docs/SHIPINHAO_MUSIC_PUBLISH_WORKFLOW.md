@@ -42,7 +42,12 @@ file for Shipinhao plus one generated YouTube-compatible MP4:
 - `youtube_music_video_filename`: static-cover H.264/AAC art-track MP4 for
   YouTube.
 - `cover_filename` and `cover_filenames`: square cover candidates.
-- `lyrics` / `song_lyrics`: full lyrics text.
+- `lyrics` / `song_lyrics`: full lyrics text for the platform upload.
+- `plain_lyrics` / `readable_lyrics`: readable lyrics for YouTube descriptions
+  and audit.
+- `lrc_lyrics` / `timed_lyrics`: optional timestamped reference lyrics. Do not
+  upload this to Shipinhao Music by default; the current desktop form rejects
+  timestamped LRC text as an incomplete form.
 - `music_story`, `brief_description`, `middle_description`, `long_description`:
   story and public descriptions.
 - `author`, `artist`, `singer`, `lyricist`, `composer`, `producer`: credit
@@ -65,6 +70,29 @@ YouTube note: YouTube Music's direct audio-file upload is a personal library
 feature, not a public channel publishing path. Public posting from AutoPublish
 therefore uses YouTube Studio video upload with the generated art-track MP4,
 thumbnail, title, description, lyrics, tags, and playlist.
+
+## Lyric Source And Format
+
+For Musia songs, the final corrected website lyric JSON is authoritative. Use
+the exact vocal/language JSON for the selected audio file:
+
+```text
+/home/lachlan/ProjectsLFS/Musia/website/data/songs/<song-id>/lyrics/<vocal-set>/<lang>.json
+```
+
+Do not use prompt drafts, rough generated lyrics, another vocal's translation
+JSON, or stale package lyrics. Before posting, inspect the package:
+
+```bash
+sed -n '1,40p' DATA/music_publish/<slug>/<slug>_lyrics.txt
+jq -r '.plain_lyrics' DATA/music_publish/<slug>/<slug>_metadata.json | sed -n '1,20p'
+```
+
+Shipinhao Music currently wants plain lyric lines. In the 2026-06-30 English
+Xiao Xiao Zhu debug run, the page accepted `[00:00.00]...` LRC-style text into
+the textarea but rejected submission with `表单信息不完整, 请检查`. Keep LRC only
+as optional metadata/reference unless the live site adds a real timed-lyrics
+import path.
 
 ## Live Hosts And Repos
 
@@ -93,6 +121,8 @@ git push origin main
 ssh lachlan@lazyingart
 cd ~/Projects/autopub
 git pull origin main
+# Restart the running tmux/API process after code changes. A pull alone does not
+# reload already-imported Python modules.
 ```
 
 ## Route
@@ -210,6 +240,14 @@ Recommended values:
 - Japanese songs: use `日文` or `日语`, whichever appears in the dropdown.
 - Artist / author / producer fields: `Musia 慕莎` is safe when no separate
   performer is provided.
+
+Proof upload:
+
+- Original proof is useful but optional.
+- If the proof ZIP remains visible as `0% 删除`, do not click `发表音乐`.
+- Wait until upload progress disappears or reaches completion. If it remains
+  stuck, remove the proof upload and submit without it; otherwise the form may
+  fail with `表单信息不完整, 请检查`.
 
 Album-field behavior changed after the account had at least one album. A fresh
 form may initially show only:
