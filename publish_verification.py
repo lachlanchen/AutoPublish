@@ -14,17 +14,58 @@ COLLECT_TEXT_SCRIPT = r"""
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
 }
-function collect(root, depth, out) {
-  if (!root || depth > 8) return out;
-  const text = norm(root.innerText || root.textContent || '');
-  if (text) out.push(text);
-  if (!root.querySelectorAll) return out;
+function collectShadowText(root, depth, out) {
+  if (!root || depth > 8 || !root.querySelectorAll) return out;
   for (const el of root.querySelectorAll('*')) {
-    if (el.shadowRoot) collect(el.shadowRoot, depth + 1, out);
+    if (!el.shadowRoot) continue;
+    const text = norm(el.shadowRoot.innerText || el.shadowRoot.textContent || '');
+    if (text) out.push(text);
+    collectShadowText(el.shadowRoot, depth + 1, out);
   }
   return out;
 }
-return collect(document, 0, []).join('\n');
+const out = [];
+const bodyText = norm(document.body ? document.body.innerText : '');
+if (bodyText) out.push(bodyText);
+const rootText = norm(document.documentElement ? document.documentElement.innerText : '');
+if (rootText && rootText !== bodyText) out.push(rootText);
+collectShadowText(document, 0, out);
+return Array.from(new Set(out.filter(Boolean))).join('\n');
+"""
+
+
+SCROLL_PAGE_SCRIPT = r"""
+const delta = Math.max(500, Math.floor(window.innerHeight * 0.85));
+const seen = new Set();
+function add(el, out) {
+  if (!el || seen.has(el)) return;
+  seen.add(el);
+  const scrollHeight = el.scrollHeight || 0;
+  const clientHeight = el.clientHeight || 0;
+  if (scrollHeight > clientHeight + 80) {
+    out.push(el);
+  }
+}
+const candidates = [];
+add(document.scrollingElement, candidates);
+add(document.documentElement, candidates);
+add(document.body, candidates);
+for (const el of document.querySelectorAll('*')) {
+  const style = window.getComputedStyle(el);
+  const overflowY = style ? style.overflowY : '';
+  if (
+    (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+    || (el.scrollHeight > el.clientHeight + 160)
+  ) {
+    add(el, candidates);
+  }
+}
+candidates
+  .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))
+  .slice(0, 12)
+  .forEach(el => { el.scrollTop = Math.min(el.scrollTop + delta, el.scrollHeight); });
+window.scrollBy(0, delta);
+return candidates.length;
 """
 
 
@@ -127,6 +168,17 @@ def collect_page_text(driver) -> str:
             return ""
 
 
+def scroll_management_page(driver) -> int:
+    try:
+        return int(driver.execute_script(SCROLL_PAGE_SCRIPT) or 0)
+    except Exception:
+        try:
+            driver.execute_script("window.scrollBy(0, Math.floor(window.innerHeight * 0.85));")
+        except Exception:
+            pass
+        return 0
+
+
 def verify_publish_in_management(
     driver,
     management_url: str,
@@ -170,10 +222,7 @@ def verify_publish_in_management(
                 return True
             if page_text:
                 last_excerpt = page_text[:1000]
-            try:
-                driver.execute_script("window.scrollBy(0, Math.floor(window.innerHeight * 0.85));")
-            except Exception:
-                pass
+            scroll_management_page(driver)
             time.sleep(2)
         time.sleep(8)
 
