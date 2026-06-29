@@ -9,11 +9,11 @@ from LazyEdit:
 
 Default routing:
 
-| Content | YouTube | Shipinhao |
-| --- | --- | --- |
-| personal/self recordings | `SimpleLife` playlist | `简单生活` 合集 |
-| LALACHAN/Xiaoyunque story videos | `LALACHAN` playlist | `啦啦侠` 合集 |
-| Musia music/art tracks | `Musia` playlist | `Musia` music package |
+| Content | YouTube | Shipinhao | Instagram |
+| --- | --- | --- | --- |
+| personal/self recordings | `SimpleLife` playlist | `简单生活` 合集 | no per-post category |
+| LALACHAN/Xiaoyunque story videos | `LALACHAN` playlist | `啦啦侠` 合集 | no per-post category |
+| Musia music/art tracks | `Musia` playlist | `Musia` music package | no per-post category |
 
 Environment overrides:
 
@@ -30,6 +30,22 @@ LazyEdit metadata generation now asks the model to choose
 `publish_category` as `simplelife`, `lalachan`, or `music`. The router still
 falls back to source-path and keyword inference, but the metadata value is the
 preferred forward signal.
+
+## Instagram Category Status
+
+As of 2026-06-29, Instagram does not expose a stable per-post category,
+playlist, folder, or collection field in the desktop web upload flow used by
+`pub_instagram.py`. Meta's publishing surface supports ordinary post/Reel
+fields such as media, caption, cover/thumb offset, location, collaborators,
+product/user tags, and feed sharing; the "category" label documented by
+Instagram is account/profile-level professional information, not a per-post
+routing target.
+
+AutoPublish therefore keeps using the shared `publish_category` metadata for
+YouTube and Shipinhao, but Instagram only receives the normal caption/tags.
+`pub_instagram.py` logs the inferred category for traceability and explicitly
+continues without selecting any Instagram category UI. There is no Instagram
+backfill/apply script because there is no platform category to move posts into.
 
 ## Backfill YouTube
 

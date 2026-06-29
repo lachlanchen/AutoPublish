@@ -14,6 +14,11 @@ from selenium.common.exceptions import TimeoutException, ElementClickIntercepted
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_instagram import InstagramLogin
 
+try:
+    from publish_routing import infer_publish_category
+except Exception:
+    infer_publish_category = None
+
 
 def _load_metadata_from_dir(metadata_dir: Path):
     if not metadata_dir or not metadata_dir.exists():
@@ -263,6 +268,16 @@ class InstagramPublisher:
 
         return remove_non_bmp(caption)[:2200]
 
+    def _log_category_routing(self):
+        if infer_publish_category is None:
+            return
+        category, reason = infer_publish_category(self.metadata, media_kind="video")
+        print(
+            "Instagram publish category metadata: "
+            f"{category} ({reason}); Instagram web upload has no stable "
+            "per-post category/playlist field, so no category UI is selected."
+        )
+
     def _upload_video(self):
         driver = self.driver
         inputs = driver.find_elements(By.XPATH, "//input[@type='file']")
@@ -437,6 +452,7 @@ class InstagramPublisher:
             time.sleep(2)
             bring_to_front(["Instagram"])
             close_extra_tabs(driver)
+            self._log_category_routing()
 
             create_button = self._find_first(
                 [
