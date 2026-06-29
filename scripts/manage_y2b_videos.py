@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from selenium import webdriver  # noqa: E402
+from selenium.common.exceptions import TimeoutException, WebDriverException  # noqa: E402
 from selenium.webdriver.chrome.service import Service  # noqa: E402
 from selenium.webdriver.common.by import By  # noqa: E402
 from selenium.webdriver.support.ui import WebDriverWait  # noqa: E402
@@ -27,7 +28,7 @@ from selenium.webdriver.support.ui import WebDriverWait  # noqa: E402
 from pub_y2b import YouTubePublisher  # noqa: E402
 
 
-DEFAULT_STUDIO_URL = "https://studio.youtube.com/channel/UC/videos/upload"
+DEFAULT_STUDIO_URL = os.environ.get("YOUTUBE_STUDIO_CONTENT_URL", "https://studio.youtube.com")
 LALACHAN_KEYWORDS = (
     "lalachan",
     "lala chan",
@@ -147,7 +148,29 @@ def connect_driver(port: int, chromedriver: str | None = None):
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:{port}")
     driver_path = resolve_chromedriver(chromedriver)
     service = Service(executable_path=driver_path) if driver_path else Service()
-    return webdriver.Chrome(service=service, options=options)
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.set_page_load_timeout(int(os.environ.get("YOUTUBE_STUDIO_PAGE_LOAD_TIMEOUT", "45")))
+    return driver
+
+
+def safe_get(driver, url: str, *, settle_seconds: float = 5.0) -> None:
+    if os.environ.get("YOUTUBE_STUDIO_CDP_NAVIGATE", "1") != "0":
+        try:
+            driver.execute_cdp_cmd("Page.navigate", {"url": url})
+            time.sleep(settle_seconds)
+            return
+        except WebDriverException:
+            pass
+    try:
+        driver.get(url)
+    except TimeoutException:
+        try:
+            driver.execute_script("window.stop();")
+        except WebDriverException:
+            pass
+    except WebDriverException:
+        pass
+    time.sleep(settle_seconds)
 
 
 def classify(row: dict) -> str:
@@ -161,8 +184,7 @@ def classify(row: dict) -> str:
 
 def inventory(driver, *, url: str | None, scrolls: int, pause: float) -> list[dict]:
     if url:
-        driver.get(url)
-        time.sleep(5)
+        safe_get(driver, url)
     rows: list[dict] = []
     seen = set()
     for _ in range(max(1, scrolls)):
@@ -188,7 +210,7 @@ def save_rows(rows: list[dict], output: str | None) -> None:
 
 
 def open_edit_page(driver, video_id: str) -> None:
-    driver.get(f"https://studio.youtube.com/video/{video_id}/edit")
+    safe_get(driver, f"https://studio.youtube.com/video/{video_id}/edit", settle_seconds=3)
     WebDriverWait(driver, 60).until(lambda d: "studio.youtube.com" in d.current_url)
     time.sleep(8)
 

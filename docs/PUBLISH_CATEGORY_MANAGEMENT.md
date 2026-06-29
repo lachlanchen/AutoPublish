@@ -39,6 +39,23 @@ Inventory the logged-in YouTube Studio content page:
 python scripts/manage_y2b_videos.py inventory --scrolls 80 --output /tmp/youtube_inventory.json
 ```
 
+If the account needs a specific Studio content URL, set it explicitly:
+
+```bash
+YOUTUBE_STUDIO_CONTENT_URL="https://studio.youtube.com/..." \
+python scripts/manage_y2b_videos.py inventory --scrolls 80 --output /tmp/youtube_inventory.json
+```
+
+If the correct content page is already open in the browser, keep the current
+tab instead of navigating:
+
+```bash
+python scripts/manage_y2b_videos.py inventory --url "" --scrolls 80 --output /tmp/youtube_inventory.json
+```
+
+The manager uses a page-load timeout and Chrome DevTools navigation fallback
+because YouTube Studio can keep network requests open indefinitely.
+
 Dry-run LALACHAN moves:
 
 ```bash
