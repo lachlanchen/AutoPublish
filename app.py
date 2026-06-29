@@ -19,6 +19,7 @@ from pub_xhs import XiaoHongShuPublisher
 from pub_bilibili import BilibiliPublisher
 from pub_douyin import DouyinPublisher
 from pub_y2b import YouTubePublisher
+from pub_y2b_music import YouTubeMusicPublisher
 from pub_shipinhao import ShiPinHaoPublisher
 from pub_shipinhao_music import ShiPinHaoMusicPublisher
 from pub_instagram import InstagramPublisher
@@ -252,6 +253,7 @@ def stop_and_start_chromium_sessions(
             publish_douyin=False,
             publish_shipinhao=False,
             publish_shipinhao_music=False,
+            publish_youtube_music=False,
             publish_y2b=False,
             publish_instagram=False
         ):
@@ -358,7 +360,7 @@ def stop_and_start_chromium_sessions(
                 _start_browser_if_needed("bilibili", 5005, start_commands["bilibili"])
             if publish_shipinhao or publish_shipinhao_music:
                 _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"])
-            if publish_y2b:
+            if publish_y2b or publish_youtube_music:
                 _start_browser_if_needed("y2b", 9222, start_commands["y2b"])
             if publish_instagram:
                 _start_browser_if_needed("instagram", 5007, start_commands["instagram"])
@@ -442,6 +444,7 @@ def publish_platform(publisher, platform_name):
             "XiaoHongShu": "xhs",
             "ShiPinHao": "shipinhao",
             "ShiPinHaoMusic": "shipinhao_music",
+            "YouTubeMusic": "youtube_music",
             "Instagram": "ins",
             "YouTube": "y2b",
             "Douyin": "douyin",
@@ -458,6 +461,7 @@ def _process_publish_job(job):
     publish_douyin = job.get("publish_douyin", False)
     publish_shipinhao = job.get("publish_shipinhao", False)
     publish_shipinhao_music = job.get("publish_shipinhao_music", False)
+    publish_youtube_music = job.get("publish_youtube_music", False)
     publish_y2b = job.get("publish_y2b", False)
     publish_instagram = job.get("publish_instagram", False)
     test_mode = job.get("test_mode", False)
@@ -469,6 +473,7 @@ def _process_publish_job(job):
             publish_douyin,
             publish_shipinhao,
             publish_shipinhao_music,
+            publish_youtube_music,
             publish_y2b,
             publish_instagram,
         ]
@@ -484,6 +489,7 @@ def _process_publish_job(job):
             publish_douyin=publish_douyin,
             publish_shipinhao=publish_shipinhao,
             publish_shipinhao_music=publish_shipinhao_music,
+            publish_youtube_music=publish_youtube_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
         )
@@ -520,11 +526,18 @@ def _process_publish_job(job):
         metadata_en = metadata.get("english_version")
         if not isinstance(metadata_en, dict):
             metadata_en = metadata.copy()
+        else:
+            metadata_en = {**metadata, **metadata_en}
         metadata_en["title"] = metadata_en.get("title") or metadata["title"]
         for field in fields_to_clean:
             metadata_en[field] = clean_bmp(metadata_en.get(field, ""))
 
     video_filename = metadata.get('video_filename', None)
+    youtube_music_video_filename = (
+        metadata.get("youtube_music_video_filename")
+        or metadata.get("youtube_video_filename")
+        or metadata.get("art_track_filename")
+    )
     music_filename = (
         metadata.get("music_filename")
         or metadata.get("audio_filename")
@@ -532,12 +545,20 @@ def _process_publish_job(job):
     )
     cover_filename = metadata.get('cover_filename', None)
     path_mp4 = os.path.join(transcription_dir, video_filename) if video_filename else None
+    path_youtube_music_video = (
+        os.path.join(transcription_dir, youtube_music_video_filename)
+        if youtube_music_video_filename
+        else path_mp4
+    )
     path_music = os.path.join(transcription_dir, music_filename) if music_filename else None
     path_cover = os.path.join(transcription_dir, cover_filename) if cover_filename else None
 
     if any([publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b, publish_instagram]):
         if not path_mp4 or not os.path.exists(path_mp4):
             raise FileNotFoundError(f"Video file not found in package: {video_filename}")
+    if publish_youtube_music:
+        if not path_youtube_music_video or not os.path.exists(path_youtube_music_video):
+            raise FileNotFoundError(f"YouTube music video file not found in package: {youtube_music_video_filename or video_filename}")
     if publish_shipinhao_music:
         if not path_music or not os.path.exists(path_music):
             raise FileNotFoundError(f"Music/audio file not found in package: {music_filename}")
@@ -564,6 +585,15 @@ def _process_publish_job(job):
             test_mode,
         )
         publishers.append((pub_shipinhao_music, 'ShiPinHaoMusic'))
+    if publish_youtube_music:
+        pub_youtube_music = YouTubeMusicPublisher(
+            create_new_driver(port=9222),
+            path_youtube_music_video,
+            path_cover,
+            metadata_en,
+            test_mode,
+        )
+        publishers.append((pub_youtube_music, 'YouTubeMusic'))
     if publish_instagram:
         pub_instagramlisher = InstagramPublisher(create_new_driver(port=5007), path_mp4, path_cover, metadata, test_mode)
         publishers.append((pub_instagramlisher, 'Instagram'))
@@ -582,6 +612,8 @@ def _process_publish_job(job):
             bring_to_front(["视频号", "视频号助手"])
         elif name == 'ShiPinHaoMusic':
             bring_to_front(["视频号", "视频号助手", "发表音乐"])
+        elif name == 'YouTubeMusic':
+            bring_to_front(["YouTube"])
         elif name == 'Instagram':
             bring_to_front(["Instagram"])
         elif name == 'YouTube':
@@ -695,6 +727,7 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_douyin=False,
             publish_shipinhao=False,
             publish_shipinhao_music=False,
+            publish_youtube_music=False,
             publish_y2b=False,
             publish_instagram=False
         ):
@@ -705,6 +738,7 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_douyin=publish_douyin,
             publish_shipinhao=publish_shipinhao,
             publish_shipinhao_music=publish_shipinhao_music,
+            publish_youtube_music=publish_youtube_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
         )
@@ -732,6 +766,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_douyin = self.get_argument('publish_douyin', 'false').lower() == 'true'
         publish_shipinhao = self.get_argument('publish_shipinhao', 'false').lower() == 'true'
         publish_shipinhao_music = self.get_argument('publish_shipinhao_music', 'false').lower() == 'true'
+        publish_youtube_music = self.get_argument('publish_youtube_music', 'false').lower() == 'true'
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         publish_instagram = self.get_argument('publish_instagram', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
@@ -743,6 +778,7 @@ class PublishHandler(tornado.web.RequestHandler):
             'douyin': 'ignore_douyin',
             'shipinhao': 'ignore_shipinhao',
             'shipinhao_music': 'ignore_shipinhao_music',
+            'youtube_music': 'ignore_youtube_music',
             'y2b': 'ignore_y2b',
             'instagram': 'ignore_instagram',
         }
@@ -755,6 +791,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_douyin = check_ignore_file(publish_douyin, ignore_files['douyin'])
         publish_shipinhao = check_ignore_file(publish_shipinhao, ignore_files['shipinhao'])
         publish_shipinhao_music = check_ignore_file(publish_shipinhao_music, ignore_files['shipinhao_music'])
+        publish_youtube_music = check_ignore_file(publish_youtube_music, ignore_files['youtube_music'])
         publish_y2b = check_ignore_file(publish_y2b, ignore_files['y2b'])
         publish_instagram = check_ignore_file(publish_instagram, ignore_files['instagram'])
 
@@ -789,6 +826,8 @@ class PublishHandler(tornado.web.RequestHandler):
             platforms.append("shipinhao")
         if publish_shipinhao_music:
             platforms.append("shipinhao_music")
+        if publish_youtube_music:
+            platforms.append("youtube_music")
         if publish_y2b:
             platforms.append("youtube")
         if publish_instagram:
@@ -805,6 +844,7 @@ class PublishHandler(tornado.web.RequestHandler):
             "publish_douyin": publish_douyin,
             "publish_shipinhao": publish_shipinhao,
             "publish_shipinhao_music": publish_shipinhao_music,
+            "publish_youtube_music": publish_youtube_music,
             "publish_y2b": publish_y2b,
             "publish_instagram": publish_instagram,
             "test_mode": test_mode,

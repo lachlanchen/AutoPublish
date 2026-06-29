@@ -30,6 +30,41 @@ Relevant code:
 - `pub_shipinhao_music.py`: real song publish flow through `发表音乐`
 - `pub_shipinhao_zhuanji.py`: read-only management helper for `专辑` and `音乐`
   tabs
+- `pub_y2b_music.py`: YouTube music wrapper. It uploads LazyEdit's generated
+  art-track MP4 through the normal YouTube Studio upload flow.
+
+## LazyEdit Music ZIP Contract
+
+LazyEdit owns the music package step. The package contains one canonical audio
+file for Shipinhao plus one generated YouTube-compatible MP4:
+
+- `music_filename` / `audio_filename`: MP3/WAV/FLAC audio for Shipinhao music.
+- `youtube_music_video_filename`: static-cover H.264/AAC art-track MP4 for
+  YouTube.
+- `cover_filename` and `cover_filenames`: square cover candidates.
+- `lyrics` / `song_lyrics`: full lyrics text.
+- `music_story`, `brief_description`, `middle_description`, `long_description`:
+  story and public descriptions.
+- `author`, `artist`, `singer`, `lyricist`, `composer`, `producer`: credit
+  fields.
+- `proof_zip_filename`: original-proof ZIP generated from website/webapp
+  screenshots and source artifacts.
+
+Submit the same ZIP to the same AutoPublish queue with either or both music
+flags:
+
+```bash
+curl -fsS -X POST --data-binary @song.zip \
+  "http://lazyingart:8081/publish?filename=song.zip&publish_shipinhao_music=true&publish_youtube_music=true"
+```
+
+The queue serializes music and video jobs together; do not run music uploads in
+a separate ad-hoc worker unless the queue is stopped.
+
+YouTube note: YouTube Music's direct audio-file upload is a personal library
+feature, not a public channel publishing path. Public posting from AutoPublish
+therefore uses YouTube Studio video upload with the generated art-track MP4,
+thumbnail, title, description, lyrics, tags, and playlist.
 
 ## Live Hosts And Repos
 
@@ -50,9 +85,9 @@ Deploy after local changes:
 
 ```bash
 cd /home/lachlan/DiskMech/Projects/lazyedit/AutoPublish
-python -m py_compile pub_shipinhao_music.py app.py autopub.py
-git add pub_shipinhao_music.py docs/SHIPINHAO_MUSIC_PUBLISH_WORKFLOW.md
-git commit -m "document shipinhao music publish workflow"
+python -m py_compile pub_shipinhao_music.py pub_y2b_music.py app.py autopub.py
+git add app.py pub_shipinhao_music.py pub_y2b_music.py pub_y2b.py docs/SHIPINHAO_MUSIC_PUBLISH_WORKFLOW.md
+git commit -m "add music publish targets"
 git push origin main
 
 ssh lachlan@lazyingart

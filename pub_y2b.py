@@ -271,7 +271,7 @@ class YouTubePublisher:
         Clicks and selects a playlist if available. 
         Adjust the playlist name as needed.
         """
-        playlist_name = "SimpleLife"
+        playlist_name = self.metadata.get("playlist_name") or self.metadata.get("youtube_playlist") or "SimpleLife"
         try:
             dropdown_trigger = self.driver.find_element(By.CSS_SELECTOR, "ytcp-text-dropdown-trigger.dropdown")
             dropdown_trigger.click()
