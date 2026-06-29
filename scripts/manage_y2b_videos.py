@@ -39,6 +39,13 @@ LALACHAN_KEYWORDS = (
     "xiaoyunque",
     "seedance",
     "duanpian",
+    "啦啦俠",
+    "阿芽醬",
+    "颯颯君",
+    "莎莎君",
+    "拉拉夏",
+    "莊子機器人",
+    "庄子机器人",
 )
 MUSIC_KEYWORDS = (
     "musia",

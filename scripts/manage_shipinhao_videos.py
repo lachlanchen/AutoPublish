@@ -37,6 +37,13 @@ LALACHAN_KEYWORDS = (
     "xiaoyunque",
     "seedance",
     "duanpian",
+    "啦啦俠",
+    "阿芽醬",
+    "颯颯君",
+    "莎莎君",
+    "拉拉夏",
+    "莊子機器人",
+    "庄子机器人",
 )
 MUSIC_KEYWORDS = (
     "musia",
@@ -67,6 +74,11 @@ function roots() {
 function queryAll(selector) {
   return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
 }
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
 function absHref(href) {
   if (!href) return '';
   try { return new URL(href, window.location.href).href; } catch (e) { return href; }
@@ -85,6 +97,7 @@ const selectors = [
 const rows = [];
 for (const selector of selectors) {
   for (const row of queryAll(selector)) {
+    if (!visibleEnough(row)) continue;
     const rowText = norm(row.innerText || row.textContent || '');
     if (!rowText || rowText.length < 4) continue;
     const links = Array.from(row.querySelectorAll('a[href]')).map((a) => absHref(a.getAttribute('href'))).filter(Boolean);
@@ -122,6 +135,11 @@ function roots() {
 function queryAll(selector) {
   return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
 }
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
 function click(el) {
   if (!el) return false;
   el.scrollIntoView({block: 'center'});
@@ -132,7 +150,7 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
   return true;
 }
-const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item');
+const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item').filter(visibleEnough);
 const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
 if (!row) return {ok: false, reason: 'row-not-found'};
 const buttons = Array.from(row.querySelectorAll('button, a, span, div'));
@@ -152,6 +170,11 @@ function roots() {
 }
 function queryAll(selector) {
   return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
 }
 function click(el) {
   if (!el) return false;
@@ -189,7 +212,7 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
   return true;
 }
-const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item, [class*="video"][class*="item"], [class*="post"][class*="item"]');
+const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item, [class*="video"][class*="item"], [class*="post"][class*="item"]').filter(visibleEnough);
 const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
 if (!row) return {ok: false, reason: 'row-not-found'};
 const rowText = norm(row.innerText || row.textContent || '').slice(0, 800);
