@@ -22,6 +22,7 @@ _ALIASES = {
     "lala-chan": CATEGORY_LALACHAN,
     "啦啦侠": CATEGORY_LALACHAN,
     "music": CATEGORY_MUSIC,
+    "musica": CATEGORY_MUSIC,
     "musia": CATEGORY_MUSIC,
     "慕莎": CATEGORY_MUSIC,
     "音乐": CATEGORY_MUSIC,
@@ -49,7 +50,7 @@ def category_names(category: str) -> dict[str, str]:
     if normalized == CATEGORY_LALACHAN:
         return {
             "youtube_playlist": _env("AUTOPUB_YOUTUBE_PLAYLIST_LALACHAN", "LALACHAN"),
-            "shipinhao_collection": _env("AUTOPUB_SHIPINHAO_COLLECTION_LALACHAN", "LALACHAN"),
+            "shipinhao_collection": _env("AUTOPUB_SHIPINHAO_COLLECTION_LALACHAN", "啦啦侠"),
         }
     if normalized == CATEGORY_MUSIC:
         return {

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -37,6 +39,23 @@ LALACHAN_KEYWORDS = (
     "xiaoyunque",
     "seedance",
     "duanpian",
+)
+MUSIC_KEYWORDS = (
+    "musia",
+    "musica",
+    "慕莎",
+    "one sky",
+    "three lights",
+    "hikari ame",
+    "music",
+    "song",
+    "lyrics",
+    "lyric",
+    "歌曲",
+    "音樂",
+    "音乐",
+    "歌詞",
+    "歌词",
 )
 
 INVENTORY_JS = r"""
@@ -103,15 +122,36 @@ return rows.filter((row) => {
 """
 
 
+def resolve_chromedriver(chromedriver: str | None = None) -> str | None:
+    if chromedriver:
+        return chromedriver
+    for key in ("AUTOPUBLISH_CHROMEDRIVER", "CHROMEDRIVER_PATH"):
+        value = os.environ.get(key)
+        if value and Path(value).exists():
+            return value
+    for candidate in (
+        "/usr/lib/chromium-browser/chromedriver",
+        "/usr/bin/chromedriver",
+        "/usr/local/bin/chromedriver",
+        "/snap/bin/chromium.chromedriver",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return shutil.which("chromedriver")
+
+
 def connect_driver(port: int, chromedriver: str | None = None):
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:{port}")
-    service = Service(executable_path=chromedriver) if chromedriver else Service()
+    driver_path = resolve_chromedriver(chromedriver)
+    service = Service(executable_path=driver_path) if driver_path else Service()
     return webdriver.Chrome(service=service, options=options)
 
 
 def classify(row: dict) -> str:
     text = f"{row.get('title', '')}\n{row.get('text', '')}".lower()
+    if any(keyword in text for keyword in MUSIC_KEYWORDS):
+        return "music"
     if any(keyword in text for keyword in LALACHAN_KEYWORDS):
         return "lalachan"
     return "simplelife"
@@ -207,14 +247,16 @@ return true;
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage YouTube Studio videos by attached browser session.")
-    parser.add_argument("command", choices=["inventory", "move-lalachan", "move", "link", "delete"])
+    parser.add_argument("command", choices=["inventory", "move-lalachan", "move-music", "move-classified", "move", "link", "delete"])
     parser.add_argument("--port", type=int, default=9222)
     parser.add_argument("--chromedriver")
     parser.add_argument("--url", default=DEFAULT_STUDIO_URL, help="Studio content URL. Use empty string to keep current tab.")
     parser.add_argument("--scrolls", type=int, default=30)
     parser.add_argument("--pause", type=float, default=1.0)
     parser.add_argument("--output")
-    parser.add_argument("--playlist", default="LALACHAN")
+    parser.add_argument("--playlist")
+    parser.add_argument("--lalachan-playlist", default="LALACHAN")
+    parser.add_argument("--music-playlist", default="Musia")
     parser.add_argument("--video-id")
     parser.add_argument("--query")
     parser.add_argument("--title-contains", default="")
@@ -239,13 +281,39 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "move-lalachan":
         rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
         targets = [row for row in rows if row.get("category_guess") == "lalachan" and row.get("video_id")]
-        results = [move_to_playlist(driver, row["video_id"], args.playlist, apply=args.apply) for row in targets]
+        playlist = args.playlist or args.lalachan_playlist
+        results = [move_to_playlist(driver, row["video_id"], playlist, apply=args.apply) for row in targets]
+        save_rows(results, args.output)
+        return 0
+
+    if args.command == "move-music":
+        rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
+        targets = [row for row in rows if row.get("category_guess") == "music" and row.get("video_id")]
+        playlist = args.playlist or args.music_playlist
+        results = [move_to_playlist(driver, row["video_id"], playlist, apply=args.apply) for row in targets]
+        save_rows(results, args.output)
+        return 0
+
+    if args.command == "move-classified":
+        rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
+        results = []
+        for row in rows:
+            video_id = row.get("video_id")
+            if not video_id:
+                continue
+            category = row.get("category_guess")
+            if category == "music":
+                results.append(move_to_playlist(driver, video_id, args.music_playlist, apply=args.apply))
+            elif category == "lalachan":
+                results.append(move_to_playlist(driver, video_id, args.lalachan_playlist, apply=args.apply))
         save_rows(results, args.output)
         return 0
 
     if args.command == "move":
         if not args.video_id:
             parser.error("--video-id is required for move")
+        if not args.playlist:
+            parser.error("--playlist is required for move")
         print(json.dumps(move_to_playlist(driver, args.video_id, args.playlist, apply=args.apply), ensure_ascii=False, indent=2))
         return 0
 

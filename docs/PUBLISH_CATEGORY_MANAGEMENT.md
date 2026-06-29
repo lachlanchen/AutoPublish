@@ -12,7 +12,7 @@ Default routing:
 | Content | YouTube | Shipinhao |
 | --- | --- | --- |
 | personal/self recordings | `SimpleLife` playlist | `简单生活` 合集 |
-| LALACHAN/Xiaoyunque story videos | `LALACHAN` playlist | `LALACHAN` 合集 |
+| LALACHAN/Xiaoyunque story videos | `LALACHAN` playlist | `啦啦侠` 合集 |
 | Musia music/art tracks | `Musia` playlist | `Musia` music package |
 
 Environment overrides:
@@ -22,9 +22,14 @@ AUTOPUB_YOUTUBE_PLAYLIST_SIMPLELIFE=SimpleLife
 AUTOPUB_YOUTUBE_PLAYLIST_LALACHAN=LALACHAN
 AUTOPUB_YOUTUBE_PLAYLIST_MUSIC=Musia
 AUTOPUB_SHIPINHAO_COLLECTION_SIMPLELIFE=简单生活
-AUTOPUB_SHIPINHAO_COLLECTION_LALACHAN=LALACHAN
+AUTOPUB_SHIPINHAO_COLLECTION_LALACHAN=啦啦侠
 AUTOPUB_SHIPINHAO_COLLECTION_MUSIC=Musia
 ```
+
+LazyEdit metadata generation now asks the model to choose
+`publish_category` as `simplelife`, `lalachan`, or `music`. The router still
+falls back to source-path and keyword inference, but the metadata value is the
+preferred forward signal.
 
 ## Backfill YouTube
 
@@ -38,6 +43,18 @@ Dry-run LALACHAN moves:
 
 ```bash
 python scripts/manage_y2b_videos.py move-lalachan --playlist LALACHAN --scrolls 80 --output /tmp/youtube_move_plan.json
+```
+
+Dry-run Musia moves:
+
+```bash
+python scripts/manage_y2b_videos.py move-music --playlist Musia --scrolls 80 --output /tmp/youtube_music_move_plan.json
+```
+
+Dry-run both categories from the same inventory:
+
+```bash
+python scripts/manage_y2b_videos.py move-classified --lalachan-playlist LALACHAN --music-playlist Musia --scrolls 80 --output /tmp/youtube_classified_move_plan.json
 ```
 
 Apply only after reviewing the plan:
@@ -89,8 +106,14 @@ Existing-post Shipinhao collection editing is not as stable as upload-time
 collection selection. Use the candidate report first:
 
 ```bash
-python scripts/manage_shipinhao_videos.py move-lalachan --collection LALACHAN --scrolls 80 --output /tmp/shipinhao_lalachan_candidates.json
+python scripts/manage_shipinhao_videos.py move-lalachan --lalachan-collection 啦啦侠 --scrolls 80 --output /tmp/shipinhao_lalachan_candidates.json
+python scripts/manage_shipinhao_videos.py move-music --music-collection Musia --scrolls 80 --output /tmp/shipinhao_music_candidates.json
+python scripts/manage_shipinhao_videos.py move-classified --lalachan-collection 啦啦侠 --music-collection Musia --scrolls 80 --output /tmp/shipinhao_classified_candidates.json
 ```
 
-Then verify the account exposes collection editing before doing any manual or
-future automated bulk move.
+Then verify the account exposes collection editing before doing any automated
+bulk move. Prefer small recent-page batches or exact title-fragment moves:
+
+```bash
+python scripts/manage_shipinhao_videos.py move --query "visible title fragment" --collection 啦啦侠 --apply
+```
