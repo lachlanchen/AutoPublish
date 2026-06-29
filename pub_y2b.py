@@ -266,6 +266,129 @@ class YouTubePublisher:
             print('Thumbnail upload option not available.')
         except Exception as e:
             raise Exception(f"Failed to set thumbnail: {e}")
+
+    def _click_visible_text(self, patterns, *, timeout=10):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            clicked = self.driver.execute_script(
+                r"""
+const patterns = arguments[0].map((item) => String(item).toLowerCase());
+function text(el) {
+  return (el.innerText || el.textContent || el.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim();
+}
+function visible(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+function click(el) {
+  el.scrollIntoView({block: 'center', inline: 'center'});
+  el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true}));
+  el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+  if (typeof el.click === 'function') el.click();
+  el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
+  el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+}
+const selectors = 'ytcp-button, tp-yt-paper-button, button, div[role="button"], span, a';
+const candidates = Array.from(document.querySelectorAll(selectors)).filter(visible);
+const target = candidates.find((el) => {
+  const value = text(el).toLowerCase();
+  return value && patterns.some((pattern) => value === pattern || value.includes(pattern));
+});
+if (!target) return false;
+click(target);
+return true;
+""",
+                list(patterns),
+            )
+            if clicked:
+                return True
+            time.sleep(0.5)
+        return False
+
+    def _select_playlist_option(self, playlist_name):
+        wait = WebDriverWait(self.driver, 5)
+        option_xpath = (
+            "//span[contains(@class, 'style-scope') and normalize-space()="
+            f"{json.dumps(playlist_name)}]"
+        )
+        playlist_option = wait.until(EC.visibility_of_element_located((By.XPATH, option_xpath)))
+        playlist_option.click()
+        print(f'Selected playlist: {playlist_name}')
+        return True
+
+    def _dismiss_transient_overlays(self):
+        """Clear stale transparent YouTube overlay backdrops after playlist dialogs close."""
+        for _ in range(5):
+            opened_count = self.driver.execute_script(
+                r"""
+const backdrops = Array.from(document.querySelectorAll('tp-yt-iron-overlay-backdrop.opened, tp-yt-iron-overlay-backdrop[opened]'));
+for (const el of backdrops) {
+  el.removeAttribute('opened');
+  el.classList.remove('opened');
+  el.style.pointerEvents = 'none';
+}
+return backdrops.length;
+"""
+            )
+            if not opened_count:
+                return
+            time.sleep(0.5)
+
+    def _click_playlist_dropdown(self):
+        dropdown_trigger = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "ytcp-text-dropdown-trigger.dropdown"))
+        )
+        try:
+            dropdown_trigger.click()
+        except Exception:
+            self._dismiss_transient_overlays()
+            self.driver.execute_script("arguments[0].click();", dropdown_trigger)
+        print('Clicked on playlist dropdown')
+        return dropdown_trigger
+
+    def _create_playlist_from_dropdown(self, playlist_name):
+        if not self._click_visible_text(["New playlist", "新建播放列表", "创建播放列表", "Create playlist"], timeout=8):
+            raise RuntimeError(f"Playlist '{playlist_name}' not found and create control was not available")
+        time.sleep(1)
+        filled = self.driver.execute_script(
+            r"""
+const value = arguments[0];
+function visible(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
+const fields = Array.from(document.querySelectorAll('input, textarea, [contenteditable="true"]')).filter(visible);
+const field = fields.find((el) => {
+  const label = [
+    el.getAttribute('aria-label'),
+    el.getAttribute('placeholder'),
+    el.getAttribute('label'),
+    el.id,
+  ].filter(Boolean).join(' ').toLowerCase();
+  return /title|name|playlist|标题|名称|播放列表/.test(label);
+}) || fields[0];
+if (!field) return false;
+field.focus();
+if (field.isContentEditable) {
+  field.textContent = value;
+} else {
+  field.value = value;
+}
+field.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: value}));
+field.dispatchEvent(new Event('change', {bubbles: true}));
+return true;
+""",
+            playlist_name,
+        )
+        if not filled:
+            raise RuntimeError(f"Could not fill new playlist name '{playlist_name}'")
+        if not self._click_visible_text(["Create", "创建", "建立"], timeout=8):
+            raise RuntimeError(f"Could not create playlist '{playlist_name}'")
+        print(f"Created playlist: {playlist_name}")
+        time.sleep(2)
+        self._dismiss_transient_overlays()
             
     def set_playlist(self):
         """
@@ -274,23 +397,29 @@ class YouTubePublisher:
         """
         playlist_name = resolve_youtube_playlist(self.metadata, media_kind="video")
         try:
-            dropdown_trigger = self.driver.find_element(By.CSS_SELECTOR, "ytcp-text-dropdown-trigger.dropdown")
-            dropdown_trigger.click()
-            print('Clicked on playlist dropdown')
+            self._click_playlist_dropdown()
 
-            wait = WebDriverWait(self.driver, 10)
-            option_xpath = f"//span[contains(@class, 'style-scope') and text()='{playlist_name}']"
-            playlist_option = wait.until(EC.visibility_of_element_located((By.XPATH, option_xpath)))
-            playlist_option.click()
-            print(f'Selected playlist: {playlist_name}')
+            try:
+                self._select_playlist_option(playlist_name)
+            except Exception:
+                print(f"Playlist '{playlist_name}' not found; trying to create it.")
+                self._create_playlist_from_dropdown(playlist_name)
+                self._click_playlist_dropdown()
+                self._select_playlist_option(playlist_name)
             
             wait = WebDriverWait(self.driver, 10)  # Adjust timeout as needed
             done_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ytcp-button.done-button")))
-            done_button.click()
+            try:
+                done_button.click()
+            except Exception:
+                self._dismiss_transient_overlays()
+                self.driver.execute_script("arguments[0].click();", done_button)
             print('Clicked on the Done button.')
 
         except Exception as e:
-            print(f"An error occurred during playlist selection: {e}")
+            self._dismiss_transient_overlays()
+            print(f"Warning: failed to select or create YouTube playlist '{playlist_name}'; continuing without playlist. Error: {e}")
+            return False
             
     def set_not_for_kids(self):
         """
@@ -298,8 +427,15 @@ class YouTubePublisher:
         """
         try:
             wait = WebDriverWait(self.driver, 10)  # Adjust timeout as needed
-            not_made_for_kids_button = wait.until(EC.element_to_be_clickable((By.NAME, "VIDEO_MADE_FOR_KIDS_NOT_MFK")))
-            not_made_for_kids_button.click()
+            not_made_for_kids_button = wait.until(EC.presence_of_element_located((By.NAME, "VIDEO_MADE_FOR_KIDS_NOT_MFK")))
+            self._dismiss_transient_overlays()
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", not_made_for_kids_button)
+            time.sleep(0.5)
+            try:
+                not_made_for_kids_button.click()
+            except Exception:
+                self._dismiss_transient_overlays()
+                self.driver.execute_script("arguments[0].click();", not_made_for_kids_button)
             print('Clicked on the Not Made for Kids button.')
         except Exception as e:
             print(f"An error occurred when trying to click on the Not Made for Kids button: {e}")
@@ -345,7 +481,7 @@ class YouTubePublisher:
                 user_input = input("Do you want to publish now? Type 'yes' to confirm: ").strip().lower()
                 if user_input != 'yes':
                     print("Publishing cancelled by user.")
-                    return
+                    return False
 
             publish_button = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.ID, "done-button")))
             publish_button.click()
@@ -356,6 +492,7 @@ class YouTubePublisher:
             # it might reflect the video ID in the URL, which can vary)
             video_id = self.driver.current_url.split('/')[-1]
             print(f'Video ID: {video_id}')
+            return True
         except TimeoutException:
             raise Exception("Failed to set visibility or click on the Publish button.")
     
@@ -386,15 +523,16 @@ class YouTubePublisher:
                 # Wait for the final checks to finish before clicking Publish
                 self.wait_for_processing(mode="check", interval=1, duration=600)
 
-                self.set_visibility_and_publish()
+                if self.set_visibility_and_publish() is False:
+                    return False
 
                 time.sleep(10)
                 print("Video published successfully.")
-                break  # Break out of the loop if publish is successful
+                return True
 
             except DailyUploadLimitReachedException as e:
                 print(f"Publishing failed: {e.message}")
-                break
+                return False
             except Exception as e:
                 print(f"Attempt {attempt + 1} of {max_attempts} failed: {e}")
                 if attempt < max_attempts - 1:
@@ -402,7 +540,7 @@ class YouTubePublisher:
                     time.sleep(5)  # Wait before retrying
                 else:
                     print("Maximum attempts reached. Publishing failed.")
-                    # raise  # Optionally, re-raise the last exception
+                    return False
 
 
 if __name__ == "__main__":

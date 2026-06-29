@@ -831,6 +831,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "ensure-collection":
+        if url:
+            driver.get(url)
+            time.sleep(5)
         print(json.dumps(ensure_collection(driver, args.collection or args.query or "", apply=args.apply, pause=args.pause), ensure_ascii=False, indent=2))
         return 0
 
