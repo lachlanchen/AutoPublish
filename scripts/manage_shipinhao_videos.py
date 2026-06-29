@@ -197,6 +197,11 @@ function roots() {
 function queryAll(selector) {
   return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
 }
+function visibleEnough(el) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
+}
 function click(el) {
   if (!el) return false;
   el.scrollIntoView({block: 'center'});
