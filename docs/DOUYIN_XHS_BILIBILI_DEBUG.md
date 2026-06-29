@@ -162,6 +162,20 @@ LazyEdit package that reached AutoPublish:
 aya_chan_hikari_ame_lalamv_publish_20260629_session_17.zip
 ```
 
+This session-17 package was later found to contain the wrong rendered video for
+the user's intended publish. The correct retry package was:
+
+```text
+aya_chan_hikari_ame_portrait_fg30_bottom40_dy_bl_xhs_20260629.zip
+```
+
+It packaged the existing portrait bg-fill MP4 with burned subtitles and the
+configured LazyEdit logo:
+
+```text
+aya_chan_hikari_ame_full_mv_song_locked_portrait_fg30_bottom40_2026-06-29_portrait_subtitles_logo.mp4
+```
+
 Observed issues and fixes:
 
 - LazyEdit upload collision: do not upload a file that is already inside
@@ -199,6 +213,20 @@ Observed issues and fixes:
   retrying and wait. Further retries extend the cooldown. The publisher now
   probes the logged-in browser-side preupload response when the UI is stuck at
   `0.0MB/0.0MB` and raises a fatal rate-limit error instead of looping.
+- Douyin draft reuse: if a failed attempt leaves a valid unpublished Douyin
+  draft, continue that draft instead of uploading again. Douyin's SPA can hang
+  Selenium on synchronous `element.click()` and native `send_keys()` against
+  React-controlled fields, so `pub_douyin.py` now uses asynchronous JavaScript
+  clicks and JavaScript field replacement. It also avoids the separate topic
+  widget; hashtags remain in the description.
+- Bilibili SMS gate: on 2026-06-29 the upload page showed
+  `请完成短信验证` and stayed at `0.0MB/0.0MB`. This is not GeeTest/click captcha
+  and cannot be solved by Tuling. The publisher now reports this as SMS
+  verification required instead of hiding it behind the upload-rate message.
+- Platform-only retry: when XHS/Douyin/Bilibili are being added to an already
+  processed LazyEdit run, reuse the existing ZIP if it contains the desired MP4.
+  Only rebuild the ZIP when the existing package points to the wrong rendered
+  output.
 
 Operational rule: after a Bilibili code-601 cooldown, leave the `autopub`
 service idle and retry only after a cooldown probe no longer returns code

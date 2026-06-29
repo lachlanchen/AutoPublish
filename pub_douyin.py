@@ -60,11 +60,15 @@ class DouyinPublisher:
         except Exception:
             pass
         try:
-            element.click()
+            self.driver.execute_script(
+                "const el = arguments[0]; setTimeout(() => el.click(), 0);",
+                element,
+            )
+            time.sleep(0.5)
             return True
-        except (ElementClickInterceptedException, StaleElementReferenceException):
+        except Exception:
             try:
-                self.driver.execute_script("arguments[0].click();", element)
+                element.click()
                 return True
             except Exception:
                 return False
@@ -74,16 +78,85 @@ class DouyinPublisher:
         if not self._safe_click(element):
             raise WebDriverException("Failed to click element.")
 
+    def _body_text(self):
+        try:
+            return self.driver.execute_script("return document.body ? document.body.innerText : '';") or ""
+        except Exception:
+            return ""
+
+    def _resume_unpublished_draft_if_present(self):
+        """Reuse Douyin's existing unpublished draft when the upload already exists.
+
+        Douyin can leave a successful upload in a local/server draft if a later
+        step fails. In that state the upload page shows "你还有上次未发布的视频".
+        Starting a fresh upload wastes time and can create duplicate/stale
+        drafts, so continue the draft before falling back to file upload.
+        """
+        body_text = self._body_text()
+        prompt_present = "你还有上次未发布的视频" in body_text or "继续编辑" in body_text
+        if not prompt_present:
+            return False
+
+        print("Douyin unpublished draft prompt detected; continuing existing draft.")
+        self._click_first(
+            [
+                '//button[normalize-space()="继续编辑"]',
+                '//*[normalize-space()="继续编辑"]/ancestor::button[1]',
+                '//*[normalize-space()="继续编辑"]',
+            ],
+            timeout=10,
+        )
+        time.sleep(5)
+        return True
+
+    def _upload_video_file(self, path_mp4):
+        print("Uploading video file to Douyin...")
+        bring_to_front(["抖音"])
+        video_input = self._find_first(
+            [
+                '//input[@type="file" and contains(@accept,"video")]',
+                '//input[@type="file" and contains(@accept,"mp4")]',
+                '//input[@type="file"]',
+            ],
+            timeout=30,
+            visible=False,
+        )
+        video_input.send_keys(path_mp4)
+        time.sleep(5)
+
     def _set_input_value(self, element, text):
         try:
-            element.clear()
+            self.driver.execute_script(
+                """
+                const el = arguments[0];
+                const value = arguments[1];
+                const proto = Object.getPrototypeOf(el);
+                const descriptor = Object.getOwnPropertyDescriptor(proto, 'value')
+                  || Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
+                  || Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+                if (descriptor && descriptor.set) {
+                    descriptor.set.call(el, value);
+                } else {
+                    el.value = value;
+                }
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                """,
+                element,
+                text,
+            )
+            return
         except Exception:
-            try:
-                element.send_keys(Keys.CONTROL, "a")
-                element.send_keys(Keys.BACKSPACE)
-            except Exception:
-                pass
-        element.send_keys(text)
+            self.driver.execute_script(
+                """
+                const el = arguments[0];
+                el.value = arguments[1];
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                """,
+                element,
+                text,
+            )
 
     def _set_text(self, element, text):
         tag_name = ""
@@ -100,24 +173,32 @@ class DouyinPublisher:
                 const el = arguments[0];
                 const value = arguments[1];
                 el.focus();
-                if (document.execCommand) {
-                    document.execCommand('selectAll', false, null);
-                    document.execCommand('insertText', false, value);
+                if (el.isContentEditable) {
+                    el.innerText = value;
                 } else {
                     el.textContent = value;
                 }
-                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new InputEvent('input', {
+                    bubbles: true,
+                    inputType: 'insertText',
+                    data: value
+                }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
                 """,
                 element,
                 text,
             )
         except Exception:
-            try:
-                element.click()
-                element.send_keys(text)
-            except Exception:
-                pass
+            self.driver.execute_script(
+                """
+                const el = arguments[0];
+                el.textContent = arguments[1];
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                """,
+                element,
+                text,
+            )
 
     def _add_topics(self, tags):
         if not tags:
@@ -171,23 +252,7 @@ class DouyinPublisher:
                 bring_to_front(["抖音"])  # This should be defined somewhere in your code
                 close_extra_tabs(driver)
 
-                # Uploading the video
-                print("Uploading video...")
-                time.sleep(3)
-                bring_to_front(["抖音"])
-                video_input = self._find_first(
-                    [
-                        '//input[@type="file" and contains(@accept,"video")]',
-                        '//input[@type="file" and contains(@accept,"mp4")]',
-                        '//input[@type="file"]',
-                    ],
-                    timeout=30,
-                    visible=False,
-                )
-                video_input.send_keys(path_mp4)
-
                 # Monitor upload status
-                print("Waiting for the video to be uploaded...")
                 reupload_xpaths = [
                     '//*[text()="重新上传"]',
                     '//*[contains(text(),"替换视频")]',
@@ -199,6 +264,18 @@ class DouyinPublisher:
                     '//*[contains(text(),"上传失败")]',
                     '//*[contains(text(),"上传异常")]',
                 ]
+
+                resumed_draft = self._resume_unpublished_draft_if_present()
+                draft_upload_failed = self._find_any(failure_xpaths, timeout=2, visible=False)
+                if draft_upload_failed:
+                    print("Existing Douyin draft has a failed upload; reuploading inside the draft.")
+                    self._upload_video_file(path_mp4)
+                elif resumed_draft or self._find_any(reupload_xpaths, timeout=5, visible=False):
+                    print("Using existing Douyin draft/upload; skipping video upload.")
+                else:
+                    self._upload_video_file(path_mp4)
+
+                print("Waiting for the video to be uploaded...")
                 time.sleep(3)
                 # WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="重新上传"]')))
                 start_time = time.time()
@@ -208,14 +285,13 @@ class DouyinPublisher:
                     if time.time() - start_time > timeout:
                         raise Exception("Timeout reached while waiting for video to be uploaded or for a failure message.")
 
-                    if self._find_any(reupload_xpaths, timeout=5, visible=False):
-                        print("Video upload prompt detected, indicating upload completion.")
-                        break
-
                     if self._find_any(failure_xpaths, timeout=2, visible=False):
                         print("Upload failed! Raising an error to initiate retry...")
                         raise UploadFailedException("Upload failed due to presence of failure indicator.")
 
+                    if self._find_any(reupload_xpaths, timeout=5, visible=False):
+                        print("Video upload prompt detected, indicating upload completion.")
+                        break
 
                     time.sleep(5)  # Wait a bit before checking again
 
@@ -249,7 +325,10 @@ class DouyinPublisher:
                     timeout=30,
                 )
                 tags = [tag.strip().lstrip("#") for tag in metadata.get("tags", []) if tag and tag.strip()]
-                topics_added = self._add_topics(tags)
+                # Douyin's separate topic widget is optional and can wedge the
+                # browser on send_keys. Keep hashtags in the description, which
+                # is enough for publishing and avoids blocking the queue.
+                topics_added = False
                 extra_tags = ["上热门", "dou上热门", "我要上热门"]
                 if topics_added:
                     combined_tags = extra_tags

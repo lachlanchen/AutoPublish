@@ -66,6 +66,9 @@ class BilibiliRateLimitException(Exception):
     pass
 
 
+class BilibiliSmsVerificationRequired(Exception):
+    pass
+
 
 class BilibiliPublisher:
     def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
@@ -142,8 +145,9 @@ class BilibiliPublisher:
 
     def _close_optional_upload_overlays(self):
         closed = False
-        # Bilibili sometimes asks for SMS verification only to enable upload
-        # completion notifications. This is optional for publishing; close it.
+        # Older Bilibili flows sometimes asked for a dismissible SMS prompt only
+        # for completion notifications. Newer flows can require SMS before the
+        # upload leaves 0%, so the upload loop also checks for that hard gate.
         closed |= self._click_first_visible(
             css_selectors=[".base-verify-close"],
             label="optional SMS verification close",
@@ -155,6 +159,16 @@ class BilibiliPublisher:
             label="notification dialog close",
         )
         return closed
+
+    def _sms_verification_text(self):
+        try:
+            text = self.driver.execute_script("return document.body ? document.body.innerText : '';") or ""
+        except Exception:
+            return ""
+        markers = ("请完成短信验证", "获取验证码")
+        if all(marker in text for marker in markers):
+            return "Bilibili SMS verification required before upload can continue."
+        return ""
 
     def _resume_upload_if_paused(self):
         return self._click_first_visible(
@@ -621,6 +635,9 @@ class BilibiliPublisher:
                     status_rows = self._current_upload_status_text(upload_mp4)
                     if status_rows:
                         print("Bilibili current upload status:", " | ".join(status_rows[:2]))
+                    sms_message = self._sms_verification_text()
+                    if sms_message:
+                        raise BilibiliSmsVerificationRequired(sms_message)
                     if any("0.0MB/0.0MB" in row and "0%" in row for row in status_rows):
                         block_message = self._preupload_block_message(upload_mp4)
                         if block_message:
