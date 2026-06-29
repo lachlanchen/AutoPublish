@@ -156,7 +156,7 @@ def _build_start_command(name, port, url, browser_bin, display, profile_dir, log
     log_file = os.path.join(log_dir, f"{prefix}_{name}.log")
     browser_flags = os.environ.get(
         "AUTOPUBLISH_CHROMIUM_FLAGS",
-        "--disable-gpu --use-gl=swiftshader --use-angle=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage --remote-allow-origins=*",
+        "--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage --remote-allow-origins=*",
     )
     return (
         f'DISPLAY={display} "{browser_bin}" --hide-crash-restore-bubble '
@@ -243,44 +243,11 @@ def _debug_pages(port):
         return []
 
 
-def _open_debug_url_if_blank(platform_name, port, url):
-    for _ in range(20):
-        if _is_port_open("127.0.0.1", port):
-            break
-        time.sleep(0.5)
-    if not _is_port_open("127.0.0.1", port):
-        return
-
-    pages = [page for page in _debug_pages(port) if page.get("type") == "page"]
-    useful_pages = [
-        page for page in pages
-        if page.get("url") and page.get("url") not in {"about:blank", ""}
-    ]
-    if useful_pages:
-        return
-
-    try:
-        encoded_url = urllib.parse.quote(url, safe=":/?&=%")
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{port}/json/new?{encoded_url}",
-            method="PUT",
-        )
-        with urllib.request.urlopen(request, timeout=5):
-            pass
-        print(f"Opened {platform_name} target URL through DevTools because the first tab was blank.")
-    except Exception as exc:
-        print(f"Could not open {platform_name} target URL through DevTools: {exc}")
-
-
 def _start_browser_if_needed(platform_name, port, command, url=None):
     if _is_port_open("127.0.0.1", port):
         print(f"Reusing existing {platform_name} Chromium session on port {port}.")
-        if url:
-            _open_debug_url_if_blank(platform_name, port, url)
         return
     run_command(command)
-    if url:
-        _open_debug_url_if_blank(platform_name, port, url)
 
 
 def _kill_browser_sessions():

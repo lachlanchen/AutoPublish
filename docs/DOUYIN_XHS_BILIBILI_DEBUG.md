@@ -25,14 +25,14 @@ On the Raspberry Pi, Chromium must be started with software rendering flags.
 AutoPublish uses:
 
 ```bash
-AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --use-angle=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage --remote-allow-origins=*"
+AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage --remote-allow-origins=*"
 ```
 
-The same flags are used by `scripts/debug_platform_logins.py`. Without these
-flags, Douyin can open a blank debug tab and Chromium logs GLX/GPU errors.
-If Chromium still starts on `about:blank`, the app and debug script now call
-the local DevTools `/json/new` endpoint to open the target creator URL before
-Selenium attaches.
+The same flags are used by `scripts/debug_platform_logins.py`. Keep this close
+to the manual `start_chromium_*` aliases. Do not use DevTools `/json/new` as a
+generic blank-tab repair: on the Pi it can create extra empty windows and make
+creator SPAs harder to recover. Navigation retries should stay inside the
+existing tab/profile so the login session remains shared.
 
 ## Login-Only Debug
 
@@ -75,10 +75,10 @@ XHS_PUBLISH_URL=https://creator.xiaohongshu.com/publish/publish?source=official
 ```
 
 These sites are heavy SPAs and can leave Selenium waiting in `driver.get()`.
-Platform login and publish code now uses `utils.safe_get()`, which first
-navigates through Chrome DevTools `Page.navigate` and polls for a usable DOM.
-If CDP is unavailable, it falls back to bounded `driver.get()`, calls
-`window.stop()`, and continues with the current DOM if the network load hangs.
+Platform login and publish code now uses `utils.safe_get()`, which first uses a
+bounded `driver.get()`, then retries with Chrome DevTools `Page.navigate` in the
+same tab, polls for a usable DOM, calls `window.stop()` if the network load
+hangs, and continues with the current DOM when enough page structure exists.
 
 ## Publish Behavior
 

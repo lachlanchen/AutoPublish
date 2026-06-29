@@ -11,9 +11,6 @@ import socket
 import subprocess
 import sys
 import time
-import urllib.parse
-import urllib.request
-import json
 from pathlib import Path
 
 
@@ -82,7 +79,7 @@ def _resolve_chromedriver_path() -> str:
 def _browser_flags() -> list[str]:
     value = os.environ.get(
         "AUTOPUBLISH_CHROMIUM_FLAGS",
-        "--disable-gpu --use-gl=swiftshader --use-angle=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage --remote-allow-origins=*",
+        "--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage --remote-allow-origins=*",
     )
     return [part for part in value.split() if part]
 
@@ -95,47 +92,9 @@ def _is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
         return False
 
 
-def _debug_pages(port: int):
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=3) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except Exception:
-        return []
-
-
-def _open_debug_url_if_blank(platform_name: str, port: int, url: str) -> None:
-    for _ in range(20):
-        if _is_port_open("127.0.0.1", port):
-            break
-        time.sleep(0.5)
-    if not _is_port_open("127.0.0.1", port):
-        return
-
-    pages = [page for page in _debug_pages(port) if page.get("type") == "page"]
-    useful_pages = [
-        page for page in pages
-        if page.get("url") and page.get("url") not in {"about:blank", ""}
-    ]
-    if useful_pages:
-        return
-
-    try:
-        encoded_url = urllib.parse.quote(url, safe=":/?&=%")
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{port}/json/new?{encoded_url}",
-            method="PUT",
-        )
-        with urllib.request.urlopen(request, timeout=5):
-            pass
-        print(f"Opened {platform_name} target URL through DevTools because the first tab was blank.")
-    except Exception as exc:
-        print(f"Could not open {platform_name} target URL through DevTools: {exc}")
-
-
 def _start_browser_if_needed(platform_name: str, port: int, url: str) -> None:
     if _is_port_open("127.0.0.1", port):
         print(f"Reusing existing {platform_name} Chromium session on port {port}.")
-        _open_debug_url_if_blank(platform_name, port, url)
         return
     browser_bin = _resolve_browser_bin()
     prefix = _resolve_session_prefix(browser_bin)
@@ -157,7 +116,6 @@ def _start_browser_if_needed(platform_name: str, port: int, url: str) -> None:
     with open(log_file, "ab") as log:
         subprocess.Popen(cmd, env=env, stdout=log, stderr=log)
     time.sleep(5)
-    _open_debug_url_if_blank(platform_name, port, url)
 
 
 def create_new_driver(port: int):

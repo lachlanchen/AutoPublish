@@ -20,8 +20,6 @@ from email.mime.image import MIMEImage
 from email import encoders
 from html import escape
 from urllib.parse import urlsplit
-import urllib.parse
-import urllib.request
 
 from PIL import Image, UnidentifiedImageError
 
@@ -256,39 +254,13 @@ def safe_get(driver, url, timeout=45, label=None):
         except Exception:
             return False
 
-    def _debugger_port():
+    def _navigate_current_tab_with_cdp():
         try:
-            chrome_options = driver.capabilities.get("goog:chromeOptions", {})
-            address = chrome_options.get("debuggerAddress", "")
-            if ":" in address:
-                return int(address.rsplit(":", 1)[1])
-        except Exception:
-            pass
-        return None
-
-    def _open_debug_tab():
-        port = _debugger_port()
-        if not port:
-            return False
-        try:
-            encoded_url = urllib.parse.quote(url, safe=":/?&=%")
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{port}/json/new?{encoded_url}",
-                method="PUT",
-            )
-            with urllib.request.urlopen(request, timeout=5):
-                pass
-            time.sleep(2)
-            try:
-                handles = driver.window_handles
-                if handles:
-                    driver.switch_to.window(handles[-1])
-            except Exception:
-                pass
-            print(f"Opened {label} through DevTools because WebDriver navigation was blank.")
+            driver.execute_cdp_cmd("Page.navigate", {"url": url})
+            print(f"Requested {label} navigation in the current tab through CDP.")
             return True
         except Exception as exc:
-            print(f"Could not open {label} through DevTools: {exc}")
+            print(f"Could not navigate current tab for {label} through CDP: {exc}")
             return False
 
     try:
@@ -310,11 +282,11 @@ def safe_get(driver, url, timeout=45, label=None):
             return True
         time.sleep(0.5)
 
-    if _open_debug_tab():
+    if _navigate_current_tab_with_cdp():
         start_time = time.time()
         while time.time() - start_time <= min(timeout, 20):
             if _matches_target():
-                print(f"Using DevTools-opened {label}: {driver.current_url}")
+                print(f"Using CDP-navigated {label}: {driver.current_url}")
                 return True
             time.sleep(0.5)
 
