@@ -106,6 +106,39 @@ class XiaoHongShuLogin:
         print(f"Did not find any expected XHS account names: {expected_names}")
         return False
 
+    def _has_login_box(self):
+        try:
+            boxes = self.driver.find_elements(By.CSS_SELECTOR, "div.login-box-container")
+        except Exception:
+            return False
+        return any(box.is_displayed() for box in boxes)
+
+    def is_already_logged_in(self):
+        if self.find_lazying_art():
+            return True
+        try:
+            current_url = self.driver.current_url or ""
+            body_text = self.driver.execute_script(
+                "return document.body ? document.body.innerText.slice(0, 5000) : '';"
+            )
+        except Exception:
+            current_url = ""
+            body_text = ""
+
+        logged_in_path = "creator.xiaohongshu.com/creator" in current_url
+        logged_in_markers = [
+            "发布笔记",
+            "发布视频",
+            "创作服务",
+            "数据中心",
+            "内容管理",
+            "创作者中心",
+        ]
+        if logged_in_path and not self._has_login_box() and any(text in body_text for text in logged_in_markers):
+            print(f"XiaoHongShu creator page detected as logged in: {current_url}")
+            return True
+        return False
+
 
     def check_and_act(self):
         print("Navigating to the XiaoHongShu login page...")
@@ -125,7 +158,7 @@ class XiaoHongShuLogin:
 
         bring_to_front(["小红书", "你访问的页面不见了"])
 
-        if self.find_lazying_art():
+        if self.is_already_logged_in():
             print("Already logged in. ")
             return True
 
@@ -146,7 +179,7 @@ class XiaoHongShuLogin:
             self.take_screenshot_and_send_email()
             
         except TimeoutException:
-            if self.find_lazying_art():
+            if self.is_already_logged_in():
                 print("Already logged in or the page did not load as expected.")
                 return True
             self.take_screenshot_and_send_email(
@@ -176,7 +209,7 @@ class XiaoHongShuLogin:
             #     self.take_screenshot_and_send_email()
             #     last_email_time = time.time()
 
-            if not self.needs_login():
+            if self.is_already_logged_in() or not self.needs_login():
                 print("Logged in successfully, stopping checks.")
                 return True
 
@@ -232,13 +265,11 @@ class XiaoHongShuLogin:
             self.refresh_count = 0
             
     def needs_login(self):
-        try:
-            WebDriverWait(self.driver, 30).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.login-box-container')))
+        if self._has_login_box():
             print("SMS login box detected, login is required.")
             return True
-        except TimeoutException:
-            print("No SMS login box detected, might already be logged in or the page did not load as expected.")
-            return False
+        print("No SMS login box detected, might already be logged in or the page did not load as expected.")
+        return False
 
     def take_screenshot_and_send_email(self, subject=None, content=None):
         screenshot_path = '/tmp/xiaohongshu-login.png'

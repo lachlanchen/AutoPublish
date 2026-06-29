@@ -142,6 +142,12 @@ def _normalize_platforms(values: list[str]) -> list[str]:
 
 
 def main() -> int:
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--platforms",

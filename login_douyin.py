@@ -109,12 +109,17 @@ class DouyinLogin:
             return True
         markers = [
             (By.XPATH, "//*[contains(text(), '扫码登录')]"),
-            (By.XPATH, "//*[contains(text(), '抖音创作者中心')]"),
+            (By.XPATH, "//*[contains(text(), '登录抖音')]"),
+            (By.XPATH, "//*[contains(text(), '登录后')]"),
             (By.CSS_SELECTOR, "span.login"),
         ]
         for by, selector in markers:
-            if self.driver.find_elements(by, selector):
-                return True
+            try:
+                for element in self.driver.find_elements(by, selector):
+                    if element.is_displayed():
+                        return True
+            except Exception:
+                continue
         return False
 
     def report_layout_change(self):
@@ -293,6 +298,29 @@ class DouyinLogin:
                         return True
                 except Exception:
                     continue
+        try:
+            current_url = self.driver.current_url or ""
+            body_text = self.driver.execute_script(
+                "return document.body ? document.body.innerText.slice(0, 5000) : '';"
+            )
+        except Exception:
+            current_url = ""
+            body_text = ""
+
+        logged_in_path = (
+            "creator.douyin.com/creator-micro/home" in current_url
+            or "creator.douyin.com/creator-micro/content/upload" in current_url
+        )
+        logged_in_markers = [
+            "创作者中心",
+            "发布作品",
+            "内容管理",
+            "数据中心",
+            "互动管理",
+        ]
+        if logged_in_path and not self.is_login_ui_visible() and any(text in body_text for text in logged_in_markers):
+            print(f"Douyin creator page detected as logged in: {current_url}")
+            return True
         return False
 
     def is_qr_outdated(self):

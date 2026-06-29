@@ -285,13 +285,27 @@ def bring_to_front(window_name_pattern):
         for window_id in window_list:
             # Get the name of each window using its ID
             try:
-                window_name = subprocess.check_output(["xdotool", "getwindowname", window_id]).decode().strip()
-            except subprocess.CalledProcessError:
+                result = subprocess.run(
+                    ["xdotool", "getwindowname", window_id],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    continue
+                window_name = result.stdout.strip()
+            except Exception:
                 continue
             # Check if the window name matches any of the patterns provided
             if any(text in window_name for text in window_name_pattern):
                 # If a match is found, activate the window
-                subprocess.run(["xdotool", "windowactivate", "--sync", window_id], check=False)
+                subprocess.run(
+                    ["xdotool", "windowactivate", "--sync", window_id],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
                 # Optionally, add a brief pause to ensure the window comes to the front
                 subprocess.run(["sleep", "1"])
                 break  # Exit the loop after the first match
