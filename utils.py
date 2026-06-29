@@ -241,18 +241,28 @@ def safe_get(driver, url, timeout=45, label=None):
     target = urlsplit(url)
     target_path = target.path.rstrip("/")
 
-    def _matches_target():
+    def _current_url():
         try:
-            current = urlsplit(driver.current_url or "")
-            current_path = current.path.rstrip("/")
-            has_body = driver.execute_script("return !!document.body;")
-            return (
-                current.netloc == target.netloc
-                and (not target_path or current_path == target_path or current_path.startswith(target_path))
-                and has_body
-            )
+            return driver.current_url or ""
+        except Exception:
+            return ""
+
+    def _url_matches_target():
+        current = urlsplit(_current_url())
+        current_path = current.path.rstrip("/")
+        return (
+            current.netloc == target.netloc
+            and (not target_path or current_path == target_path or current_path.startswith(target_path))
+        )
+
+    def _has_body():
+        try:
+            return bool(driver.execute_script("return !!document.body;"))
         except Exception:
             return False
+
+    def _matches_target():
+        return _url_matches_target() and _has_body()
 
     def _navigate_current_tab_with_cdp():
         try:
@@ -263,8 +273,22 @@ def safe_get(driver, url, timeout=45, label=None):
             print(f"Could not navigate current tab for {label} through CDP: {exc}")
             return False
 
+    def _stop_loading():
+        try:
+            driver.execute_cdp_cmd("Page.stopLoading", {})
+        except Exception:
+            pass
+        try:
+            driver.execute_script("window.stop();")
+        except Exception:
+            pass
+
     try:
-        driver.set_page_load_timeout(min(timeout, 20))
+        driver.set_page_load_timeout(min(timeout, 12))
+    except Exception:
+        pass
+    try:
+        driver.set_script_timeout(3)
     except Exception:
         pass
     try:
@@ -274,9 +298,10 @@ def safe_get(driver, url, timeout=45, label=None):
             return True
     except Exception as exc:
         print(f"Timed out or failed while navigating to {label}: {exc}")
+        _stop_loading()
 
     start_time = time.time()
-    while time.time() - start_time <= timeout:
+    while time.time() - start_time <= min(timeout, 8):
         if _matches_target():
             print(f"Using partially loaded {label}: {driver.current_url}")
             return True
@@ -291,11 +316,8 @@ def safe_get(driver, url, timeout=45, label=None):
             time.sleep(0.5)
 
     print(f"Timed out waiting for usable DOM for {label}; stopping pending page load.")
-    try:
-        driver.execute_script("window.stop();")
-        print(f"Stopped pending page load for {label}; continuing with current DOM.")
-    except Exception:
-        pass
+    _stop_loading()
+    print(f"Stopped pending page load for {label}; continuing with current DOM.")
     return False
 
 
