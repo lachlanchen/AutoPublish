@@ -7,6 +7,8 @@ import json
 import platform
 import shutil
 import socket
+import urllib.parse
+import urllib.request
 
 import tornado.web
 import tornado.ioloop
@@ -233,11 +235,52 @@ def run_command(command):
         print(f"Failed to execute command: {e}")
 
 
-def _start_browser_if_needed(platform_name, port, command):
+def _debug_pages(port):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=3) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return []
+
+
+def _open_debug_url_if_blank(platform_name, port, url):
+    for _ in range(20):
+        if _is_port_open("127.0.0.1", port):
+            break
+        time.sleep(0.5)
+    if not _is_port_open("127.0.0.1", port):
+        return
+
+    pages = [page for page in _debug_pages(port) if page.get("type") == "page"]
+    useful_pages = [
+        page for page in pages
+        if page.get("url") and page.get("url") not in {"about:blank", ""}
+    ]
+    if useful_pages:
+        return
+
+    try:
+        encoded_url = urllib.parse.quote(url, safe=":/?&=%")
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/json/new?{encoded_url}",
+            method="PUT",
+        )
+        with urllib.request.urlopen(request, timeout=5):
+            pass
+        print(f"Opened {platform_name} target URL through DevTools because the first tab was blank.")
+    except Exception as exc:
+        print(f"Could not open {platform_name} target URL through DevTools: {exc}")
+
+
+def _start_browser_if_needed(platform_name, port, command, url=None):
     if _is_port_open("127.0.0.1", port):
         print(f"Reusing existing {platform_name} Chromium session on port {port}.")
+        if url:
+            _open_debug_url_if_blank(platform_name, port, url)
         return
     run_command(command)
+    if url:
+        _open_debug_url_if_blank(platform_name, port, url)
 
 
 def _kill_browser_sessions():
@@ -359,17 +402,17 @@ def stop_and_start_chromium_sessions(
 
             # Check each platform flag and run the corresponding start command if True
             if publish_xhs:
-                _start_browser_if_needed("xhs", 5003, start_commands["xhs"])
+                _start_browser_if_needed("xhs", 5003, start_commands["xhs"], "https://creator.xiaohongshu.com/publish/publish?source=official")
             if publish_douyin:
-                _start_browser_if_needed("douyin", 5004, start_commands["douyin"])
+                _start_browser_if_needed("douyin", 5004, start_commands["douyin"], "https://creator.douyin.com/creator-micro/content/upload")
             if publish_bilibili:
-                _start_browser_if_needed("bilibili", 5005, start_commands["bilibili"])
+                _start_browser_if_needed("bilibili", 5005, start_commands["bilibili"], "https://member.bilibili.com/platform/upload/video/frame")
             if publish_shipinhao or publish_shipinhao_music:
-                _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"])
+                _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"], "https://channels.weixin.qq.com/platform/post/create")
             if publish_y2b or publish_youtube_music:
-                _start_browser_if_needed("y2b", 9222, start_commands["y2b"])
+                _start_browser_if_needed("y2b", 9222, start_commands["y2b"], "https://youtube.com/upload")
             if publish_instagram:
-                _start_browser_if_needed("instagram", 5007, start_commands["instagram"])
+                _start_browser_if_needed("instagram", 5007, start_commands["instagram"], "https://www.instagram.com")
 
             time.sleep(10)
 

@@ -30,6 +30,9 @@ AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --use-angle=swift
 
 The same flags are used by `scripts/debug_platform_logins.py`. Without these
 flags, Douyin can open a blank debug tab and Chromium logs GLX/GPU errors.
+If Chromium still starts on `about:blank`, the app and debug script now call
+the local DevTools `/json/new` endpoint to open the target creator URL before
+Selenium attaches.
 
 ## Login-Only Debug
 
