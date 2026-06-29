@@ -654,6 +654,17 @@ function leafTarget(label, optionText) {
   return optionText;
 }
 
+function optionAliases(label, optionText) {
+  const target = leafTarget(label, optionText);
+  if (!label.includes('语言')) return [target];
+  const aliases = {
+    '普通话': ['普通话', '国语', '中文', '汉语'],
+    '英语': ['英语', '英文', 'English'],
+    '日语': ['日语', '日文', '日本語', 'Japanese'],
+  };
+  return aliases[target] || [target, optionText].filter(Boolean);
+}
+
 function optionCandidates(scope, text) {
   const selector = '.weui-desktop-dropdown__list-ele, .weui-desktop-dropdown__list-ele__text, li, span, button, div';
   return Array.from(scope.querySelectorAll(selector))
@@ -704,8 +715,11 @@ if (currentValue === targetText || dropdownValue === targetText || dropdownValue
 }
 
 const clickable = scope.querySelector('.weui-desktop-form__dropdowncascade__dt')
+  || scope.querySelector('.weui-desktop-dropdown__wrp')
+  || scope.querySelector('.weui-desktop-form__select')
+  || scope.querySelector('.weui-desktop-select')
   || scope.querySelector('input[placeholder*="请选择"]')
-  || Array.from(scope.querySelectorAll('button, input, .weui-desktop-form__dropdown, .weui-desktop-dropdown, .display, .display-text, .arrow-icon, .content, div, span'))
+  || Array.from(scope.querySelectorAll('button, input, [class*="select"], [class*="dropdown"], .weui-desktop-form__dropdown, .weui-desktop-dropdown, .display, .display-text, .arrow-icon, .content, div, span'))
     .find((el) => isVisible(el) && el !== labelEl)
   || scope;
 click(clickable);
@@ -720,20 +734,27 @@ if (label.includes('歌曲曲风') && targetText !== optionText) {
   return {ok: false, reason: 'genre-leaf-not-selected', parent, leaf, wanted: targetText, updated, scopeText: visibleText(scope).slice(0, 500)};
 }
 
-const scoped = clickOption(scope, targetText, true);
+const wantedTexts = optionAliases(label, optionText);
+let scoped = null;
+let scopedWanted = null;
+for (const wantedText of wantedTexts) {
+  scoped = clickOption(scope, wantedText, true);
+  scopedWanted = wantedText;
+  if (scoped) break;
+}
 if (scoped) {
   const updatedInput = norm((scope.querySelector('input:not([type="hidden"]):not([type="file"])') || {}).value || '');
   const updatedDropdown = norm((scope.querySelector('.weui-desktop-form__dropdowncascade__dt') || {}).innerText || '');
   const updated = updatedInput || updatedDropdown || visibleText(scope);
-  if (updated.includes(targetText) || scoped.text === targetText) {
-    return {ok: true, selected: updated, option: scoped};
+  if (wantedTexts.some((wantedText) => updated.includes(wantedText) || scoped.text === wantedText)) {
+    return {ok: true, selected: updated, wanted: scopedWanted, option: scoped};
   }
 }
 
 const globalOptions = Array.from(document.querySelectorAll('li, span, div, button'))
-  .filter((el) => isVisible(el) && visibleText(el) === targetText);
+  .filter((el) => isVisible(el) && wantedTexts.includes(visibleText(el)));
 const option = globalOptions.find((el) => el.tagName === 'LI') || globalOptions[0];
-if (!option) return {ok: false, reason: 'option-not-found', wanted: targetText, scopeText: visibleText(scope).slice(0, 500)};
+if (!option) return {ok: false, reason: 'option-not-found', wanted: targetText, aliases: wantedTexts, scopeText: visibleText(scope).slice(0, 500)};
 click(option.closest('li, button') || option);
 return {ok: true, selected: visibleText(option), option: {tag: option.tagName, className: String(option.className || '')}};
 """
@@ -907,9 +928,12 @@ def _click_music_text(driver, texts, exact=False, duration=10):
 def _select_music_option(driver, label, option, duration=8, required=False):
     if not option:
         return None
+    last_result = None
     try:
         def _select(current_driver):
+            nonlocal last_result
             result = _execute_in_content_frame(current_driver, SELECT_BY_LABEL_SCRIPT, label, option)
+            last_result = result
             if isinstance(result, dict) and result.get("ok"):
                 return result
             return False
@@ -920,7 +944,7 @@ def _select_music_option(driver, label, option, duration=8, required=False):
     except Exception as exc:
         if required:
             raise
-        print(f"Optional Shipinhao music option not selected ({label}={option}): {exc}")
+        print(f"Optional Shipinhao music option not selected ({label}={option}): {exc}; last_result={last_result}")
         return None
 
 
