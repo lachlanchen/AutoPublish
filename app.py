@@ -152,9 +152,13 @@ def _resolve_chromedriver_path():
 
 def _build_start_command(name, port, url, browser_bin, display, profile_dir, log_dir, prefix):
     log_file = os.path.join(log_dir, f"{prefix}_{name}.log")
+    browser_flags = os.environ.get(
+        "AUTOPUBLISH_CHROMIUM_FLAGS",
+        "--disable-gpu --use-gl=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage",
+    )
     return (
         f'DISPLAY={display} "{browser_bin}" --hide-crash-restore-bubble '
-        f'--remote-debugging-port={port} --user-data-dir="{profile_dir}" {url} '
+        f'{browser_flags} --remote-debugging-port={port} --user-data-dir="{profile_dir}" {url} '
         f'> "{log_file}" 2>&1 &'
     )
 

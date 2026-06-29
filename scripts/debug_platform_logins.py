@@ -76,6 +76,14 @@ def _resolve_chromedriver_path() -> str:
     return shutil.which("chromedriver") or "/usr/lib/chromium-browser/chromedriver"
 
 
+def _browser_flags() -> list[str]:
+    value = os.environ.get(
+        "AUTOPUBLISH_CHROMIUM_FLAGS",
+        "--disable-gpu --use-gl=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage",
+    )
+    return [part for part in value.split() if part]
+
+
 def _is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
     try:
         with socket.create_connection((host, port), timeout=timeout):
@@ -99,6 +107,7 @@ def _start_browser_if_needed(platform_name: str, port: int, url: str) -> None:
     cmd = [
         browser_bin,
         "--hide-crash-restore-bubble",
+        *_browser_flags(),
         f"--remote-debugging-port={port}",
         f"--user-data-dir={profile_dir}",
         url,

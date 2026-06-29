@@ -21,6 +21,16 @@ The Python app starts or reuses these sessions. It does not force-restart by
 default, so successful logins survive the next publish. Only set
 `AUTOPUBLISH_FORCE_BROWSER_RESTART=1` when a browser session is truly wedged.
 
+On the Raspberry Pi, Chromium must be started with software rendering flags.
+AutoPublish uses:
+
+```bash
+AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --enable-unsafe-swiftshader --disable-dev-shm-usage"
+```
+
+The same flags are used by `scripts/debug_platform_logins.py`. Without these
+flags, Douyin can open a blank debug tab and Chromium logs GLX/GPU errors.
+
 ## Login-Only Debug
 
 Use the login-only tool before a real publish:
