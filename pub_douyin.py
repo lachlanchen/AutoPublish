@@ -10,7 +10,7 @@ from selenium.common.exceptions import NoSuchElementException, NoSuchWindowExcep
 from selenium.common.exceptions import WebDriverException, ElementClickInterceptedException, StaleElementReferenceException
 
 
-from utils import dismiss_alert, bring_to_front, close_extra_tabs
+from utils import dismiss_alert, bring_to_front, close_extra_tabs, safe_get
 from login_douyin import DouyinLogin
 
 import traceback
@@ -163,7 +163,7 @@ class DouyinPublisher:
                 test = self.test
 
                 print("Starting the publishing process on Douyin...")
-                driver.get("https://creator.douyin.com/creator-micro/content/upload")
+                safe_get(driver, "https://creator.douyin.com/creator-micro/content/upload", timeout=45, label="Douyin upload page")
                 time.sleep(1)
                 dismiss_alert(driver)
                 time.sleep(10)

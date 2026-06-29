@@ -42,6 +42,30 @@ If login is needed, the script sends an email with a watch-friendly inline QR
 image plus the full screenshot attachment. Scan it from the phone. The script
 waits until the platform becomes logged in or until the timeout expires.
 
+## Current Creator URLs
+
+Use the current routes instead of the older XHS `/creator/home` and
+`/creator/post` URLs:
+
+- XiaoHongShu home: `https://creator.xiaohongshu.com/new/home?source=official`
+- XiaoHongShu publish: `https://creator.xiaohongshu.com/publish/publish?source=official`
+- Douyin home: `https://creator.douyin.com/creator-micro/home`
+- Douyin upload: `https://creator.douyin.com/creator-micro/content/upload`
+- Bilibili upload: `https://member.bilibili.com/platform/upload/video/frame`
+
+For XiaoHongShu/RedNote regional changes, override without code edits:
+
+```bash
+XHS_CREATOR_BASE_URL=https://creator.xiaohongshu.com
+XHS_HOME_URL=https://creator.xiaohongshu.com/new/home?source=official
+XHS_PUBLISH_URL=https://creator.xiaohongshu.com/publish/publish?source=official
+```
+
+These sites are heavy SPAs and can leave Selenium waiting in `driver.get()`
+after the usable DOM is already present. Platform login and publish code now
+uses `utils.safe_get()` with a bounded page-load timeout, then calls
+`window.stop()` and continues with the current DOM if the network load hangs.
+
 ## Publish Behavior
 
 - `login_douyin.py` and `login_xiaohongshu.py` now raise a clear error if login

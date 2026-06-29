@@ -8,8 +8,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchWindowException, TimeoutException
 import time
 
-from utils import dismiss_alert, bring_to_front, close_extra_tabs, log_html_snapshot
-from login_xiaohongshu import XiaoHongShuLogin
+from utils import dismiss_alert, bring_to_front, close_extra_tabs, log_html_snapshot, safe_get
+from login_xiaohongshu import XiaoHongShuLogin, xhs_publish_url
 
 import traceback
 
@@ -295,7 +295,7 @@ class XiaoHongShuPublisher:
                 test = self.test
                 
                 print("Starting the publishing process on XiaoHongShu...")
-                driver.get("https://creator.xiaohongshu.com/creator/post")
+                safe_get(driver, xhs_publish_url(), timeout=45, label="XiaoHongShu publish page")
                 print("Navigated to post creation page.")
                 
                 time.sleep(1)

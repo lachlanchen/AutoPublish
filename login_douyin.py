@@ -9,7 +9,7 @@ import time
 import traceback
 
 from utils import SendMail
-from utils import dismiss_alert, bring_to_front, log_html_snapshot
+from utils import dismiss_alert, bring_to_front, log_html_snapshot, safe_get
 
 
 class DouyinLogin:
@@ -210,7 +210,7 @@ class DouyinLogin:
     def check_and_act(self):
         print("Navigating to the Douyin URL...")
         url = 'https://creator.douyin.com/creator-micro/home'
-        self.driver.get(url)
+        safe_get(self.driver, url, timeout=45, label="Douyin creator home")
 
         time.sleep(1)
 

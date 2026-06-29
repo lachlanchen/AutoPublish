@@ -9,7 +9,19 @@ import os
 import base64
 
 from utils import SendMail
-from utils import dismiss_alert, bring_to_front
+from utils import dismiss_alert, bring_to_front, safe_get
+
+
+def _xhs_base_url():
+    return os.environ.get("XHS_CREATOR_BASE_URL", "https://creator.xiaohongshu.com").rstrip("/")
+
+
+def xhs_home_url():
+    return os.environ.get("XHS_HOME_URL", f"{_xhs_base_url()}/new/home?source=official")
+
+
+def xhs_publish_url():
+    return os.environ.get("XHS_PUBLISH_URL", f"{_xhs_base_url()}/publish/publish?source=official")
 
 class XiaoHongShuLogin:
     def __init__(self, driver=None, port="5003"):
@@ -145,8 +157,8 @@ class XiaoHongShuLogin:
 
         bring_to_front(["小红书", "你访问的页面不见了"])
 
-        url = 'https://creator.xiaohongshu.com/creator/home'
-        self.driver.get(url)
+        url = xhs_home_url()
+        safe_get(self.driver, url, timeout=45, label="XiaoHongShu creator home")
 
 
 

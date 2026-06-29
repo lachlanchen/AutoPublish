@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from utils import SendMail, bring_to_front, dismiss_alert, log_html_snapshot
+from utils import SendMail, bring_to_front, dismiss_alert, log_html_snapshot, safe_get
 
 
 BILIBILI_UPLOAD_URL = "https://member.bilibili.com/platform/upload/video/frame"
@@ -190,7 +190,7 @@ class BilibiliLogin:
     def check_and_act(self):
         print("Navigating to the Bilibili upload page...")
         bring_to_front(["哔哩哔哩", "bilibili", "Bilibili"])
-        self.driver.get(BILIBILI_UPLOAD_URL)
+        safe_get(self.driver, BILIBILI_UPLOAD_URL, timeout=45, label="Bilibili upload page")
         time.sleep(1)
         dismiss_alert(self.driver)
         time.sleep(3)

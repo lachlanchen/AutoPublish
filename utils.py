@@ -234,6 +234,26 @@ def dismiss_alert(driver, dismiss=False):
     except NoAlertPresentException:
         print("No alert present.")
 
+
+def safe_get(driver, url, timeout=45, label=None):
+    label = label or url
+    try:
+        driver.set_page_load_timeout(timeout)
+    except Exception:
+        pass
+    try:
+        driver.get(url)
+        return True
+    except Exception as exc:
+        print(f"Timed out or failed while navigating to {label}: {exc}")
+        try:
+            driver.execute_script("window.stop();")
+            print(f"Stopped pending page load for {label}; continuing with current DOM.")
+        except Exception:
+            pass
+        return False
+
+
 def crop_and_resize_cover_image(path_cover):
     # Define the base name and create a name for the resized cover
     base_name = os.path.basename(path_cover)
