@@ -457,7 +457,9 @@ const proofScopes = Array.from(document.querySelectorAll('.normal-input-wrap, .w
   .filter((el) => isVisible(el) && /证明文件|原创证明|\.zip|\.rar|删除|%/.test(norm(el.innerText || el.textContent)));
 const text = norm(proofScopes.map((el) => el.innerText || el.textContent || '').join(' '));
 const hasArchive = /\.zip|\.rar/i.test(text);
-const hasProgress = /\d+(?:\.\d+)?%/.test(text);
+const progressValues = Array.from(text.matchAll(/(\d+(?:\.\d+)?)%/g)).map((match) => Number(match[1]));
+const hasProgress = progressValues.length > 0;
+const uploadComplete = !hasArchive || !hasProgress || progressValues.every((value) => value >= 99.9);
 const publishButton = Array.from(document.querySelectorAll('button'))
   .find((el) => isVisible(el) && norm(el.innerText || el.textContent) === '发表音乐');
 const publishReady = !!publishButton
@@ -466,12 +468,46 @@ const publishReady = !!publishButton
   && publishButton.getAttribute('aria-disabled') !== 'true'
   && !/disabled/i.test(String(publishButton.className || ''));
 return {
-  ok: !hasArchive || !hasProgress || publishReady,
+  ok: uploadComplete,
   hasArchive,
   hasProgress,
+  progressValues,
+  uploadComplete,
   publishReady,
   text: text.slice(0, 800),
 };
+"""
+
+
+MUSIC_REMOVE_STUCK_PROOF_SCRIPT = r"""
+function norm(value) {
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (!style || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  const rect = el.getBoundingClientRect();
+  return !!(rect.width || rect.height || el.getClientRects().length);
+}
+const scopes = Array.from(document.querySelectorAll('.normal-input-wrap, .weui-desktop-form__control-group, .all-pic-wrap, .form-item, .content'))
+  .filter((el) => {
+    const text = norm(el.innerText || el.textContent);
+    return isVisible(el) && /原创证明|证明文件/.test(text) && /\.zip|\.rar|删除|%/.test(text);
+  })
+  .sort((a, b) => norm(a.innerText || a.textContent).length - norm(b.innerText || b.textContent).length);
+const clicked = [];
+for (const scope of scopes) {
+  const controls = Array.from(scope.querySelectorAll('button, a, span, i, svg, div'))
+    .filter((el) => isVisible(el) && /删除|remove|delete/i.test(norm(el.innerText || el.textContent) || String(el.getAttribute('aria-label') || '') || String(el.className || '')));
+  for (const control of controls) {
+    try {
+      control.click();
+      clicked.push(norm(control.innerText || control.textContent) || String(control.className || control.tagName));
+    } catch (error) {}
+  }
+}
+return {clicked: clicked.length, clickedText: clicked.slice(0, 10)};
 """
 
 
@@ -1045,6 +1081,17 @@ def _wait_for_music_proof_upload(driver, duration=45):
     raise TimeoutException(f"Timed out waiting for Shipinhao music proof upload. Last state: {last_state}")
 
 
+def _remove_stuck_music_proof_upload(driver):
+    try:
+        result = _execute_in_content_frame(driver, MUSIC_REMOVE_STUCK_PROOF_SCRIPT)
+        print(f"Shipinhao music stuck proof cleanup: {result}")
+        time.sleep(2)
+        return result
+    except Exception as exc:
+        print(f"Optional Shipinhao music stuck proof cleanup failed: {exc}")
+        return None
+
+
 def _ensure_new_album_fields(driver, album_name, album_intro, duration=8):
     """Switch the album area from existing-album selector to new-album fields.
 
@@ -1430,7 +1477,11 @@ class ShiPinHaoMusicPublisher:
             if _click_button_if_ready(driver, text="确认", duration=8):
                 time.sleep(3)
             if self._upload_original_proof():
-                _wait_for_music_proof_upload(driver, duration=45)
+                try:
+                    _wait_for_music_proof_upload(driver, duration=90)
+                except TimeoutException as exc:
+                    print(f"Optional Shipinhao music original proof upload did not finish: {exc}")
+                    _remove_stuck_music_proof_upload(driver)
 
             if self.test:
                 user_input = input("Do you want to publish this music now? Type 'yes' to confirm: ").strip().lower()
