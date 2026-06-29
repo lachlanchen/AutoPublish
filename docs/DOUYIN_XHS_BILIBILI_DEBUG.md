@@ -25,7 +25,7 @@ On the Raspberry Pi, Chromium must be started with software rendering flags.
 AutoPublish uses:
 
 ```bash
-AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage --remote-allow-origins=*"
+AUTOPUBLISH_CHROMIUM_FLAGS="--disable-gpu --use-gl=swiftshader --disable-dev-shm-usage"
 ```
 
 The same flags are used by `scripts/debug_platform_logins.py`. Keep this close
