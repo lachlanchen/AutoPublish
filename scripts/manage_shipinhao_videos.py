@@ -60,11 +60,19 @@ INVENTORY_JS = r"""
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
 }
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
 function absHref(href) {
   if (!href) return '';
   try { return new URL(href, window.location.href).href; } catch (e) { return href; }
 }
 const selectors = [
+  '.post-feed-item',
   '.ant-table-row',
   '.finder-table-wrap tr',
   '.video-list .item',
@@ -76,7 +84,7 @@ const selectors = [
 ];
 const rows = [];
 for (const selector of selectors) {
-  for (const row of Array.from(document.querySelectorAll(selector))) {
+  for (const row of queryAll(selector)) {
     const rowText = norm(row.innerText || row.textContent || '');
     if (!rowText || rowText.length < 4) continue;
     const links = Array.from(row.querySelectorAll('a[href]')).map((a) => absHref(a.getAttribute('href'))).filter(Boolean);
@@ -107,6 +115,13 @@ const query = (arguments[0] || '').toLowerCase();
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
 }
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
 function click(el) {
   if (!el) return false;
   el.scrollIntoView({block: 'center'});
@@ -117,7 +132,7 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
   return true;
 }
-const rows = Array.from(document.querySelectorAll('.ant-table-row, tr, [role="row"], .item'));
+const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item');
 const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
 if (!row) return {ok: false, reason: 'row-not-found'};
 const buttons = Array.from(row.querySelectorAll('button, a, span, div'));
@@ -131,6 +146,13 @@ CONFIRM_JS = r"""
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
 }
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
 function click(el) {
   if (!el) return false;
   el.scrollIntoView({block: 'center'});
@@ -138,7 +160,7 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
   return true;
 }
-const candidates = Array.from(document.querySelectorAll('button, a, span, div'));
+const candidates = queryAll('button, a, span, div');
 const target = candidates.find((el) => /确定|确认|删除|delete|confirm/i.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')));
 if (!target) return false;
 click(target);
@@ -150,6 +172,13 @@ const query = (arguments[0] || '').toLowerCase();
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
 }
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
 function click(el) {
   if (!el) return false;
   el.scrollIntoView({block: 'center'});
@@ -160,7 +189,7 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
   return true;
 }
-const rows = Array.from(document.querySelectorAll('.ant-table-row, tr, [role="row"], .item, [class*="video"][class*="item"], [class*="post"][class*="item"]'));
+const rows = queryAll('.post-feed-item, .ant-table-row, tr, [role="row"], .item, [class*="video"][class*="item"], [class*="post"][class*="item"]');
 const row = rows.find((item) => norm(item.innerText || item.textContent || '').toLowerCase().includes(query));
 if (!row) return {ok: false, reason: 'row-not-found'};
 const rowText = norm(row.innerText || row.textContent || '').slice(0, 800);
@@ -183,6 +212,13 @@ SAVE_EDIT_JS = r"""
 function norm(text) {
   return (text || '').replace(/\s+/g, ' ').trim();
 }
+function roots() {
+  const app = document.querySelector('wujie-app');
+  return [document, app && app.shadowRoot].filter(Boolean);
+}
+function queryAll(selector) {
+  return roots().flatMap((root) => Array.from(root.querySelectorAll(selector)));
+}
 function disabled(el) {
   const cls = String(el.className || '');
   return !!el.disabled || el.getAttribute('disabled') !== null || /\bdisabled\b/.test(cls);
@@ -194,7 +230,7 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
   return true;
 }
-const buttons = Array.from(document.querySelectorAll('button, a, span, div'));
+const buttons = queryAll('button, a, span, div');
 const target = buttons.find((el) => /^(保存|保存修改|完成|确定|確認|提交|更新|发表|發表)$/.test(norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '')) && !disabled(el));
 if (!target) return {ok: false, reason: 'save-control-not-found'};
 click(target);
