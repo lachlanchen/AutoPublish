@@ -1248,11 +1248,13 @@ class ShiPinHaoMusicPublisher:
         title = _metadata_text(metadata, "song_title", "music_title", "title", default=os.path.splitext(os.path.basename(self.audio_path))[0])
         lyrics = _metadata_text(
             metadata,
-            "lrc_lyrics",
-            "timed_lyrics",
+            "plain_lyrics",
+            "readable_lyrics",
             "lyrics",
             "song_lyrics",
             "lyric_text",
+            "lrc_lyrics",
+            "timed_lyrics",
             default="",
         )
         story = _metadata_text(

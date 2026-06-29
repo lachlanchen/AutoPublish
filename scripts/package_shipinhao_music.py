@@ -148,8 +148,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--lyrics-format",
         choices=("auto", "plain", "lrc"),
-        default="auto",
-        help="How to convert --lyrics-json. auto/lrc emits timed LRC when line starts are present.",
+        default="plain",
+        help="How to convert --lyrics-json. Use plain for Shipinhao Music; auto/lrc emits timed LRC when line starts are present.",
     )
     parser.add_argument("--metadata-json", help="Optional JSON metadata override.")
     parser.add_argument("--title", help="Song title.")
