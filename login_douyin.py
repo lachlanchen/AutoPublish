@@ -209,8 +209,8 @@ class DouyinLogin:
 
     def check_and_act(self):
         print("Navigating to the Douyin URL...")
-        url = 'https://creator.douyin.com/creator-micro/home'
-        safe_get(self.driver, url, timeout=45, label="Douyin creator home")
+        url = 'https://creator.douyin.com/creator-micro/content/upload'
+        safe_get(self.driver, url, timeout=45, label="Douyin upload page")
 
         time.sleep(1)
 
