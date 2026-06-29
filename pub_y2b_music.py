@@ -32,7 +32,13 @@ class YouTubeMusicPublisher(YouTubePublisher):
             or metadata.get("brief_description")
             or ""
         )
-        lyrics = metadata.get("lyrics") or metadata.get("song_lyrics") or ""
+        lyrics = (
+            metadata.get("plain_lyrics")
+            or metadata.get("readable_lyrics")
+            or metadata.get("lyrics")
+            or metadata.get("song_lyrics")
+            or ""
+        )
         artist = metadata.get("artist") or metadata.get("author") or "Musia 慕莎"
         genre = metadata.get("genre") or ""
         language = metadata.get("language") or ""

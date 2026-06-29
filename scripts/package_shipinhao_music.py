@@ -29,20 +29,55 @@ def read_text(path: Path | None) -> str:
     return path.read_text(encoding="utf-8", errors="ignore").strip()
 
 
-def lyrics_from_json(path: Path | None) -> str:
+def format_lrc_timestamp(seconds: object) -> str | None:
+    try:
+        value = float(seconds)
+    except (TypeError, ValueError):
+        return None
+    if value < 0:
+        value = 0.0
+    minutes = int(value // 60)
+    remainder = value - minutes * 60
+    return f"{minutes:02d}:{remainder:05.2f}"
+
+
+def strip_lrc_timestamps(text: str) -> str:
+    import re
+
+    output: list[str] = []
+    for line in (text or "").splitlines():
+        stripped = re.sub(r"^\s*(?:\[[0-9]{1,3}:[0-9]{2}(?:\.[0-9]{1,3})?\])+\s*", "", line).strip()
+        if stripped:
+            output.append(stripped)
+    return "\n".join(output)
+
+
+def lyrics_from_json(path: Path | None, *, lyrics_format: str = "auto") -> str:
     if not path:
         return ""
+    if lyrics_format not in {"auto", "plain", "lrc"}:
+        raise ValueError("lyrics_format must be auto, plain, or lrc")
     payload = json.loads(path.read_text(encoding="utf-8"))
     lines = payload.get("lines") if isinstance(payload, dict) else None
     if not isinstance(lines, list):
         return ""
+    use_lrc = lyrics_format == "lrc" or (
+        lyrics_format == "auto"
+        and any(isinstance(line, dict) and line.get("start") is not None for line in lines)
+    )
     output: list[str] = []
     for line in lines:
         if not isinstance(line, dict):
             continue
         text = str(line.get("singableText") or line.get("text") or "").strip()
-        if text:
-            output.append(text)
+        if not text:
+            continue
+        if use_lrc:
+            timestamp = format_lrc_timestamp(line.get("start"))
+            if timestamp:
+                output.append(f"[{timestamp}]{text}")
+                continue
+        output.append(text)
     return "\n".join(output)
 
 
@@ -62,6 +97,10 @@ def build_metadata(args: argparse.Namespace, *, audio_name: str, cover_names: li
         "song_title": args.song_title or title,
         "lyrics": lyrics,
         "song_lyrics": lyrics,
+        "lrc_lyrics": lyrics if lyrics.lstrip().startswith("[") else "",
+        "timed_lyrics": lyrics if lyrics.lstrip().startswith("[") else "",
+        "plain_lyrics": strip_lrc_timestamps(lyrics),
+        "readable_lyrics": strip_lrc_timestamps(lyrics),
         "music_story": story,
         "brief_description": args.description or story,
         "middle_description": story or args.description or "",
@@ -106,6 +145,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cover", action="append", default=[], help="Artwork/background image. Can be passed multiple times.")
     parser.add_argument("--lyrics-file", help="Plain text lyrics file.")
     parser.add_argument("--lyrics-json", help="Musia lyric JSON with a lines[] array.")
+    parser.add_argument(
+        "--lyrics-format",
+        choices=("auto", "plain", "lrc"),
+        default="auto",
+        help="How to convert --lyrics-json. auto/lrc emits timed LRC when line starts are present.",
+    )
     parser.add_argument("--metadata-json", help="Optional JSON metadata override.")
     parser.add_argument("--title", help="Song title.")
     parser.add_argument("--song-title", help="Explicit Shipinhao song title.")
@@ -132,7 +177,10 @@ def main(argv: list[str] | None = None) -> int:
 
     lyrics = read_text(Path(args.lyrics_file).expanduser().resolve() if args.lyrics_file else None)
     if not lyrics:
-        lyrics = lyrics_from_json(Path(args.lyrics_json).expanduser().resolve() if args.lyrics_json else None)
+        lyrics = lyrics_from_json(
+            Path(args.lyrics_json).expanduser().resolve() if args.lyrics_json else None,
+            lyrics_format=args.lyrics_format,
+        )
     if not lyrics:
         print("WARNING: no lyrics provided; the Shipinhao lyrics field may stay empty.", file=sys.stderr)
 

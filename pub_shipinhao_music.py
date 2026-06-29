@@ -1246,7 +1246,15 @@ class ShiPinHaoMusicPublisher:
     def _fill_music_fields(self):
         metadata = self.metadata
         title = _metadata_text(metadata, "song_title", "music_title", "title", default=os.path.splitext(os.path.basename(self.audio_path))[0])
-        lyrics = _metadata_text(metadata, "lyrics", "song_lyrics", "lyric_text", default="")
+        lyrics = _metadata_text(
+            metadata,
+            "lrc_lyrics",
+            "timed_lyrics",
+            "lyrics",
+            "song_lyrics",
+            "lyric_text",
+            default="",
+        )
         story = _metadata_text(
             metadata,
             "music_story",
