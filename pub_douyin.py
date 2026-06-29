@@ -27,6 +27,10 @@ class UploadFailedException(Exception):
         self.message = message
         super().__init__(self.message)
 
+
+class PublishVerificationException(Exception):
+    """Raised when the post is submitted but not visible in management."""
+
 class DouyinPublisher:
     def __init__(self, driver, path_mp4, path_cover, metadata, test=False):
         self.driver = driver
@@ -474,19 +478,25 @@ class DouyinPublisher:
                     time.sleep(10)
                     dismiss_alert(driver)
                     time.sleep(3)
-                    verify_publish_in_management(
-                        driver,
-                        DOUYIN_MANAGEMENT_URL,
-                        metadata,
-                        platform_name="Douyin",
-                        timeout=int(os.environ.get("AUTOPUB_DOUYIN_VERIFY_TIMEOUT", "240")),
-                    )
+                    try:
+                        verify_publish_in_management(
+                            driver,
+                            DOUYIN_MANAGEMENT_URL,
+                            metadata,
+                            platform_name="Douyin",
+                            timeout=int(os.environ.get("AUTOPUB_DOUYIN_VERIFY_TIMEOUT", "240")),
+                        )
+                    except Exception as exc:
+                        raise PublishVerificationException(str(exc)) from exc
                     print("Video published successfully!")
                 else:
                     print("Publishing cancelled by the user.")
                 
                 self.retry_count = 0  # reset retry count after successful execution
                 return True
+            except PublishVerificationException:
+                print("Douyin publish verification failed after submit; not retrying to avoid duplicate uploads.")
+                raise
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback.print_exc()
