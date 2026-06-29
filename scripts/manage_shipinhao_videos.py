@@ -24,6 +24,7 @@ from selenium.common.exceptions import StaleElementReferenceException, WebDriver
 from selenium.webdriver.chrome.service import Service  # noqa: E402
 
 from pub_shipinhao import select_content_frame_collection  # noqa: E402
+from publish_routing import category_names, infer_publish_category, normalize_publish_category  # noqa: E402
 
 
 DEFAULT_MANAGEMENT_URL = "https://channels.weixin.qq.com/platform/post/list"
@@ -58,6 +59,7 @@ MUSIC_KEYWORDS = (
     "歌詞",
     "歌词",
 )
+CATEGORY_CHOICES = ("simplelife", "lazyingart", "musia", "lalachan", "lalamv", "music")
 
 INVENTORY_JS = r"""
 function norm(text) {
@@ -669,11 +671,37 @@ def open_edit_row(driver, query: str, *, pause: float = 2.0, attempts: int = 4) 
 
 def classify(row: dict) -> str:
     text = f"{row.get('title', '')}\n{row.get('text', '')}".lower()
+    category, _reason = infer_publish_category(
+        {
+            "title": row.get("title", ""),
+            "brief_description": row.get("text", ""),
+            "long_description": row.get("text", ""),
+        },
+        media_kind="video",
+    )
+    if category != "simplelife":
+        return category
     if any(keyword in text for keyword in MUSIC_KEYWORDS):
-        return "music"
+        return "musia"
     if any(keyword in text for keyword in LALACHAN_KEYWORDS):
         return "lalachan"
     return "simplelife"
+
+
+def collection_for_category(args, category: str, *, allow_global: bool = False) -> str:
+    normalized = normalize_publish_category(category)
+    if not normalized:
+        raise ValueError(f"unknown publish category: {category!r}")
+    if allow_global and args.collection:
+        return args.collection
+    overrides = {
+        "simplelife": args.simplelife_collection,
+        "lazyingart": args.lazyingart_collection,
+        "musia": args.musia_collection or args.music_collection,
+        "lalachan": args.lalachan_collection,
+        "lalamv": args.lalamv_collection,
+    }
+    return (overrides.get(normalized) or category_names(normalized)["shipinhao_collection"]).strip()
 
 
 def inventory(driver, *, url: str | None, scrolls: int, pause: float) -> list[dict]:
@@ -796,7 +824,7 @@ def ensure_collection(driver, name: str, *, apply: bool, pause: float = 1.5) -> 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage Shipinhao video rows by attached browser session.")
-    parser.add_argument("command", choices=["inventory", "link", "delete", "ensure-collection", "move", "move-lalachan", "move-music", "move-classified"])
+    parser.add_argument("command", choices=["inventory", "link", "delete", "ensure-collection", "move", "move-lalachan", "move-music", "move-category", "move-classified"])
     parser.add_argument("--port", type=int, default=5006)
     parser.add_argument("--chromedriver")
     parser.add_argument("--url", default=DEFAULT_MANAGEMENT_URL, help="Use empty string to keep current tab.")
@@ -806,8 +834,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--query")
     parser.add_argument("--title-contains", default="")
     parser.add_argument("--collection")
-    parser.add_argument("--lalachan-collection", default="啦啦侠")
-    parser.add_argument("--music-collection", default="Musia")
+    parser.add_argument("--category", choices=CATEGORY_CHOICES)
+    parser.add_argument("--include-simplelife", action="store_true")
+    parser.add_argument("--simplelife-collection")
+    parser.add_argument("--lazyingart-collection")
+    parser.add_argument("--lalachan-collection")
+    parser.add_argument("--lalamv-collection")
+    parser.add_argument("--musia-collection")
+    parser.add_argument("--music-collection", help="Backward-compatible alias for --musia-collection")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)
 
@@ -842,7 +876,7 @@ def main(argv: list[str] | None = None) -> int:
             move_row_to_collection(
                 driver,
                 args.query or "",
-                args.collection or args.lalachan_collection,
+                args.collection or collection_for_category(args, "lalachan"),
                 apply=args.apply,
                 pause=args.pause,
             ),
@@ -854,7 +888,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "move-lalachan":
         rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
         targets = [row for row in rows if row.get("category_guess") == "lalachan"]
-        collection = args.collection or args.lalachan_collection
+        collection = collection_for_category(args, "lalachan", allow_global=True)
         results = [
             move_row_to_collection(driver, row.get("title") or row.get("text", "")[:80], collection, apply=args.apply, pause=args.pause)
             for row in targets
@@ -864,8 +898,24 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "move-music":
         rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
-        targets = [row for row in rows if row.get("category_guess") == "music"]
-        collection = args.collection or args.music_collection
+        targets = [row for row in rows if row.get("category_guess") == "musia"]
+        collection = collection_for_category(args, "musia", allow_global=True)
+        results = [
+            move_row_to_collection(driver, row.get("title") or row.get("text", "")[:80], collection, apply=args.apply, pause=args.pause)
+            for row in targets
+        ]
+        save_rows(results or [{"target_collection": collection, "dry_run": not args.apply, "candidates": []}], args.output)
+        return 0
+
+    if args.command == "move-category":
+        if not args.category:
+            parser.error("--category is required for move-category")
+        normalized = normalize_publish_category(args.category)
+        if not normalized:
+            parser.error(f"unknown --category: {args.category}")
+        rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
+        targets = [row for row in rows if row.get("category_guess") == normalized]
+        collection = collection_for_category(args, normalized, allow_global=True)
         results = [
             move_row_to_collection(driver, row.get("title") or row.get("text", "")[:80], collection, apply=args.apply, pause=args.pause)
             for row in targets
@@ -878,10 +928,18 @@ def main(argv: list[str] | None = None) -> int:
         results = []
         for row in rows:
             category = row.get("category_guess")
-            if category == "music":
-                results.append(move_row_to_collection(driver, row.get("title") or row.get("text", "")[:80], args.music_collection, apply=args.apply, pause=args.pause))
-            elif category == "lalachan":
-                results.append(move_row_to_collection(driver, row.get("title") or row.get("text", "")[:80], args.lalachan_collection, apply=args.apply, pause=args.pause))
+            if category == "simplelife" and not args.include_simplelife:
+                continue
+            if category in {"simplelife", "lazyingart", "musia", "lalachan", "lalamv"}:
+                results.append(
+                    move_row_to_collection(
+                        driver,
+                        row.get("title") or row.get("text", "")[:80],
+                        collection_for_category(args, category),
+                        apply=args.apply,
+                        pause=args.pause,
+                    )
+                )
         save_rows(results, args.output)
         return 0
 

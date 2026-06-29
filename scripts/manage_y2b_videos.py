@@ -26,6 +26,7 @@ from selenium.webdriver.common.by import By  # noqa: E402
 from selenium.webdriver.support.ui import WebDriverWait  # noqa: E402
 
 from pub_y2b import YouTubePublisher  # noqa: E402
+from publish_routing import category_names, infer_publish_category, normalize_publish_category  # noqa: E402
 
 
 DEFAULT_STUDIO_URL = os.environ.get("YOUTUBE_STUDIO_CONTENT_URL", "https://studio.youtube.com")
@@ -60,6 +61,7 @@ MUSIC_KEYWORDS = (
     "歌詞",
     "歌词",
 )
+CATEGORY_CHOICES = ("simplelife", "lazyingart", "musia", "lalachan", "lalamv", "music")
 
 INVENTORY_JS = r"""
 function text(el) {
@@ -175,11 +177,37 @@ def safe_get(driver, url: str, *, settle_seconds: float = 5.0) -> None:
 
 def classify(row: dict) -> str:
     text = f"{row.get('title', '')}\n{row.get('text', '')}".lower()
+    category, _reason = infer_publish_category(
+        {
+            "title": row.get("title", ""),
+            "brief_description": row.get("text", ""),
+            "long_description": row.get("text", ""),
+        },
+        media_kind="video",
+    )
+    if category != "simplelife":
+        return category
     if any(keyword in text for keyword in MUSIC_KEYWORDS):
-        return "music"
+        return "musia"
     if any(keyword in text for keyword in LALACHAN_KEYWORDS):
         return "lalachan"
     return "simplelife"
+
+
+def playlist_for_category(args, category: str, *, allow_global: bool = False) -> str:
+    normalized = normalize_publish_category(category)
+    if not normalized:
+        raise ValueError(f"unknown publish category: {category!r}")
+    if allow_global and args.playlist:
+        return args.playlist
+    overrides = {
+        "simplelife": args.simplelife_playlist,
+        "lazyingart": args.lazyingart_playlist,
+        "musia": args.musia_playlist or args.music_playlist,
+        "lalachan": args.lalachan_playlist,
+        "lalamv": args.lalamv_playlist,
+    }
+    return (overrides.get(normalized) or category_names(normalized)["youtube_playlist"]).strip()
 
 
 def inventory(driver, *, url: str | None, scrolls: int, pause: float) -> list[dict]:
@@ -271,7 +299,7 @@ return true;
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage YouTube Studio videos by attached browser session.")
-    parser.add_argument("command", choices=["inventory", "move-lalachan", "move-music", "move-classified", "move", "link", "delete"])
+    parser.add_argument("command", choices=["inventory", "move-lalachan", "move-music", "move-category", "move-classified", "move", "link", "delete"])
     parser.add_argument("--port", type=int, default=9222)
     parser.add_argument("--chromedriver")
     parser.add_argument("--url", default=DEFAULT_STUDIO_URL, help="Studio content URL. Use empty string to keep current tab.")
@@ -279,8 +307,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pause", type=float, default=1.0)
     parser.add_argument("--output")
     parser.add_argument("--playlist")
-    parser.add_argument("--lalachan-playlist", default="LALACHAN")
-    parser.add_argument("--music-playlist", default="Musia")
+    parser.add_argument("--category", choices=CATEGORY_CHOICES)
+    parser.add_argument("--include-simplelife", action="store_true")
+    parser.add_argument("--simplelife-playlist")
+    parser.add_argument("--lazyingart-playlist")
+    parser.add_argument("--lalachan-playlist")
+    parser.add_argument("--lalamv-playlist")
+    parser.add_argument("--musia-playlist")
+    parser.add_argument("--music-playlist", help="Backward-compatible alias for --musia-playlist")
     parser.add_argument("--video-id")
     parser.add_argument("--query")
     parser.add_argument("--title-contains", default="")
@@ -305,15 +339,28 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "move-lalachan":
         rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
         targets = [row for row in rows if row.get("category_guess") == "lalachan" and row.get("video_id")]
-        playlist = args.playlist or args.lalachan_playlist
+        playlist = playlist_for_category(args, "lalachan", allow_global=True)
         results = [move_to_playlist(driver, row["video_id"], playlist, apply=args.apply) for row in targets]
         save_rows(results, args.output)
         return 0
 
     if args.command == "move-music":
         rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
-        targets = [row for row in rows if row.get("category_guess") == "music" and row.get("video_id")]
-        playlist = args.playlist or args.music_playlist
+        targets = [row for row in rows if row.get("category_guess") == "musia" and row.get("video_id")]
+        playlist = playlist_for_category(args, "musia", allow_global=True)
+        results = [move_to_playlist(driver, row["video_id"], playlist, apply=args.apply) for row in targets]
+        save_rows(results, args.output)
+        return 0
+
+    if args.command == "move-category":
+        if not args.category:
+            parser.error("--category is required for move-category")
+        normalized = normalize_publish_category(args.category)
+        if not normalized:
+            parser.error(f"unknown --category: {args.category}")
+        rows = inventory(driver, url=url, scrolls=args.scrolls, pause=args.pause)
+        targets = [row for row in rows if row.get("category_guess") == normalized and row.get("video_id")]
+        playlist = playlist_for_category(args, normalized, allow_global=True)
         results = [move_to_playlist(driver, row["video_id"], playlist, apply=args.apply) for row in targets]
         save_rows(results, args.output)
         return 0
@@ -326,10 +373,10 @@ def main(argv: list[str] | None = None) -> int:
             if not video_id:
                 continue
             category = row.get("category_guess")
-            if category == "music":
-                results.append(move_to_playlist(driver, video_id, args.music_playlist, apply=args.apply))
-            elif category == "lalachan":
-                results.append(move_to_playlist(driver, video_id, args.lalachan_playlist, apply=args.apply))
+            if category == "simplelife" and not args.include_simplelife:
+                continue
+            if category in {"simplelife", "lazyingart", "musia", "lalachan", "lalamv"}:
+                results.append(move_to_playlist(driver, video_id, playlist_for_category(args, category), apply=args.apply))
         save_rows(results, args.output)
         return 0
 
