@@ -703,7 +703,10 @@ function optionAliases(label, optionText) {
 
 function optionCandidates(scope, text) {
   const selector = '.weui-desktop-dropdown__list-ele, .weui-desktop-dropdown__list-ele__text, li, span, button, div';
-  return Array.from(scope.querySelectorAll(selector))
+  const scoped = Array.from(scope.querySelectorAll(selector))
+    .filter((el) => visibleText(el) === text && (isVisible(el) || el.closest('.weui-desktop-dropdowncascade-menu__wrp')));
+  if (scoped.length) return scoped;
+  return Array.from(document.querySelectorAll(selector))
     .filter((el) => visibleText(el) === text && (isVisible(el) || el.closest('.weui-desktop-dropdowncascade-menu__wrp')));
 }
 
@@ -990,6 +993,18 @@ def _shipinhao_music_genre(value):
         return "流行"
     normalized = raw.lower().replace("-", " ").replace("_", " ")
     aliases = {
+        "古风": "流行",
+        "国风": "流行",
+        "中国风": "流行",
+        "古诗": "流行",
+        "古诗词": "流行",
+        "古典诗词": "流行",
+        "古风歌曲": "流行",
+        "古风音乐": "流行",
+        "ancient style": "流行",
+        "chinese ancient style": "流行",
+        "chinese traditional": "流行",
+        "traditional chinese": "流行",
         "bedroom pop": "流行",
         "indie pop": "流行",
         "pop": "流行",
