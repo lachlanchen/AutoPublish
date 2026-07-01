@@ -153,7 +153,7 @@ class DouyinPublisher:
             timeout=8,
         )
         time.sleep(3)
-        self._upload_video_file(path_mp4)
+        return self._upload_video_file(path_mp4)
 
     def _upload_video_file(self, path_mp4):
         print("Uploading video file to Douyin...")
@@ -169,6 +169,117 @@ class DouyinPublisher:
         )
         video_input.send_keys(path_mp4)
         time.sleep(5)
+        return time.time()
+
+    def _click_publish_button(self):
+        script = """
+        const norm = text => (text || '').replace(/\\s+/g, ' ').trim();
+        const visible = el => {
+          if (!el) return false;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0
+            && style.visibility !== 'hidden'
+            && style.display !== 'none'
+            && style.pointerEvents !== 'none';
+        };
+        const candidates = Array.from(document.querySelectorAll('button,[role="button"]'))
+          .filter(el => visible(el) && !el.disabled && !el.className.includes('disabled'))
+          .map(el => ({ el, text: norm(el.innerText || el.textContent), rect: el.getBoundingClientRect() }))
+          .filter(item => item.text === '发布' || item.text === '立即发布' || item.text === '确认发布');
+        candidates.sort((a, b) => {
+          const score = item => {
+            let value = 0;
+            if (item.text === '发布') value += 10;
+            if (String(item.el.className || '').includes('primary')) value += 5;
+            value += Math.min(5, Math.max(0, item.rect.top / 200));
+            return value;
+          };
+          return score(b) - score(a);
+        });
+        if (!candidates.length) return { ok: false };
+        candidates[0].el.scrollIntoView({ block: 'center' });
+        candidates[0].el.click();
+        return {
+          ok: true,
+          text: candidates[0].text,
+          className: String(candidates[0].el.className || ''),
+          top: candidates[0].rect.top
+        };
+        """
+        try:
+            result = self.driver.execute_script(script)
+            if result and result.get("ok"):
+                print(f"Clicked Douyin publish button: {result}")
+                return
+        except Exception as exc:
+            print(f"Douyin JavaScript publish button click failed: {exc}")
+
+        self._click_first(
+            [
+                '//button[normalize-space()="发布" and not(@disabled)]',
+                '//button[.//*[normalize-space()="发布"] and not(@disabled)]',
+                '//button[contains(normalize-space(.),"立即发布") and not(@disabled)]',
+                '//button[contains(normalize-space(.),"确认发布") and not(@disabled)]',
+            ],
+            timeout=20,
+        )
+
+    def _click_publish_confirm_if_present(self):
+        return self._click_any(
+            [
+                '//button[normalize-space()="确认发布"]',
+                '//button[normalize-space()="确认"]',
+                '//button[normalize-space()="确定"]',
+                '//button[contains(normalize-space(.),"继续发布")]',
+                '//*[contains(normalize-space(.),"确认发布")]/ancestor::button[1]',
+            ],
+            timeout=2,
+        )
+
+    def _wait_for_publish_submit_result(self, timeout=180):
+        success_terms = [
+            "发布成功",
+            "提交成功",
+            "已提交",
+            "审核中",
+            "正在审核",
+            "作品管理",
+            "内容管理",
+        ]
+        failure_terms = [
+            "发布失败",
+            "提交失败",
+            "请填写",
+            "不能为空",
+            "请先",
+            "未完成",
+            "上传失败",
+            "上传异常",
+        ]
+        deadline = time.time() + timeout
+        last_text = ""
+        while time.time() < deadline:
+            dismiss_alert(self.driver)
+            if self._click_publish_confirm_if_present():
+                print("Clicked Douyin publish confirmation dialog.")
+                time.sleep(3)
+
+            current_url = self.driver.current_url
+            body_text = self._body_text()
+            if body_text:
+                last_text = body_text[:1000]
+            if "creator-micro/content/manage" in current_url:
+                print("Douyin publish submit accepted; browser moved to management page.")
+                return True
+            if any(term in body_text for term in success_terms):
+                print("Douyin publish submit accepted by page text.")
+                return True
+            if any(term in body_text for term in failure_terms):
+                raise RuntimeError(f"Douyin publish submit failed or blocked. Page excerpt: {last_text!r}")
+            time.sleep(5)
+
+        raise RuntimeError(f"Timed out waiting for Douyin publish submit result. Page excerpt: {last_text!r}")
 
     def _set_input_value(self, element, text):
         try:
@@ -313,28 +424,34 @@ class DouyinPublisher:
 
                 allow_draft_reuse = self._allow_draft_reuse()
                 resumed_draft = self._resume_unpublished_draft_if_present(for_replacement=not allow_draft_reuse)
+                upload_started_at = None
                 draft_upload_failed = self._find_any(failure_xpaths, timeout=2, visible=False)
                 if draft_upload_failed:
                     print("Existing Douyin draft has a failed upload; reuploading inside the draft.")
-                    self._upload_video_file(path_mp4)
+                    upload_started_at = self._upload_video_file(path_mp4)
                 elif resumed_draft and not allow_draft_reuse:
-                    self._replace_existing_draft_video(path_mp4)
+                    upload_started_at = self._replace_existing_draft_video(path_mp4)
                 elif resumed_draft or self._find_any(reupload_xpaths, timeout=5, visible=False):
                     print("Using existing Douyin draft/upload; skipping video upload.")
                 else:
-                    self._upload_video_file(path_mp4)
+                    upload_started_at = self._upload_video_file(path_mp4)
 
                 print("Waiting for the video to be uploaded...")
                 time.sleep(3)
                 # WebDriverWait(driver, 3600).until(EC.presence_of_element_located((By.XPATH, '//*[text()="重新上传"]')))
                 start_time = time.time()
                 timeout = 3600  # 3600 seconds timeout
+                stale_failure_grace = int(os.environ.get("AUTOPUB_DOUYIN_STALE_FAILURE_GRACE", "45"))
                 
                 while True:
                     if time.time() - start_time > timeout:
                         raise Exception("Timeout reached while waiting for video to be uploaded or for a failure message.")
 
                     if self._find_any(failure_xpaths, timeout=2, visible=False):
+                        if upload_started_at and time.time() - upload_started_at < stale_failure_grace:
+                            print("Ignoring possible stale Douyin upload failure indicator from the previous draft state.")
+                            time.sleep(5)
+                            continue
                         print("Upload failed! Raising an error to initiate retry...")
                         raise UploadFailedException("Upload failed due to presence of failure indicator.")
 
@@ -471,17 +588,10 @@ class DouyinPublisher:
                 if user_input == 'yes':
                     print("Publishing the video...")
                     time.sleep(3)
-                    self._click_first(
-                        [
-                            '//button[.//*[contains(text(),"发布")]]',
-                            '//button[contains(text(),"发布")]',
-                            '//*[contains(text(),"发布")]/ancestor::button[1]',
-                        ],
-                        timeout=20,
+                    self._click_publish_button()
+                    submit_confirmed = self._wait_for_publish_submit_result(
+                        timeout=int(os.environ.get("AUTOPUB_DOUYIN_SUBMIT_TIMEOUT", "180"))
                     )
-                    time.sleep(10)
-                    dismiss_alert(driver)
-                    time.sleep(3)
                     try:
                         verify_publish_in_management(
                             driver,
@@ -499,6 +609,14 @@ class DouyinPublisher:
                             ],
                         )
                     except Exception as exc:
+                        if submit_confirmed:
+                            print(
+                                "Douyin submit was accepted, but management verification did not "
+                                f"index the post yet: {exc}"
+                            )
+                            print("Treating Douyin publish as successful after accepted submit.")
+                            self.retry_count = 0
+                            return True
                         raise PublishVerificationException(str(exc)) from exc
                     print("Video published successfully!")
                 else:
