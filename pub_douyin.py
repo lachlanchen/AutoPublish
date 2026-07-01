@@ -104,7 +104,7 @@ class DouyinPublisher:
         except Exception:
             return ""
 
-    def _resume_unpublished_draft_if_present(self):
+    def _resume_unpublished_draft_if_present(self, for_replacement=False):
         """Reuse Douyin's existing unpublished draft when the upload already exists.
 
         Douyin can leave a successful upload in a local/server draft if a later
@@ -117,7 +117,10 @@ class DouyinPublisher:
         if not prompt_present:
             return False
 
-        print("Douyin unpublished draft prompt detected; continuing existing draft.")
+        if for_replacement:
+            print("Douyin unpublished draft prompt detected; opening draft to replace failed/stale media.")
+        else:
+            print("Douyin unpublished draft prompt detected; continuing existing draft.")
         self._click_first(
             [
                 '//button[normalize-space()="继续编辑"]',
@@ -308,12 +311,13 @@ class DouyinPublisher:
                     '//*[contains(text(),"上传异常")]',
                 ]
 
-                resumed_draft = self._resume_unpublished_draft_if_present()
+                allow_draft_reuse = self._allow_draft_reuse()
+                resumed_draft = self._resume_unpublished_draft_if_present(for_replacement=not allow_draft_reuse)
                 draft_upload_failed = self._find_any(failure_xpaths, timeout=2, visible=False)
                 if draft_upload_failed:
                     print("Existing Douyin draft has a failed upload; reuploading inside the draft.")
                     self._upload_video_file(path_mp4)
-                elif resumed_draft and not self._allow_draft_reuse():
+                elif resumed_draft and not allow_draft_reuse:
                     self._replace_existing_draft_video(path_mp4)
                 elif resumed_draft or self._find_any(reupload_xpaths, timeout=5, visible=False):
                     print("Using existing Douyin draft/upload; skipping video upload.")
@@ -485,6 +489,14 @@ class DouyinPublisher:
                             metadata,
                             platform_name="Douyin",
                             timeout=int(os.environ.get("AUTOPUB_DOUYIN_VERIFY_TIMEOUT", "240")),
+                            tab_xpaths=[
+                                '//*[normalize-space()="审核中"]',
+                                '//*[contains(normalize-space(),"审核中")]',
+                                '//*[normalize-space()="已发布"]',
+                                '//*[contains(normalize-space(),"已发布")]',
+                                '//*[normalize-space()="全部作品"]',
+                                '//*[contains(normalize-space(),"全部作品")]',
+                            ],
                         )
                     except Exception as exc:
                         raise PublishVerificationException(str(exc)) from exc

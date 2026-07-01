@@ -179,6 +179,26 @@ def scroll_management_page(driver) -> int:
         return 0
 
 
+def click_management_tab(driver, xpath: str, platform_name: str) -> bool:
+    try:
+        elements = driver.find_elements("xpath", xpath)
+    except Exception:
+        return False
+    for element in elements:
+        try:
+            if not element.is_displayed():
+                continue
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.2)
+            driver.execute_script("arguments[0].click();", element)
+            print(f"{platform_name} verification clicked management tab: {xpath}")
+            time.sleep(3)
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def verify_publish_in_management(
     driver,
     management_url: str,
@@ -188,6 +208,7 @@ def verify_publish_in_management(
     timeout: int | None = None,
     scrolls_per_pass: int = 3,
     include_english: bool = True,
+    tab_xpaths: Iterable[str] | None = None,
 ) -> bool:
     """Verify that a newly published item appears in the platform management UI.
 
@@ -211,19 +232,23 @@ def verify_publish_in_management(
 
     deadline = time.time() + timeout
     last_excerpt = ""
+    tab_xpaths = list(tab_xpaths or [])
     while time.time() < deadline:
         safe_get(driver, management_url, timeout=45, label=f"{platform_name} management page")
         time.sleep(5)
-        for scroll_index in range(max(1, scrolls_per_pass)):
-            page_text = collect_page_text(driver)
-            matched, term = any_term_matches(page_text, terms)
-            if matched:
-                print(f"{platform_name} management verification matched term: {term!r}")
-                return True
-            if page_text:
-                last_excerpt = page_text[:1000]
-            scroll_management_page(driver)
-            time.sleep(2)
+        for tab_xpath in [None, *tab_xpaths]:
+            if tab_xpath:
+                click_management_tab(driver, tab_xpath, platform_name)
+            for scroll_index in range(max(1, scrolls_per_pass)):
+                page_text = collect_page_text(driver)
+                matched, term = any_term_matches(page_text, terms)
+                if matched:
+                    print(f"{platform_name} management verification matched term: {term!r}")
+                    return True
+                if page_text:
+                    last_excerpt = page_text[:1000]
+                scroll_management_page(driver)
+                time.sleep(2)
         time.sleep(8)
 
     raise RuntimeError(

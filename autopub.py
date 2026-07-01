@@ -5,6 +5,7 @@ import argparse
 import traceback
 import zipfile
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from selenium import webdriver
@@ -17,7 +18,25 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from selenium.webdriver.chrome.service import Service
 
-chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
+
+def resolve_chromedriver_path():
+    candidates = [
+        os.environ.get("AUTOPUBLISH_CHROMEDRIVER"),
+        os.environ.get("CHROMEDRIVER_PATH"),
+        "/usr/bin/chromedriver",
+        "/usr/lib/chromium-browser/chromedriver",
+        "/usr/lib/chromium/chromedriver",
+        "/usr/local/bin/chromedriver",
+        shutil.which("chromedriver"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate):
+            return candidate
+    # Keep the historical default as a last-resort error message path.
+    return "/usr/lib/chromium-browser/chromedriver"
+
+
+chromedriver_path = resolve_chromedriver_path()
 service = Service(executable_path=chromedriver_path)
 
 # Define video file pattern
