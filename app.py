@@ -488,7 +488,7 @@ def publish_platform(publisher, platform_name):
         driver = getattr(publisher, "driver", None)
         if driver:
             log_html_snapshot(driver, platform_key, "publish_error")
-        return 0
+        raise RuntimeError(f"{platform_name} publish failed: {e}") from e
 
 def _process_publish_job(job):
     publish_xhs = job.get("publish_xhs", False)
