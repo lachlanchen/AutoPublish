@@ -1,4 +1,7 @@
 import pathlib
+import email
+import imaplib
+import re
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -10,7 +13,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 # from webdriver_manager.chrome import ChromeDriverManager
 
-from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front, close_extra_tabs, safe_get, log_html_snapshot
+from utils import dismiss_alert, crop_and_resize_cover_image, bring_to_front, close_extra_tabs, safe_get, log_html_snapshot, SendMail
 from login_bilibili import BilibiliLogin
 
 import traceback
@@ -28,7 +31,9 @@ from urllib.parse import quote
 
 from selenium.common.exceptions import NoAlertPresentException
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timezone
+from email.header import decode_header
+from email.utils import parsedate_to_datetime
 
 
 def download_image(url, local_path='./temp/'):
@@ -78,6 +83,7 @@ class BilibiliPublisher:
         self.metadata = metadata
         self.test = test
         self.retry_count = 0  # initialize retry count
+        self.mailer = SendMail()
 
         bilibili_login = BilibiliLogin(driver)
         bilibili_login.check_and_act()
@@ -169,6 +175,220 @@ class BilibiliPublisher:
         if all(marker in text for marker in markers):
             return "Bilibili SMS verification required before upload can continue."
         return ""
+
+    def _decode_mail_header(self, value):
+        if not value:
+            return ""
+        pieces = []
+        for chunk, encoding in decode_header(value):
+            if isinstance(chunk, bytes):
+                pieces.append(chunk.decode(encoding or "utf-8", errors="replace"))
+            else:
+                pieces.append(chunk)
+        return "".join(pieces)
+
+    def _mail_text(self, message):
+        if message.is_multipart():
+            parts = []
+            for part in message.walk():
+                content_type = part.get_content_type()
+                disposition = (part.get("Content-Disposition") or "").lower()
+                if "attachment" in disposition or content_type not in ("text/plain", "text/html"):
+                    continue
+                payload = part.get_payload(decode=True)
+                if not payload:
+                    continue
+                charset = part.get_content_charset() or "utf-8"
+                parts.append(payload.decode(charset, errors="replace"))
+            return "\n".join(parts)
+        payload = message.get_payload(decode=True)
+        if not payload:
+            return ""
+        charset = message.get_content_charset() or "utf-8"
+        return payload.decode(charset, errors="replace")
+
+    def _extract_verification_code(self, text):
+        if not text:
+            return None
+        patterns = [
+            r"(?:验证码|校验码|verification\s*code|code)\D{0,12}(\d{4,8})(?!\d)",
+            r"(?<!\d)(\d{6})(?!\d)",
+            r"(?<!\d)(\d{4})(?!\d)",
+        ]
+        for pattern in patterns:
+            for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+                code = match.group(1)
+                if code.startswith("202") and len(code) == 4:
+                    continue
+                return code
+        return None
+
+    def _message_timestamp(self, message):
+        try:
+            parsed = parsedate_to_datetime(message.get("Date"))
+            if parsed is None:
+                return None
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.timestamp()
+        except Exception:
+            return None
+
+    def _poll_email_for_sms_code(self, request_time, timeout=None):
+        from_email = os.environ.get("FROM_EMAIL")
+        app_password = os.environ.get("APP_PASSWORD")
+        to_email = os.environ.get("TO_EMAIL", "")
+        if not from_email or not app_password:
+            raise BilibiliSmsVerificationRequired(
+                "Bilibili SMS verification email was sent, but IMAP polling is not configured. "
+                "Set FROM_EMAIL and APP_PASSWORD or paste the SMS code manually."
+            )
+
+        try:
+            timeout = timeout or int(os.environ.get("AUTOPUB_BILIBILI_SMS_EMAIL_WAIT_SECONDS", "900"))
+        except Exception:
+            timeout = 900
+        try:
+            poll_seconds = max(5, int(os.environ.get("AUTOPUB_BILIBILI_SMS_EMAIL_POLL_SECONDS", "10")))
+        except Exception:
+            poll_seconds = 10
+
+        deadline = time.time() + timeout
+        since = datetime.fromtimestamp(request_time).strftime("%d-%b-%Y")
+        seen_ids = set()
+        print(f"Polling mailbox for Bilibili SMS verification reply for up to {timeout} seconds.")
+
+        while time.time() < deadline:
+            try:
+                with imaplib.IMAP4_SSL(os.environ.get("AUTOPUB_IMAP_HOST", "imap.gmail.com")) as mailbox:
+                    mailbox.login(from_email, app_password)
+                    mailbox.select(os.environ.get("AUTOPUB_IMAP_MAILBOX", "INBOX"))
+                    status, data = mailbox.search(None, "SINCE", since)
+                    if status != "OK":
+                        print(f"IMAP search returned {status}; retrying.")
+                        time.sleep(poll_seconds)
+                        continue
+                    ids = (data[0] or b"").split()
+                    for message_id in reversed(ids[-40:]):
+                        if message_id in seen_ids:
+                            continue
+                        status, payload = mailbox.fetch(message_id, "(RFC822)")
+                        if status != "OK" or not payload or not payload[0]:
+                            continue
+                        seen_ids.add(message_id)
+                        message = email.message_from_bytes(payload[0][1])
+                        msg_ts = self._message_timestamp(message)
+                        if msg_ts is not None and msg_ts < request_time - 60:
+                            continue
+                        sender = self._decode_mail_header(message.get("From", ""))
+                        subject = self._decode_mail_header(message.get("Subject", ""))
+                        body = self._mail_text(message)
+                        marker_text = f"{sender}\n{subject}\n{body}"
+                        likely_reply = (
+                            "bilibili" in marker_text.lower()
+                            or "哔哩" in marker_text
+                            or "B站" in marker_text
+                            or (to_email and to_email.lower() in sender.lower())
+                        )
+                        if not likely_reply:
+                            continue
+                        code = self._extract_verification_code(body) or self._extract_verification_code(subject)
+                        if code:
+                            print(f"Found Bilibili SMS verification code in email reply ({len(code)} digits).")
+                            return code
+            except Exception as exc:
+                print(f"IMAP polling failed; retrying: {exc}")
+            time.sleep(poll_seconds)
+
+        raise BilibiliSmsVerificationRequired(
+            "Timed out waiting for Bilibili SMS verification code email reply."
+        )
+
+    def _click_sms_get_code(self):
+        return self._click_first_visible(
+            xpaths=[
+                '//button[contains(normalize-space(.),"获取验证码")]',
+                '//*[contains(normalize-space(.),"获取验证码")]',
+                '//button[contains(normalize-space(.),"发送验证码")]',
+                '//*[contains(normalize-space(.),"发送验证码")]',
+                '//button[contains(normalize-space(.),"重新获取")]',
+                '//*[contains(normalize-space(.),"重新获取")]',
+            ],
+            label="SMS get-code button",
+        )
+
+    def _send_sms_verification_email(self, upload_mp4):
+        screenshot_path = "/tmp/bilibili-sms-verification.png"
+        try:
+            self.driver.save_screenshot(screenshot_path)
+        except Exception as exc:
+            print(f"Could not save Bilibili SMS screenshot: {exc}")
+            Image.new("RGB", (640, 360), "white").save(screenshot_path)
+        basename = os.path.basename(upload_mp4 or self.path_mp4 or "video")
+        content = (
+            "Bilibili is asking for an SMS verification code before publishing can continue.\n"
+            f"Video: {basename}\n\n"
+            "Please reply to this email with only the verification code. "
+            "AutoPublish will read the reply and submit it."
+        )
+        sent = self.mailer.send_email(
+            "Bilibili SMS Verification Code Required",
+            content,
+            screenshot_path,
+            "bilibili-sms-verification.png",
+        )
+        if not sent:
+            raise BilibiliSmsVerificationRequired(
+                "Bilibili SMS verification is required, but AutoPublish could not send the email request."
+            )
+
+    def _fill_sms_verification_code(self, code):
+        inputs = self.driver.find_elements(
+            By.XPATH,
+            '//input[contains(@placeholder,"验证码") or contains(@aria-label,"验证码") or contains(@name,"code")]',
+        )
+        if not inputs:
+            inputs = self.driver.find_elements(By.XPATH, '//input[not(@type="hidden")]')
+        for element in inputs:
+            try:
+                if not element.is_displayed() or not element.is_enabled():
+                    continue
+                element.clear()
+                element.send_keys(code)
+                print("Filled Bilibili SMS verification code.")
+                break
+            except Exception:
+                continue
+        else:
+            raise BilibiliSmsVerificationRequired("Could not find a visible Bilibili SMS code input.")
+
+        self._click_first_visible(
+            xpaths=[
+                '//button[contains(normalize-space(.),"确认") and not(contains(normalize-space(.),"获取"))]',
+                '//button[contains(normalize-space(.),"确定") and not(contains(normalize-space(.),"获取"))]',
+                '//button[contains(normalize-space(.),"验证") and not(contains(normalize-space(.),"获取"))]',
+                '//*[self::div or self::span][normalize-space()="确认"]',
+                '//*[self::div or self::span][normalize-space()="确定"]',
+            ],
+            label="SMS verification submit",
+        )
+
+    def _handle_sms_verification_gate(self, upload_mp4):
+        print("Bilibili hard SMS verification gate detected.")
+        if not self._click_sms_get_code():
+            log_html_snapshot(self.driver, "bilibili", "sms_get_code_missing")
+            raise BilibiliSmsVerificationRequired(
+                "Bilibili SMS verification is required, but the get-code button was not found."
+            )
+        request_time = time.time()
+        time.sleep(2)
+        self._send_sms_verification_email(upload_mp4)
+        code = self._poll_email_for_sms_code(request_time)
+        self._fill_sms_verification_code(code)
+        time.sleep(5)
+        if self._sms_verification_text():
+            raise BilibiliSmsVerificationRequired("Bilibili SMS verification is still visible after submitting the code.")
+        print("Bilibili SMS verification completed.")
 
     def _resume_upload_if_paused(self):
         return self._click_first_visible(
@@ -501,6 +721,12 @@ class BilibiliPublisher:
 
         start_time = time.time()
         while time.time() - start_time <= timeout:
+            sms_message = self._sms_verification_text()
+            if sms_message:
+                self._handle_sms_verification_gate(self.path_mp4)
+                time.sleep(5)
+                continue
+
             if self._captcha_present():
                 self.solve_captcha(max_retries=5)
                 time.sleep(5)
@@ -637,7 +863,10 @@ class BilibiliPublisher:
                         print("Bilibili current upload status:", " | ".join(status_rows[:2]))
                     sms_message = self._sms_verification_text()
                     if sms_message:
-                        raise BilibiliSmsVerificationRequired(sms_message)
+                        self._handle_sms_verification_gate(upload_mp4)
+                        failed_seen = 0
+                        time.sleep(5)
+                        continue
                     if any("0.0MB/0.0MB" in row and "0%" in row for row in status_rows):
                         block_message = self._preupload_block_message(upload_mp4)
                         if block_message:
@@ -768,7 +997,7 @@ class BilibiliPublisher:
             except Exception as e:
                 print(f"An error occurred: {e}")
                 traceback.print_exc()
-                if isinstance(e, BilibiliRateLimitException):
+                if isinstance(e, (BilibiliRateLimitException, BilibiliSmsVerificationRequired)):
                     raise
                 self.retry_count += 1
                 print(f"Retrying the whole process... Attempt {self.retry_count}")
