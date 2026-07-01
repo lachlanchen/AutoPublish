@@ -306,6 +306,13 @@ class XiaoHongShuPublisher:
             f"Last URL: {self.driver.current_url} (started from {start_url})"
         )
 
+    def _already_published_url(self):
+        current_url = self.driver.current_url
+        if "published=true" in current_url or "/new/note-manager" in current_url:
+            print(f"XiaoHongShu publish already confirmed via URL: {current_url}")
+            return True
+        return False
+
     def wait_for_element_to_be_clickable(self, xpath, timeout=600):
         driver = self.driver
         try:
@@ -517,11 +524,14 @@ class XiaoHongShuPublisher:
                     # If user confirms, click the publish button
                     time.sleep(3)
                     start_url = driver.current_url
-                    self._click_publish_button()
-                    
-                    time.sleep(10)
-                    dismiss_alert(driver)
-                    publish_result_url = self._wait_for_publish_result(start_url, timeout=90)
+                    if self._already_published_url():
+                        publish_result_url = driver.current_url
+                    else:
+                        self._click_publish_button()
+
+                        time.sleep(10)
+                        dismiss_alert(driver)
+                        publish_result_url = self._wait_for_publish_result(start_url, timeout=90)
 
                     print(f"Publishing completed. Final XiaoHongShu URL: {publish_result_url}")
                 else:
