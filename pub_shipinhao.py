@@ -1207,7 +1207,7 @@ class ShiPinHaoPublisher:
         title = title.replace(',', ' ')
         
         # Remove characters not in the allowed list using regular expression
-        allowed_chars_regex = r'[a-zA-Z0-9\u4e00-\u9fff「」"“”:\+\?%° ]'  # Add space at the end to allow spaces
+        allowed_chars_regex = r'[a-zA-Z0-9\u4e00-\u9fff\u3040-\u30ff「」"“”:\+\?%° ]'  # Add space at the end to allow spaces
         clean_title = ''.join(re.findall(allowed_chars_regex, title))
         
         return clean_title

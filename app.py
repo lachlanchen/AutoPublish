@@ -719,7 +719,7 @@ def clean_title(title):
     print("Original title: ", title)
     # Define a regex pattern that matches Chinese characters, English letters, numbers, Japanese characters,
     # full-width and half-width punctuation, blank space, and specific punctuation like colon
-    pattern = r'[\u4e00-\u9fff\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3000-\u303f\uff00-\uffef ,.!?:]'
+    pattern = r'[\u4e00-\u9fff\u3040-\u30ff\u0030-\u0039\u0041-\u005a\u0061-\u007a\u3000-\u303f\uff00-\uffef ,.!?:]'
 
     # Find all substrings that match the pattern
     matches = re.findall(pattern, title)
