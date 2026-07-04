@@ -181,6 +181,69 @@ class DouyinPublisher:
         print(f"Saved Douyin upload debug snapshot: {base}.*")
         return base, state
 
+    def _upload_route_ready(self):
+        state = self._file_input_state()
+        body = state.get("bodyExcerpt", "") if isinstance(state, dict) else ""
+        if state.get("inputs") or state.get("uploadish"):
+            return True, state
+        ready_terms = [
+            "上传视频",
+            "点击上传",
+            "选择视频",
+            "发布视频",
+            "作品标题",
+            "添加作品简介",
+            "重新上传",
+            "上传完成",
+        ]
+        loading_terms = [
+            "加载中，请稍候",
+            "加载中",
+        ]
+        if any(term in body for term in ready_terms) and not any(term in body for term in loading_terms):
+            return True, state
+        return False, state
+
+    def _reload_upload_route(self, reason):
+        print(f"Reloading Douyin upload route: {reason}")
+        try:
+            self.driver.execute_script("window.stop && window.stop();")
+        except Exception:
+            pass
+        try:
+            self.driver.execute_script("location.href = 'https://creator.douyin.com/creator-micro/content/upload';")
+        except Exception:
+            try:
+                self.driver.get("https://creator.douyin.com/creator-micro/content/upload")
+            except Exception:
+                pass
+        time.sleep(8)
+
+    def _ensure_upload_route_ready(self, timeout=45, max_reloads=2):
+        last_state = {}
+        for attempt in range(max_reloads + 1):
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                ready, state = self._upload_route_ready()
+                last_state = state
+                if ready:
+                    return True
+                body = state.get("bodyExcerpt", "") if isinstance(state, dict) else ""
+                if "登录" in body and "加载中" not in body:
+                    return True
+                time.sleep(2)
+            if attempt < max_reloads:
+                body = last_state.get("bodyExcerpt", "") if isinstance(last_state, dict) else ""
+                self._reload_upload_route(
+                    f"upload controls did not render after {timeout}s; body excerpt: {body[:160]!r}"
+                )
+        body = last_state.get("bodyExcerpt", "") if isinstance(last_state, dict) else ""
+        base, _ = self._save_upload_debug_snapshot("upload_route_not_ready")
+        raise UploadInputMissingException(
+            "Douyin upload route did not render upload controls. "
+            f"Debug snapshot: {base}.*; page excerpt: {body[:500]!r}"
+        )
+
     def _dismiss_upload_blockers(self):
         try:
             dismiss_alert(self.driver)
@@ -423,6 +486,10 @@ class DouyinPublisher:
             raise FileNotFoundError(f"Douyin upload video file not found: {path_mp4}")
         bring_to_front(["抖音"])
         self._dismiss_upload_blockers()
+        self._ensure_upload_route_ready(
+            timeout=int(os.environ.get("AUTOPUB_DOUYIN_UPLOAD_READY_TIMEOUT", "45")),
+            max_reloads=int(os.environ.get("AUTOPUB_DOUYIN_UPLOAD_READY_RELOADS", "2")),
+        )
         video_input = self._find_upload_input(timeout=8)
         if not video_input:
             print("Douyin file input not immediately present; clicking upload area and retrying.")
