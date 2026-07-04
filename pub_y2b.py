@@ -522,7 +522,27 @@ return true;
             return match.group(1)
         return ""
 
+    def _published_dialog_result(self):
+        try:
+            text = self.driver.execute_script("return document.body ? document.body.innerText : '';") or ""
+        except Exception:
+            return None
+        if "Video published" not in text and "视频已发布" not in text:
+            return None
+        match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/|watch\\?v=)([A-Za-z0-9_-]{6,})", text)
+        if not match:
+            return None
+        url_match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/[A-Za-z0-9_-]{6,}|watch\\?v=[A-Za-z0-9_-]{6,})(?:\\?feature=share)?", text)
+        return {
+            "video_id": match.group(1),
+            "url": url_match.group(0) if url_match else match.group(0),
+        }
+
     def verify_published_in_studio(self):
+        dialog_result = self._published_dialog_result()
+        if dialog_result:
+            print(f"YouTube publish dialog confirmed video: {dialog_result['url']}")
+            return True
         verify_publish_in_management(
             self.driver,
             self._studio_content_url(),
