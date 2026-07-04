@@ -15,6 +15,7 @@ from login_douyin import DouyinLogin
 
 import traceback
 import os
+import json
 
 from publish_verification import verify_publish_in_management
 
@@ -26,6 +27,10 @@ class UploadFailedException(Exception):
     def __init__(self, message="Video upload failed"):
         self.message = message
         super().__init__(self.message)
+
+
+class UploadInputMissingException(Exception):
+    """Raised when Douyin's upload page does not expose a usable file input."""
 
 
 class PublishVerificationException(Exception):
@@ -104,6 +109,263 @@ class DouyinPublisher:
         except Exception:
             return ""
 
+    def _debug_dir(self):
+        root = os.environ.get("AUTOPUB_DEBUG_DIR") or os.path.join(os.getcwd(), "temp_screenshot")
+        os.makedirs(root, exist_ok=True)
+        return root
+
+    def _file_input_state(self):
+        script = """
+        const norm = text => String(text || '').replace(/\\s+/g, ' ').trim();
+        const visible = el => {
+          if (!el) return false;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0
+            && style.visibility !== 'hidden'
+            && style.display !== 'none';
+        };
+        const brief = el => {
+          const rect = el.getBoundingClientRect();
+          return {
+            tag: el.tagName,
+            type: el.getAttribute('type') || '',
+            accept: el.getAttribute('accept') || '',
+            id: el.id || '',
+            className: String(el.className || ''),
+            text: norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '').slice(0, 120),
+            visible: visible(el),
+            rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+          };
+        };
+        const inputs = Array.from(document.querySelectorAll('input[type="file"]')).map(brief);
+        const uploadish = Array.from(document.querySelectorAll('button,[role="button"],label,div,span'))
+          .filter(el => {
+            const text = norm(el.innerText || el.textContent || el.getAttribute('aria-label') || el.className || '');
+            return visible(el) && /上传|选择视频|点击上传|发布视频|拖拽|upload|select video/i.test(text);
+          })
+          .slice(0, 60)
+          .map(brief);
+        return {
+          url: location.href,
+          title: document.title,
+          inputs,
+          uploadish,
+          bodyExcerpt: norm(document.body ? document.body.innerText : '').slice(0, 1800),
+        };
+        """
+        try:
+            return self.driver.execute_script(script) or {}
+        except Exception as exc:
+            return {"error": str(exc)}
+
+    def _save_upload_debug_snapshot(self, label):
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        base = os.path.join(self._debug_dir(), f"douyin_{label}_{timestamp}")
+        state = self._file_input_state()
+        try:
+            with open(f"{base}.json", "w", encoding="utf-8") as fh:
+                json.dump(state, fh, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            print(f"Could not write Douyin debug JSON: {exc}")
+        try:
+            self.driver.save_screenshot(f"{base}.png")
+        except Exception as exc:
+            print(f"Could not write Douyin debug screenshot: {exc}")
+        try:
+            html = self.driver.execute_script("return document.documentElement.outerHTML || '';")
+            with open(f"{base}.html", "w", encoding="utf-8") as fh:
+                fh.write(html)
+        except Exception as exc:
+            print(f"Could not write Douyin debug HTML: {exc}")
+        print(f"Saved Douyin upload debug snapshot: {base}.*")
+        return base, state
+
+    def _dismiss_upload_blockers(self):
+        try:
+            dismiss_alert(self.driver)
+        except Exception:
+            pass
+        try:
+            body = self.driver.find_element(By.TAG_NAME, "body")
+            body.send_keys(Keys.ESCAPE)
+            time.sleep(0.3)
+        except Exception:
+            pass
+        script = """
+        const norm = text => String(text || '').replace(/\\s+/g, ' ').trim();
+        const visible = el => {
+          if (!el) return false;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0
+            && style.visibility !== 'hidden'
+            && style.display !== 'none'
+            && style.pointerEvents !== 'none';
+        };
+        const texts = new Set(['我知道了', '知道了', '关闭', '取消', '暂不', '稍后再说']);
+        const buttons = Array.from(document.querySelectorAll('button,[role="button"],.semi-modal-close,.semi-toast-close,svg'));
+        let clicked = [];
+        for (const el of buttons) {
+          const text = norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '');
+          if (visible(el) && (texts.has(text) || /close|关闭/.test(String(el.className || '').toLowerCase()))) {
+            try {
+              el.click();
+              clicked.push(text || String(el.className || '').slice(0, 80));
+              if (clicked.length >= 3) break;
+            } catch (_) {}
+          }
+        }
+        return clicked;
+        """
+        try:
+            clicked = self.driver.execute_script(script)
+            if clicked:
+                print(f"Dismissed possible Douyin upload blockers: {clicked}")
+                time.sleep(1)
+        except Exception:
+            pass
+
+    def _find_upload_input_js(self):
+        script = """
+        const visible = el => {
+          if (!el) return false;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0
+            && style.visibility !== 'hidden'
+            && style.display !== 'none';
+        };
+        const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
+        const scored = inputs.map((el, index) => {
+          const accept = String(el.getAttribute('accept') || '').toLowerCase();
+          const cls = String(el.className || '').toLowerCase();
+          let score = 0;
+          if (accept.includes('video')) score += 40;
+          if (accept.includes('mp4')) score += 30;
+          if (accept.includes('*')) score += 5;
+          if (/video|upload|file|uploader/.test(cls)) score += 10;
+          if (visible(el)) score += 5;
+          return { el, score, index, accept, visible: visible(el) };
+        }).sort((a, b) => b.score - a.score || a.index - b.index);
+        if (!scored.length) return null;
+        const best = scored[0].el;
+        try { best.scrollIntoView({ block: 'center' }); } catch (_) {}
+        return best;
+        """
+        try:
+            return self.driver.execute_script(script)
+        except Exception as exc:
+            print(f"Douyin JS file input probe failed: {exc}")
+            return None
+
+    def _find_upload_input(self, timeout=8):
+        deadline = time.time() + timeout
+        css_selectors = [
+            'input[type="file"][accept*="video"]',
+            'input[type="file"][accept*="mp4"]',
+            'input[type="file"]',
+        ]
+        while time.time() < deadline:
+            input_element = self._find_upload_input_js()
+            if input_element:
+                return input_element
+            for selector in css_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    if elements:
+                        return elements[0]
+                except Exception:
+                    continue
+            time.sleep(0.5)
+        return None
+
+    def _click_upload_entry(self):
+        script = """
+        const norm = text => String(text || '').replace(/\\s+/g, ' ').trim();
+        const visible = el => {
+          if (!el) return false;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0
+            && style.visibility !== 'hidden'
+            && style.display !== 'none'
+            && style.pointerEvents !== 'none';
+        };
+        const candidates = Array.from(document.querySelectorAll('button,[role="button"],label,div,span,a'))
+          .filter(el => {
+            const text = norm(el.innerText || el.textContent || el.getAttribute('aria-label') || el.className || '');
+            return visible(el) && /上传视频|点击上传|选择视频|发布视频|本地上传|拖拽|上传|upload|select video/i.test(text);
+          })
+          .map(el => {
+            const text = norm(el.innerText || el.textContent || el.getAttribute('aria-label') || '');
+            const cls = String(el.className || '');
+            const rect = el.getBoundingClientRect();
+            let score = 0;
+            if (/上传视频|点击上传|选择视频|本地上传/.test(text)) score += 50;
+            if (/上传|upload|uploader/i.test(cls)) score += 15;
+            if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button' || el.tagName === 'LABEL') score += 10;
+            score += Math.min(10, Math.round((rect.width * rect.height) / 20000));
+            return { el, text, cls, score, rect };
+          })
+          .sort((a, b) => b.score - a.score);
+        if (!candidates.length) return { ok: false };
+        const item = candidates[0];
+        try { item.el.scrollIntoView({ block: 'center' }); } catch (_) {}
+        item.el.click();
+        return {
+          ok: true,
+          text: item.text,
+          className: item.cls.slice(0, 120),
+          score: item.score,
+          rect: { x: Math.round(item.rect.x), y: Math.round(item.rect.y), w: Math.round(item.rect.width), h: Math.round(item.rect.height) },
+        };
+        """
+        try:
+            result = self.driver.execute_script(script)
+            if result and result.get("ok"):
+                print(f"Clicked Douyin upload entry: {result}")
+                time.sleep(2)
+                return True
+        except Exception as exc:
+            print(f"Douyin upload entry click failed: {exc}")
+        return self._click_any(
+            [
+                '//*[contains(normalize-space(),"上传视频")]',
+                '//*[contains(normalize-space(),"点击上传")]',
+                '//*[contains(normalize-space(),"选择视频")]',
+                '//*[contains(normalize-space(),"本地上传")]',
+                '//*[contains(normalize-space(),"上传")]/ancestor::button[1]',
+                '//*[contains(normalize-space(),"上传")]',
+            ],
+            timeout=3,
+        )
+
+    def _send_file_to_input(self, video_input, path_mp4):
+        try:
+            video_input.send_keys(path_mp4)
+            return
+        except WebDriverException as exc:
+            print(f"Douyin file input send_keys failed once; making input interactable and retrying: {exc}")
+        self.driver.execute_script(
+            """
+            const el = arguments[0];
+            el.removeAttribute('hidden');
+            el.style.display = 'block';
+            el.style.visibility = 'visible';
+            el.style.opacity = '1';
+            el.style.position = 'fixed';
+            el.style.left = '20px';
+            el.style.top = '20px';
+            el.style.width = '400px';
+            el.style.height = '40px';
+            el.style.zIndex = '2147483647';
+            """,
+            video_input,
+        )
+        time.sleep(0.5)
+        video_input.send_keys(path_mp4)
+
     def _resume_unpublished_draft_if_present(self, for_replacement=False):
         """Reuse Douyin's existing unpublished draft when the upload already exists.
 
@@ -157,17 +419,24 @@ class DouyinPublisher:
 
     def _upload_video_file(self, path_mp4):
         print("Uploading video file to Douyin...")
+        if not path_mp4 or not os.path.exists(path_mp4):
+            raise FileNotFoundError(f"Douyin upload video file not found: {path_mp4}")
         bring_to_front(["抖音"])
-        video_input = self._find_first(
-            [
-                '//input[@type="file" and contains(@accept,"video")]',
-                '//input[@type="file" and contains(@accept,"mp4")]',
-                '//input[@type="file"]',
-            ],
-            timeout=30,
-            visible=False,
-        )
-        video_input.send_keys(path_mp4)
+        self._dismiss_upload_blockers()
+        video_input = self._find_upload_input(timeout=8)
+        if not video_input:
+            print("Douyin file input not immediately present; clicking upload area and retrying.")
+            self._click_upload_entry()
+            self._dismiss_upload_blockers()
+            video_input = self._find_upload_input(timeout=20)
+        if not video_input:
+            base, state = self._save_upload_debug_snapshot("missing_upload_input")
+            excerpt = (state.get("bodyExcerpt") or "")[:500] if isinstance(state, dict) else ""
+            raise UploadInputMissingException(
+                "Could not find Douyin upload <input type=file>. "
+                f"Debug snapshot: {base}.*; page excerpt: {excerpt!r}"
+            )
+        self._send_file_to_input(video_input, path_mp4)
         time.sleep(5)
         return time.time()
 
@@ -626,6 +895,11 @@ class DouyinPublisher:
                 return True
             except PublishVerificationException:
                 print("Douyin publish verification failed after submit; not retrying to avoid duplicate uploads.")
+                raise
+            except UploadInputMissingException:
+                print("Douyin upload input is missing; not retrying the whole publish flow blindly.")
+                traceback.print_exc()
+                self.retry_count = 0
                 raise
             except Exception as e:
                 print(f"An error occurred: {e}")
