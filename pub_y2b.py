@@ -1,5 +1,7 @@
 import time
 import json
+import os
+import re
 from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -10,6 +12,7 @@ from selenium.common.exceptions import NoAlertPresentException
 import traceback
 
 from publish_routing import resolve_youtube_playlist
+from publish_verification import verify_publish_in_management
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 # from utils import dismiss_alert, bring_to_front
 #   This assumes you have a 'utils.py' containing these functions. 
@@ -488,13 +491,52 @@ return true;
             print('Clicked on the Publish button.')
             time.sleep(3)
 
-            # Retrieve video ID (This assumes you are on the video's page or at least
-            # it might reflect the video ID in the URL, which can vary)
-            video_id = self.driver.current_url.split('/')[-1]
-            print(f'Video ID: {video_id}')
+            video_id = self._extract_youtube_video_id()
+            if video_id:
+                print(f'YouTube video ID candidate: {video_id}')
+            else:
+                print(f'YouTube upload URL after publish click: {self.driver.current_url}')
             return True
         except TimeoutException:
             raise Exception("Failed to set visibility or click on the Publish button.")
+
+    def _studio_content_url(self):
+        configured = os.environ.get("YOUTUBE_STUDIO_CONTENT_URL")
+        if configured:
+            return configured
+        match = re.search(
+            r"(https://studio\.youtube\.com/channel/[^/]+/videos/upload)",
+            self.driver.current_url,
+        )
+        if match:
+            return match.group(1)
+        return "https://studio.youtube.com"
+
+    def _extract_youtube_video_id(self):
+        current_url = self.driver.current_url or ""
+        match = re.search(r"[?&]v=([A-Za-z0-9_-]{6,})", current_url)
+        if match:
+            return match.group(1)
+        match = re.search(r"/video/([A-Za-z0-9_-]{6,})", current_url)
+        if match:
+            return match.group(1)
+        return ""
+
+    def verify_published_in_studio(self):
+        verify_publish_in_management(
+            self.driver,
+            self._studio_content_url(),
+            self.metadata,
+            platform_name="YouTube",
+            timeout=int(os.environ.get("AUTOPUB_YOUTUBE_VERIFY_TIMEOUT", "360")),
+            include_english=True,
+            tab_xpaths=[
+                '//*[contains(normalize-space(),"Content")]',
+                '//*[contains(normalize-space(),"内容")]',
+                '//*[contains(normalize-space(),"Videos")]',
+                '//*[contains(normalize-space(),"视频")]',
+            ],
+        )
     
     def publish(self):
         """
@@ -527,6 +569,7 @@ return true;
                     return False
 
                 time.sleep(10)
+                self.verify_published_in_studio()
                 print("Video published successfully.")
                 return True
 

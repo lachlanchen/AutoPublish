@@ -82,6 +82,75 @@ transcription_root = "/home/lachlan/Projects/auto-publish/transcription_data"
 upload_url = 'http://lachlanserver:8081/upload'
 process_url = 'http://lachlanserver:8081/video-processing'
 
+CHINA_PLATFORM_TEXT_REPLACEMENTS = {
+    " の ": "的",
+    "の": "的",
+    "·": " ",
+    "・": " ",
+    "—": "-",
+    "–": "-",
+}
+
+
+def _normalize_space(text):
+    return re.sub(r"\s+", " ", str(text or "")).strip()
+
+
+def sanitize_china_platform_text(text, *, allow_hash=False):
+    """Return text that is safer for China creator forms.
+
+    Shipinhao and Douyin can reject some Japanese kana/symbols in title,
+    description, or hashtag-like tokens. Keep the public meaning, but remove
+    characters that commonly trigger "special character" form errors.
+    """
+    value = clean_bmp(text)
+    for source, target in CHINA_PLATFORM_TEXT_REPLACEMENTS.items():
+        value = value.replace(source, target)
+    value = re.sub(r"[\u3040-\u309f\u30a0-\u30ff]+", " ", value)
+    allowed = r"\u4e00-\u9fffA-Za-z0-9，。！？；：、,.!?;:《》“”\"'（）() +%&/\-"
+    if allow_hash:
+        allowed += "#"
+    value = "".join(re.findall(f"[{allowed}]", value))
+    value = _normalize_space(value)
+    value = re.sub(r"\s*的\s*", "的", value)
+    value = re.sub(r"\s+([，。！？；：、,.!?;:）)])", r"\1", value)
+    value = re.sub(r"([（(《])\s+", r"\1", value)
+    return value
+
+
+def sanitize_china_platform_tag(tag):
+    value = sanitize_china_platform_text(str(tag or "").lstrip("#"), allow_hash=False)
+    value = re.sub(r"[^A-Za-z0-9\u4e00-\u9fff]+", "", value)
+    return value[:30]
+
+
+def china_platform_metadata(metadata):
+    """Create a copy for Shipinhao/Douyin/XHS/Bilibili form restrictions."""
+    safe = json.loads(json.dumps(metadata, ensure_ascii=False))
+    original_title = (
+        safe.get("title")
+        or safe.get("song_title")
+        or safe.get("music_title")
+        or "精彩短片"
+    )
+    safe_title = sanitize_china_platform_text(original_title) or "精彩短片"
+    safe["title"] = safe_title[:40]
+    for key in ("song_title", "music_title"):
+        if safe.get(key):
+            safe[key] = sanitize_china_platform_text(safe.get(key)) or safe_title
+    for key in ("brief_description", "middle_description", "long_description"):
+        if key in safe:
+            safe[key] = sanitize_china_platform_text(safe.get(key), allow_hash=True)
+    tags = []
+    for tag in safe.get("tags", []) or []:
+        cleaned = sanitize_china_platform_tag(tag)
+        if cleaned and cleaned not in tags:
+            tags.append(cleaned)
+    safe["tags"] = tags
+    if safe_title != original_title:
+        print(f"China-platform title sanitized: {original_title!r} -> {safe_title!r}")
+    return safe
+
 
 def _resolve_display():
     display = os.environ.get("AUTOPUBLISH_DISPLAY") or os.environ.get("DISPLAY")
@@ -569,6 +638,7 @@ def _process_publish_job(job):
         metadata_en["title"] = metadata_en.get("title") or metadata["title"]
         for field in fields_to_clean:
             metadata_en[field] = clean_bmp(metadata_en.get(field, ""))
+        metadata_china = china_platform_metadata(metadata)
 
     video_filename = metadata.get('video_filename', None)
     youtube_music_video_filename = (
@@ -608,16 +678,16 @@ def _process_publish_job(job):
 
     publishers = []
     if publish_xhs:
-        pub_xhslisher = XiaoHongShuPublisher(create_new_driver(port=5003), path_mp4, path_cover, metadata, test_mode)
+        pub_xhslisher = XiaoHongShuPublisher(create_new_driver(port=5003), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_xhslisher, 'XiaoHongShu'))
     if publish_douyin:
-        pub_douyinlisher = DouyinPublisher(create_new_driver(port=5004), path_mp4, path_cover, metadata, test_mode)
+        pub_douyinlisher = DouyinPublisher(create_new_driver(port=5004), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_douyinlisher, 'Douyin'))
     if publish_bilibili:
-        pub_bilibililisher = BilibiliPublisher(create_new_driver(port=5005), path_mp4, path_cover, metadata, test_mode)
+        pub_bilibililisher = BilibiliPublisher(create_new_driver(port=5005), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_bilibililisher, 'Bilibili'))
     if publish_shipinhao:
-        pub_shipinhaolisher = ShiPinHaoPublisher(create_new_driver(port=5006), path_mp4, path_cover, metadata, test_mode)
+        pub_shipinhaolisher = ShiPinHaoPublisher(create_new_driver(port=5006), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
     if publish_shipinhao_music:
         pub_shipinhao_music = ShiPinHaoMusicPublisher(

@@ -1207,8 +1207,12 @@ class ShiPinHaoPublisher:
         title = title.replace(',', ' ')
         
         # Remove characters not in the allowed list using regular expression
-        allowed_chars_regex = r'[a-zA-Z0-9\u4e00-\u9fff\u3040-\u30ff「」"“”:\+\?%° ]'  # Add space at the end to allow spaces
+        title = title.replace('の', '的')
+        # China creator forms can reject kana and space-heavy titles. Keep
+        # Chinese/ASCII title text only for the Shipinhao short-title field.
+        allowed_chars_regex = r'[a-zA-Z0-9\u4e00-\u9fff「」"“”:\+\?%° ]'  # Add space at the end to allow spaces
         clean_title = ''.join(re.findall(allowed_chars_regex, title))
+        clean_title = re.sub(r"\s+", " ", clean_title).strip()
         
         return clean_title
 
