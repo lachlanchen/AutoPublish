@@ -72,6 +72,46 @@ args = parser.parse_args()
 refresh_time = args.refresh_time
 port = args.port
 
+PLATFORM_PORTS = {
+    "xhs": 5003,
+    "xiaohongshu": 5003,
+    "douyin": 5004,
+    "bilibili": 5005,
+    "shipinhao": 5006,
+    "shipinhao_music": 5006,
+    "instagram": 5007,
+    "ins": 5007,
+    "bandcamp": 5008,
+    "bandcamp_music": 5008,
+    "youtube": 9222,
+    "y2b": 9222,
+    "youtube_music": 9222,
+}
+
+PLATFORM_ALIASES = {
+    "xiaohongshu": "xhs",
+    "xhs": "xhs",
+    "douyin": "douyin",
+    "bilibili": "bilibili",
+    "shipinhao": "shipinhao",
+    "sph": "shipinhao",
+    "shipinhaomusic": "shipinhao_music",
+    "shipinhao_music": "shipinhao_music",
+    "sphmusic": "shipinhao_music",
+    "sph_music": "shipinhao_music",
+    "instagram": "instagram",
+    "ins": "instagram",
+    "youtube": "y2b",
+    "y2b": "y2b",
+    "yt": "y2b",
+    "youtubemusic": "youtube_music",
+    "youtube_music": "youtube_music",
+    "bandcamp": "bandcamp_music",
+    "bandcampmusic": "bandcamp_music",
+    "bandcamp_music": "bandcamp_music",
+    "all": "all",
+}
+
 
 # Global variables for paths and publishers
 logs_folder_root = '/home/lachlan/Projects/auto-publish/logs'
@@ -256,6 +296,8 @@ def _serialize_job(job):
         "created_at": job.get("created_at"),
         "updated_at": job.get("updated_at"),
         "platforms": job.get("platforms", []),
+        "force_browser_restart": job.get("force_browser_restart", False),
+        "restart_platforms": job.get("restart_platforms", []),
         "error": job.get("error"),
     }
 
@@ -285,21 +327,68 @@ def _get_queue_snapshot():
     with PUBLISH_LOCK:
         return [_serialize_job(PUBLISH_JOBS[job_id]) for job_id in PUBLISH_JOB_ORDER if job_id in PUBLISH_JOBS]
 
+def _parse_bool_arg(value):
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+def _normalize_platform_name(value):
+    key = re.sub(r"[^a-z0-9_]+", "", str(value or "").strip().lower())
+    return PLATFORM_ALIASES.get(key, key)
+
+def _parse_restart_platforms(value):
+    if not value:
+        return set()
+    if isinstance(value, (list, tuple, set)):
+        raw_items = value
+    else:
+        raw_items = re.split(r"[,;\s]+", str(value))
+    normalized = {_normalize_platform_name(item) for item in raw_items if str(item or "").strip()}
+    return {item for item in normalized if item}
+
+def _debug_summary(port):
+    pages = _debug_pages(port)
+    if not pages:
+        return "no DevTools pages reported"
+    parts = []
+    for page in pages[:3]:
+        title = _normalize_space(page.get("title") or "(untitled)")[:80]
+        url = _normalize_space(page.get("url") or "")[:120]
+        parts.append(f"{title} [{url}]")
+    suffix = "" if len(pages) <= 3 else f"; +{len(pages) - 3} more"
+    return f"{len(pages)} page(s): " + " | ".join(parts) + suffix
+
 # Function to create a new WebDriver instance
-def create_new_driver(port=5003):
+def create_new_driver(port=5003, label=None, attempts=3):
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:{str(port)}")
     browser_bin = _resolve_browser_bin()
     if browser_bin and os.path.exists(browser_bin):
         options.binary_location = browser_bin
     service = Service(executable_path=chromedriver_path)
-    driver = webdriver.Chrome(service=service, options=options)
-    return driver
+    target = label or f"port {port}"
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            print(f"Attaching ChromeDriver to {target} on port {port} (attempt {attempt}/{attempts}); {_debug_summary(port)}")
+            driver = webdriver.Chrome(service=service, options=options)
+            try:
+                print(f"Attached ChromeDriver to {target}: title={driver.title!r} url={driver.current_url!r}")
+            except Exception:
+                print(f"Attached ChromeDriver to {target}; title/url unavailable.")
+            return driver
+        except Exception as exc:
+            last_error = exc
+            print(f"ChromeDriver attach failed for {target} on port {port}: {exc}")
+            time.sleep(2)
+    raise RuntimeError(f"Unable to attach ChromeDriver to {target} on port {port}: {last_error}") from last_error
 
 def run_command(command):
     try:
         print(f"Executing: {command}")
-        subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.stdout:
+            print(f"Command stdout: {result.stdout.strip()[:1000]}")
+        if result.stderr:
+            print(f"Command stderr: {result.stderr.strip()[:1000]}")
         time.sleep(3)  # Short delay to ensure the command initiates properly
     except subprocess.CalledProcessError as e:
         print(f"Failed to execute command: {e}")
@@ -313,24 +402,45 @@ def _debug_pages(port):
         return []
 
 
-def _start_browser_if_needed(platform_name, port, command, url=None):
+def _wait_for_debug_port(platform_name, port, timeout=25):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _is_port_open("127.0.0.1", port):
+            print(f"{platform_name} Chromium session ready on port {port}: {_debug_summary(port)}")
+            return True
+        time.sleep(0.5)
+    print(f"{platform_name} Chromium session did not expose port {port} after {timeout}s.")
+    return False
+
+
+def _kill_browser_session_for_port(port):
+    print(f"Stopping browser processes for debug port {port}.")
+    patterns = [
+        f"--remote-debugging-port={port}",
+        f"remote-debugging-port={port}",
+    ]
+    for pattern in patterns:
+        subprocess.run(["pkill", "-f", pattern], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Old chromedriver processes are stateless and can hold stale attach handles.
+    subprocess.run(["pkill", "-f", "chromedriver"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _start_browser_if_needed(platform_name, port, command, url=None, force_restart=False):
+    if force_restart:
+        print(f"Restart requested for {platform_name} on port {port}.")
+        _kill_browser_session_for_port(port)
+        time.sleep(1)
     if _is_port_open("127.0.0.1", port):
-        print(f"Reusing existing {platform_name} Chromium session on port {port}.")
+        print(f"Reusing existing {platform_name} Chromium session on port {port}: {_debug_summary(port)}")
         return
     run_command(command)
+    if not _wait_for_debug_port(platform_name, port):
+        raise RuntimeError(f"Failed to start {platform_name} browser on port {port}")
 
 
 def _kill_browser_sessions():
-    password = "1"  # This should be secured
-    try:
-        subprocess.run(
-            f"echo {password} | sudo -S pkill -f 'chromium-browser|chromium|google-chrome'",
-            shell=True,
-            check=True,
-        )
-        subprocess.run(f"echo {password} | sudo -S pkill -f chromedriver", shell=True, check=True)
-    except Exception:
-        pass
+    for debug_port in sorted(set(PLATFORM_PORTS.values())):
+        _kill_browser_session_for_port(debug_port)
 
 def stop_and_start_chromium_sessions(
             publish_xhs=False,
@@ -341,18 +451,18 @@ def stop_and_start_chromium_sessions(
             publish_youtube_music=False,
             publish_bandcamp_music=False,
             publish_y2b=False,
-            publish_instagram=False
+            publish_instagram=False,
+            force_browser_restart=False,
+            restart_platforms=None
         ):
         try:
-            force_restart = os.environ.get("AUTOPUBLISH_FORCE_BROWSER_RESTART", "").strip().lower() in {
-                "1",
-                "true",
-                "yes",
-                "y",
-            }
+            restart_platforms = set(restart_platforms or [])
+            env_force_restart = _parse_bool_arg(os.environ.get("AUTOPUBLISH_FORCE_BROWSER_RESTART"))
+            force_restart = bool(force_browser_restart or env_force_restart or "all" in restart_platforms)
             if force_restart:
-                print("Force restarting Chromium sessions because AUTOPUBLISH_FORCE_BROWSER_RESTART is set.")
-                _kill_browser_sessions()
+                print("Browser restart requested for selected publish targets.")
+            elif restart_platforms:
+                print(f"Browser restart requested for platforms: {sorted(restart_platforms)}")
             
             browser_bin = _resolve_browser_bin()
             display = _resolve_display()
@@ -448,23 +558,69 @@ def stop_and_start_chromium_sessions(
             #     time.sleep(3)
             
 
+            def _should_restart(*names):
+                normalized = {_normalize_platform_name(name) for name in names}
+                return force_restart or bool(normalized.intersection(restart_platforms))
+
             # Check each platform flag and run the corresponding start command if True
             if publish_xhs:
-                _start_browser_if_needed("xhs", 5003, start_commands["xhs"], "https://creator.xiaohongshu.com/publish/publish?source=official")
+                _start_browser_if_needed(
+                    "xhs",
+                    5003,
+                    start_commands["xhs"],
+                    "https://creator.xiaohongshu.com/publish/publish?source=official",
+                    force_restart=_should_restart("xhs", "xiaohongshu"),
+                )
             if publish_douyin:
-                _start_browser_if_needed("douyin", 5004, start_commands["douyin"], "https://creator.douyin.com/creator-micro/content/upload")
+                _start_browser_if_needed(
+                    "douyin",
+                    5004,
+                    start_commands["douyin"],
+                    "https://creator.douyin.com/creator-micro/content/upload",
+                    force_restart=_should_restart("douyin"),
+                )
             if publish_bilibili:
-                _start_browser_if_needed("bilibili", 5005, start_commands["bilibili"], "https://member.bilibili.com/platform/upload/video/frame")
+                _start_browser_if_needed(
+                    "bilibili",
+                    5005,
+                    start_commands["bilibili"],
+                    "https://member.bilibili.com/platform/upload/video/frame",
+                    force_restart=_should_restart("bilibili"),
+                )
             if publish_shipinhao or publish_shipinhao_music:
-                _start_browser_if_needed("shipinhao", 5006, start_commands["shipinhao"], "https://channels.weixin.qq.com/platform/post/create")
+                _start_browser_if_needed(
+                    "shipinhao",
+                    5006,
+                    start_commands["shipinhao"],
+                    "https://channels.weixin.qq.com/platform/post/create",
+                    force_restart=_should_restart("shipinhao", "shipinhao_music", "sph", "sph_music"),
+                )
             if publish_y2b or publish_youtube_music:
-                _start_browser_if_needed("y2b", 9222, start_commands["y2b"], "https://youtube.com/upload")
+                _start_browser_if_needed(
+                    "y2b",
+                    9222,
+                    start_commands["y2b"],
+                    "https://youtube.com/upload",
+                    force_restart=_should_restart("y2b", "youtube", "youtube_music"),
+                )
             if publish_bandcamp_music:
-                _start_browser_if_needed("bandcamp", 5008, start_commands["bandcamp"], "https://bandcamp.com")
+                _start_browser_if_needed(
+                    "bandcamp",
+                    5008,
+                    start_commands["bandcamp"],
+                    "https://bandcamp.com",
+                    force_restart=_should_restart("bandcamp", "bandcamp_music"),
+                )
             if publish_instagram:
-                _start_browser_if_needed("instagram", 5007, start_commands["instagram"], "https://www.instagram.com")
+                _start_browser_if_needed(
+                    "instagram",
+                    5007,
+                    start_commands["instagram"],
+                    "https://www.instagram.com",
+                    force_restart=_should_restart("instagram", "ins"),
+                )
 
-            time.sleep(10)
+            time.sleep(2)
 
         except subprocess.CalledProcessError as e:
             print(f"Failed to execute Chromium sessions management commands: {e}")
@@ -570,6 +726,8 @@ def _process_publish_job(job):
     publish_y2b = job.get("publish_y2b", False)
     publish_instagram = job.get("publish_instagram", False)
     test_mode = job.get("test_mode", False)
+    force_browser_restart = bool(job.get("force_browser_restart", False))
+    restart_platforms = set(job.get("restart_platforms") or [])
 
     if not any(
         [
@@ -588,7 +746,13 @@ def _process_publish_job(job):
         return
 
     try:
-        print("Preparing Chromium sessions before publishing...")
+        print(
+            "Preparing Chromium sessions before publishing: "
+            f"platforms={job.get('platforms', [])}, "
+            f"force_browser_restart={force_browser_restart}, "
+            f"restart_platforms={sorted(restart_platforms)}, "
+            f"test_mode={test_mode}"
+        )
         stop_and_start_chromium_sessions(
             publish_xhs=publish_xhs,
             publish_bilibili=publish_bilibili,
@@ -599,6 +763,8 @@ def _process_publish_job(job):
             publish_bandcamp_music=publish_bandcamp_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
+            force_browser_restart=force_browser_restart,
+            restart_platforms=restart_platforms,
         )
     except Exception as exc:
         print(f"Failed to restart Chromium sessions before publish: {exc}")
@@ -611,6 +777,7 @@ def _process_publish_job(job):
     if not os.path.exists(transcription_path):
         raise FileNotFoundError(f"Missing zip at {transcription_path}")
 
+    print(f"Loading publish package: zip={transcription_path} extract_dir={transcription_dir}")
     with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
         zip_ref.extractall(transcription_dir)
 
@@ -618,6 +785,7 @@ def _process_publish_job(job):
     if not os.path.exists(metadata_json_path):
         raise FileNotFoundError(f"Metadata JSON not found in {transcription_dir}")
 
+    print(f"Loading publish metadata: {metadata_json_path}")
     with open(metadata_json_path, 'r', encoding='utf-8') as json_file:
         metadata = json.load(json_file)
         metadata["title"] = clean_title(
@@ -660,6 +828,11 @@ def _process_publish_job(job):
     )
     path_music = os.path.join(transcription_dir, music_filename) if music_filename else None
     path_cover = os.path.join(transcription_dir, cover_filename) if cover_filename else None
+    print(
+        "Publish asset paths: "
+        f"video={path_mp4}, youtube_music_video={path_youtube_music_video}, "
+        f"music={path_music}, cover={path_cover}"
+    )
 
     if any([publish_xhs, publish_bilibili, publish_douyin, publish_shipinhao, publish_y2b, publish_instagram]):
         if not path_mp4 or not os.path.exists(path_mp4):
@@ -676,22 +849,25 @@ def _process_publish_job(job):
         if not path_bandcamp_music or not os.path.exists(path_bandcamp_music):
             raise FileNotFoundError(f"Bandcamp music file not found in package: {bandcamp_music_filename}")
 
+    def _driver_for(platform_name, debug_port):
+        return create_new_driver(port=debug_port, label=platform_name)
+
     publishers = []
     if publish_xhs:
-        pub_xhslisher = XiaoHongShuPublisher(create_new_driver(port=5003), path_mp4, path_cover, metadata_china, test_mode)
+        pub_xhslisher = XiaoHongShuPublisher(_driver_for("XiaoHongShu", 5003), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_xhslisher, 'XiaoHongShu'))
     if publish_douyin:
-        pub_douyinlisher = DouyinPublisher(create_new_driver(port=5004), path_mp4, path_cover, metadata_china, test_mode)
+        pub_douyinlisher = DouyinPublisher(_driver_for("Douyin", 5004), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_douyinlisher, 'Douyin'))
     if publish_bilibili:
-        pub_bilibililisher = BilibiliPublisher(create_new_driver(port=5005), path_mp4, path_cover, metadata_china, test_mode)
+        pub_bilibililisher = BilibiliPublisher(_driver_for("Bilibili", 5005), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_bilibililisher, 'Bilibili'))
     if publish_shipinhao:
-        pub_shipinhaolisher = ShiPinHaoPublisher(create_new_driver(port=5006), path_mp4, path_cover, metadata_china, test_mode)
+        pub_shipinhaolisher = ShiPinHaoPublisher(_driver_for("ShiPinHao", 5006), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
     if publish_shipinhao_music:
         pub_shipinhao_music = ShiPinHaoMusicPublisher(
-            create_new_driver(port=5006),
+            _driver_for("ShiPinHaoMusic", 5006),
             path_music,
             path_cover,
             metadata,
@@ -700,7 +876,7 @@ def _process_publish_job(job):
         publishers.append((pub_shipinhao_music, 'ShiPinHaoMusic'))
     if publish_youtube_music:
         pub_youtube_music = YouTubeMusicPublisher(
-            create_new_driver(port=9222),
+            _driver_for("YouTubeMusic", 9222),
             path_youtube_music_video,
             path_cover,
             metadata_en,
@@ -709,7 +885,7 @@ def _process_publish_job(job):
         publishers.append((pub_youtube_music, 'YouTubeMusic'))
     if publish_bandcamp_music:
         pub_bandcamp_music = BandcampMusicPublisher(
-            create_new_driver(port=5008),
+            _driver_for("BandcampMusic", 5008),
             path_bandcamp_music,
             path_cover,
             metadata_en,
@@ -717,10 +893,10 @@ def _process_publish_job(job):
         )
         publishers.append((pub_bandcamp_music, 'BandcampMusic'))
     if publish_instagram:
-        pub_instagramlisher = InstagramPublisher(create_new_driver(port=5007), path_mp4, path_cover, metadata, test_mode)
+        pub_instagramlisher = InstagramPublisher(_driver_for("Instagram", 5007), path_mp4, path_cover, metadata, test_mode)
         publishers.append((pub_instagramlisher, 'Instagram'))
     if publish_y2b:
-        pub_y2blisher = YouTubePublisher(create_new_driver(port=9222), path_mp4, path_cover, metadata_en, test_mode)
+        pub_y2blisher = YouTubePublisher(_driver_for("YouTube", 9222), path_mp4, path_cover, metadata_en, test_mode)
         publishers.append((pub_y2blisher, 'YouTube'))
 
     for publisher, name in publishers:
@@ -836,14 +1012,7 @@ class PublishHandler(tornado.web.RequestHandler):
         self.set_header("Content-Type", "application/json")
 
     def create_new_driver(self, port):
-        options = webdriver.ChromeOptions()
-        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{str(port)}")
-        browser_bin = _resolve_browser_bin()
-        if browser_bin and os.path.exists(browser_bin):
-            options.binary_location = browser_bin
-        service = Service(executable_path=self.chromedriver_path)
-        driver = webdriver.Chrome(service=service, options=options)
-        return driver
+        return create_new_driver(port=port, label=f"handler-port-{port}")
 
     def stop_and_start_chromium_sessions(self,
             publish_xhs=False,
@@ -854,7 +1023,9 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_youtube_music=False,
             publish_bandcamp_music=False,
             publish_y2b=False,
-            publish_instagram=False
+            publish_instagram=False,
+            force_browser_restart=False,
+            restart_platforms=None
         ):
 
         stop_and_start_chromium_sessions(
@@ -867,6 +1038,8 @@ class PublishHandler(tornado.web.RequestHandler):
             publish_bandcamp_music=publish_bandcamp_music,
             publish_y2b=publish_y2b,
             publish_instagram=publish_instagram,
+            force_browser_restart=force_browser_restart,
+            restart_platforms=restart_platforms,
         )
 
     def get(self):
@@ -897,6 +1070,10 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         publish_instagram = self.get_argument('publish_instagram', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
+        force_browser_restart = _parse_bool_arg(
+            self.get_argument('force_browser_restart', self.get_argument('force_restart', 'false'))
+        )
+        restart_platforms = _parse_restart_platforms(self.get_argument('restart_platforms', ''))
 
         # Define ignore files
         ignore_files = {
@@ -981,6 +1158,8 @@ class PublishHandler(tornado.web.RequestHandler):
             "publish_instagram": publish_instagram,
             "test_mode": test_mode,
             "platforms": platforms,
+            "force_browser_restart": force_browser_restart,
+            "restart_platforms": sorted(restart_platforms),
             "status": "queued",
             "created_at": _job_timestamp(),
             "updated_at": _job_timestamp(),
@@ -991,6 +1170,9 @@ class PublishHandler(tornado.web.RequestHandler):
             "job_id": job_id,
             "filename": filename,
             "queue_size": PUBLISH_QUEUE.qsize(),
+            "platforms": platforms,
+            "force_browser_restart": force_browser_restart,
+            "restart_platforms": sorted(restart_platforms),
         }))
 
 class PublishQueueHandler(tornado.web.RequestHandler):
