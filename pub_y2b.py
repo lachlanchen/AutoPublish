@@ -175,13 +175,27 @@ class YouTubePublisher:
                 if current_time - start_time > duration:
                     raise TimeoutException()
 
+                page_text = ""
+                try:
+                    page_text = self.driver.execute_script("return document.body ? document.body.innerText : '';") or ""
+                except Exception:
+                    page_text = ""
+
                 found = False
                 for expected_text in expected_texts:
                     span_xpath = "//span[contains(@class, 'progress-label') and contains(@class, 'style-scope') and contains(@class, 'ytcp-video-upload-progress') and contains(text(), '{}')]".format(expected_text)
-                    if self.driver.find_elements(By.XPATH, span_xpath):
+                    if self.driver.find_elements(By.XPATH, span_xpath) or expected_text in page_text:
                         print('The expected text "{}" is present in the span element.'.format(expected_text))
                         found = True
                         break
+                if not found and mode == "check" and (
+                    "No issues found" in page_text or "Checks complete" in page_text
+                ):
+                    print('YouTube checks appear complete in page text.')
+                    found = True
+                if not found and ("Video published" in page_text or "视频已发布" in page_text):
+                    print("YouTube publish dialog already visible while waiting for checks.")
+                    found = True
 
                 if found:
                     break
@@ -529,10 +543,10 @@ return true;
             return None
         if "Video published" not in text and "视频已发布" not in text:
             return None
-        match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/|watch\\?v=)([A-Za-z0-9_-]{6,})", text)
+        match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/|watch\?v=)([A-Za-z0-9_-]{6,})", text)
         if not match:
             return None
-        url_match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/[A-Za-z0-9_-]{6,}|watch\\?v=[A-Za-z0-9_-]{6,})(?:\\?feature=share)?", text)
+        url_match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/[A-Za-z0-9_-]{6,}|watch\?v=[A-Za-z0-9_-]{6,})(?:\?feature=share)?", text)
         return {
             "video_id": match.group(1),
             "url": url_match.group(0) if url_match else match.group(0),
