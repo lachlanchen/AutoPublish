@@ -1008,6 +1008,12 @@ def _shipinhao_music_genre(value):
         "bedroom pop": "流行",
         "indie pop": "流行",
         "pop": "流行",
+        "ballad": "流行",
+        "winter ballad": "流行",
+        "multilingual ballad": "流行",
+        "multilingual winter ballad": "流行",
+        "cinematic ballad": "流行",
+        "cinematic pop": "流行",
         "lofi": "流行",
         "lo fi": "流行",
         "lofi pop": "流行",
@@ -1362,6 +1368,7 @@ class ShiPinHaoMusicPublisher:
             required=True,
             duration=30,
         )
+        _select_music_option(self.driver, "作品类型", "原创", duration=8, required=True)
         _select_music_option(self.driver, "歌曲版本", "完整版", duration=8, required=True)
 
         try:
@@ -1399,7 +1406,7 @@ class ShiPinHaoMusicPublisher:
             duration=10,
         )
 
-        _select_music_option(self.driver, "歌曲曲风", _shipinhao_music_genre(genre), duration=8, required=True)
+        _select_music_option(self.driver, "歌曲曲风", _shipinhao_music_genre(genre), duration=8, required=False)
         _select_music_option(self.driver, "语言", language, duration=8)
         _set_music_field(
             self.driver,
