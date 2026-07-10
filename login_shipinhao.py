@@ -66,15 +66,50 @@ class ShiPinHaoLogin:
             self.driver.switch_to.default_content()
         except Exception:
             pass
+        iframe_selectors = [
+            "iframe.display",
+            "#wx-oauth-container iframe",
+            "iframe[src*='login-for-iframe']",
+            "iframe[src*='open.weixin.qq.com/connect/qrconnect']",
+            "iframe[src*='qrconnect']",
+        ]
+        for selector in iframe_selectors:
+            try:
+                for iframe in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    src = iframe.get_attribute("src") or ""
+                    if (
+                        "login-for-iframe" in src
+                        or "open.weixin.qq.com/connect/qrconnect" in src
+                        or "qrconnect" in src
+                        or selector == "#wx-oauth-container iframe"
+                    ):
+                        print(f"Login QR iframe detected with selector {selector}.")
+                        return True
+            except Exception:
+                continue
         try:
-            iframe = self.driver.find_element(By.CSS_SELECTOR, "iframe.display")
-            src = iframe.get_attribute("src") or ""
-            if "login-for-iframe" in src:
-                print("Login iframe detected.")
+            page_source = self.driver.page_source or ""
+            if self._page_source_has_login_qr(page_source):
+                print("Shipinhao login QR markers detected in page source.")
                 return True
         except Exception:
             return False
         return False
+
+    @staticmethod
+    def _page_source_has_login_qr(page_source):
+        markers = (
+            "login-for-iframe",
+            "open.weixin.qq.com/connect/qrconnect",
+            "wx-oauth-container",
+            "login-qrcode-wrap",
+            "qrcode-area",
+            "qrcode-tip",
+            "登录视频号助手",
+            "微信扫码登录",
+            "视频号助手",
+        )
+        return any(marker in (page_source or "") for marker in markers)
 
     def _looks_like_login_page(self):
         try:
@@ -85,30 +120,71 @@ class ShiPinHaoLogin:
             page_source = self.driver.page_source or ""
         except Exception:
             page_source = ""
-        markers = (
-            "login-for-iframe",
-            "登录视频号助手",
-            "微信扫码登录",
-            "视频号助手",
-        )
-        return any(marker in page_source for marker in markers)
+        if self._page_source_has_login_qr(page_source):
+            return True
+        try:
+            current_url = self.driver.current_url or ""
+            title = self.driver.title or ""
+        except Exception:
+            current_url = ""
+            title = ""
+        return "channels.weixin.qq.com/login" in current_url or "视频号助手" in title
 
     def _switch_to_login_iframe(self, timeout=20):
         try:
             self.driver.switch_to.default_content()
         except Exception:
             pass
-        try:
-            WebDriverWait(self.driver, timeout).until(
-                EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe.display"))
-            )
-            return True
-        except TimeoutException:
+        locators = [
+            (By.CSS_SELECTOR, "iframe.display"),
+            (By.CSS_SELECTOR, "#wx-oauth-container iframe"),
+            (By.CSS_SELECTOR, "iframe[src*='login-for-iframe']"),
+            (By.CSS_SELECTOR, "iframe[src*='open.weixin.qq.com/connect/qrconnect']"),
+            (By.CSS_SELECTOR, "iframe[src*='qrconnect']"),
+            (By.XPATH, "//iframe[contains(@src, 'login-for-iframe') or contains(@src, 'open.weixin.qq.com/connect/qrconnect') or contains(@src, 'qrconnect')]"),
+        ]
+        per_locator_timeout = max(1, timeout / max(len(locators), 1))
+        for by, selector in locators:
             try:
                 self.driver.switch_to.default_content()
             except Exception:
                 pass
-            return False
+            try:
+                WebDriverWait(self.driver, per_locator_timeout).until(
+                    EC.frame_to_be_available_and_switch_to_it((by, selector))
+                )
+                print(f"Switched to Shipinhao login iframe with selector: {selector}")
+                return True
+            except TimeoutException:
+                continue
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        return False
+
+    def _click_login_retry_if_visible(self):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        retry_selectors = [
+            ".mask.show .refresh-wrap",
+            ".mask .refresh-wrap",
+            ".refresh-wrap",
+        ]
+        for selector in retry_selectors:
+            try:
+                for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    text = element.text or ""
+                    if element.is_displayed() and ("加载失败" in text or "二维码已过期" in text or "重试" in text):
+                        print(f"Clicking Shipinhao login QR retry control: {text.strip()}")
+                        element.click()
+                        time.sleep(3)
+                        return True
+            except Exception:
+                continue
+        return False
 
     def is_publish_editor_ready(self):
         try:
@@ -256,10 +332,19 @@ class ShiPinHaoLogin:
         if self.is_login_iframe_present():
             log_html_snapshot(self.driver, "shipinhao", "login_required")
 
-        if self._switch_to_login_iframe(timeout=20):
+        self._click_login_retry_if_visible()
+
+        if self._looks_like_login_page():
+            print("Shipinhao login page is visible; sending full-page QR screenshot.")
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
+            self.take_screenshot_and_send_email()
+        elif self._switch_to_login_iframe(timeout=20):
             self.take_screenshot_and_send_email()
         elif self._looks_like_login_page():
-            print("Shipinhao login page is visible but iframe switch failed; sending full-page QR screenshot.")
+            print("Shipinhao login page is visible after iframe wait; sending full-page QR screenshot.")
             try:
                 self.driver.switch_to.default_content()
             except Exception:
@@ -349,11 +434,17 @@ class ShiPinHaoLogin:
     def needs_login(self):
         if self.is_publish_editor_ready():
             return False
-        self._switch_to_login_iframe(timeout=1)
-        elements = self.driver.find_elements(By.CSS_SELECTOR, ".tip span")
-        for element in elements:
-            if element.text == "微信扫码登录 视频号助手":
-                return True
+        if self._looks_like_login_page():
+            return True
+        if self._switch_to_login_iframe(timeout=1):
+            elements = self.driver.find_elements(By.CSS_SELECTOR, ".tip span")
+            for element in elements:
+                if element.text == "微信扫码登录 视频号助手":
+                    return True
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
 
         if self.find_lazying_art():
             return False

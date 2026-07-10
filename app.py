@@ -44,6 +44,37 @@ import threading
 import time
 import random
 
+
+def _same_existing_file(path: str, content: bytes) -> bool:
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return False
+    return stat.st_size == len(content)
+
+
+def _zip_members_current(zip_path: str, extract_dir: str) -> bool:
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            infos = [info for info in zip_ref.infolist() if not info.is_dir()]
+    except zipfile.BadZipFile:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        member_path = os.path.abspath(os.path.join(extract_dir, info.filename))
+        root = os.path.abspath(extract_dir)
+        if not member_path.startswith(root + os.sep):
+            return False
+        if not os.path.exists(member_path):
+            return False
+        try:
+            if os.path.getsize(member_path) != info.file_size:
+                return False
+        except OSError:
+            return False
+    return True
+
 # Add this import
 from load_env import load_env
 
@@ -778,8 +809,11 @@ def _process_publish_job(job):
         raise FileNotFoundError(f"Missing zip at {transcription_path}")
 
     print(f"Loading publish package: zip={transcription_path} extract_dir={transcription_dir}")
-    with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
-        zip_ref.extractall(transcription_dir)
+    if _zip_members_current(transcription_path, transcription_dir):
+        print("Publish package already extracted with current member sizes; skipping extraction.")
+    else:
+        with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
+            zip_ref.extractall(transcription_dir)
 
     metadata_json_path = os.path.join(transcription_dir, f"{Path(filename).stem}_metadata.json")
     if not os.path.exists(metadata_json_path):
@@ -1117,9 +1151,16 @@ class PublishHandler(tornado.web.RequestHandler):
         os.makedirs(transcription_dir, exist_ok=True)
         transcription_path = os.path.join(transcription_dir, filename)
 
-        # Write the received content to the file
-        with open(transcription_path, 'wb') as f:
-            f.write(self.request.body)
+        # Write the received content to the file. Retries often submit the same
+        # large package; avoid truncating and rewriting a multi-GB file when the
+        # remote copy is already current.
+        if _same_existing_file(transcription_path, self.request.body):
+            print(f"Reusing existing publish package without rewrite: {transcription_path}")
+        else:
+            tmp_path = f"{transcription_path}.tmp-{os.getpid()}-{int(time.time())}"
+            with open(tmp_path, 'wb') as f:
+                f.write(self.request.body)
+            os.replace(tmp_path, transcription_path)
 
         platforms = []
         if publish_xhs:
