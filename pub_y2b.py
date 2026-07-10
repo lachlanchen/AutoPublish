@@ -196,6 +196,9 @@ class YouTubePublisher:
                 if not found and ("Video published" in page_text or "视频已发布" in page_text):
                     print("YouTube publish dialog already visible while waiting for checks.")
                     found = True
+                if not found and mode == "check" and self._next_button_ready_after_upload(page_text):
+                    print("YouTube check wait continuing because the Next button is ready after upload completion.")
+                    found = True
 
                 if found:
                     break
@@ -205,6 +208,35 @@ class YouTubePublisher:
                     time.sleep(interval)  # Wait for a while before checking again
         except TimeoutException:
             raise ProcessingTimeoutException()
+
+    def _next_button_ready_after_upload(self, page_text):
+        upload_done = (
+            "Upload complete" in page_text
+            or "Video link" in page_text
+            or "视频链接" in page_text
+        )
+        if not upload_done:
+            return False
+        lower_text = page_text.lower()
+        active_upload_markers = [
+            "uploading ",
+            "processing ",
+            "checking ",
+            "上传中",
+            "处理中",
+            "检查中",
+        ]
+        if any(marker in lower_text for marker in active_upload_markers):
+            return False
+        buttons = self.driver.find_elements(By.ID, "next-button")
+        for button in buttons:
+            try:
+                disabled = button.get_attribute("disabled") or button.get_attribute("aria-disabled")
+                if button.is_displayed() and button.is_enabled() and str(disabled).lower() not in {"true", "disabled"}:
+                    return True
+            except Exception:
+                continue
+        return False
 
     def create_video_title_with_limited_tags(self, metadata):
         """
