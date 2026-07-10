@@ -749,10 +749,14 @@ def wait_for_post_upload_editor_ready(driver, duration=120, stable_seconds=8):
     deadline = time.time() + duration
     stable_since = None
     last_state = None
+    last_log_time = 0
 
     while time.time() < deadline:
         state = read_post_upload_state(driver)
         last_state = state
+        if time.time() - last_log_time >= 30:
+            print(f"Shipinhao post-upload wait state: {state}")
+            last_log_time = time.time()
         if state.get("ready"):
             if stable_since is None:
                 stable_since = time.time()
@@ -1363,7 +1367,12 @@ class ShiPinHaoPublisher:
                     time.sleep(5)
 
                 print("Video uploaded or completion indicator detected!")
-                post_upload_state = wait_for_post_upload_editor_ready(driver, duration=180, stable_seconds=8)
+                post_upload_timeout = int(os.environ.get("AUTOPUB_SHIPINHAO_POST_UPLOAD_TIMEOUT", "3600"))
+                post_upload_state = wait_for_post_upload_editor_ready(
+                    driver,
+                    duration=post_upload_timeout,
+                    stable_seconds=8,
+                )
                 print(f"Shipinhao post-upload editor is stable: {post_upload_state}")
 
                 print("Skipping cover upload for ShiPinHao; current UI no longer requires it.")
