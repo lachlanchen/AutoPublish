@@ -1104,6 +1104,7 @@ class PublishHandler(tornado.web.RequestHandler):
         publish_y2b = self.get_argument('publish_y2b', 'false').lower() == 'true'
         publish_instagram = self.get_argument('publish_instagram', 'false').lower() == 'true'
         test_mode = self.get_argument('test', 'false').lower() == 'true'
+        reuse_existing = _parse_bool_arg(self.get_argument('reuse_existing', 'false'))
         force_browser_restart = _parse_bool_arg(
             self.get_argument('force_browser_restart', self.get_argument('force_restart', 'false'))
         )
@@ -1154,7 +1155,16 @@ class PublishHandler(tornado.web.RequestHandler):
         # Write the received content to the file. Retries often submit the same
         # large package; avoid truncating and rewriting a multi-GB file when the
         # remote copy is already current.
-        if _same_existing_file(transcription_path, self.request.body):
+        if reuse_existing:
+            if not os.path.exists(transcription_path):
+                self.set_status(400)
+                self.write(json.dumps({
+                    "status": "error",
+                    "error": f"reuse_existing requested but package does not exist: {transcription_path}",
+                }))
+                return
+            print(f"Reusing existing publish package by request: {transcription_path}")
+        elif _same_existing_file(transcription_path, self.request.body):
             print(f"Reusing existing publish package without rewrite: {transcription_path}")
         else:
             tmp_path = f"{transcription_path}.tmp-{os.getpid()}-{int(time.time())}"
@@ -1198,6 +1208,7 @@ class PublishHandler(tornado.web.RequestHandler):
             "publish_y2b": publish_y2b,
             "publish_instagram": publish_instagram,
             "test_mode": test_mode,
+            "reuse_existing": reuse_existing,
             "platforms": platforms,
             "force_browser_restart": force_browser_restart,
             "restart_platforms": sorted(restart_platforms),
