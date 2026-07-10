@@ -107,7 +107,6 @@ class ShiPinHaoLogin:
             "qrcode-tip",
             "登录视频号助手",
             "微信扫码登录",
-            "视频号助手",
         )
         return any(marker in (page_source or "") for marker in markers)
 
@@ -128,7 +127,7 @@ class ShiPinHaoLogin:
         except Exception:
             current_url = ""
             title = ""
-        return "channels.weixin.qq.com/login" in current_url or "视频号助手" in title
+        return "channels.weixin.qq.com/login" in current_url
 
     def _switch_to_login_iframe(self, timeout=20):
         try:
@@ -434,6 +433,8 @@ class ShiPinHaoLogin:
     def needs_login(self):
         if self.is_publish_editor_ready():
             return False
+        if self.find_lazying_art():
+            return False
         if self._looks_like_login_page():
             return True
         if self._switch_to_login_iframe(timeout=1):
@@ -445,11 +446,7 @@ class ShiPinHaoLogin:
                 self.driver.switch_to.default_content()
             except Exception:
                 pass
-
-        if self.find_lazying_art():
-            return False
-        else:
-            return True
+        return True
 
     def take_screenshot_and_send_email(self):
         screenshot_path = '/tmp/shipinhao-screenshot.png'
