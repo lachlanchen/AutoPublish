@@ -76,6 +76,23 @@ class ShiPinHaoLogin:
             return False
         return False
 
+    def _looks_like_login_page(self):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        try:
+            page_source = self.driver.page_source or ""
+        except Exception:
+            page_source = ""
+        markers = (
+            "login-for-iframe",
+            "登录视频号助手",
+            "微信扫码登录",
+            "视频号助手",
+        )
+        return any(marker in page_source for marker in markers)
+
     def _switch_to_login_iframe(self, timeout=20):
         try:
             self.driver.switch_to.default_content()
@@ -240,6 +257,13 @@ class ShiPinHaoLogin:
             log_html_snapshot(self.driver, "shipinhao", "login_required")
 
         if self._switch_to_login_iframe(timeout=20):
+            self.take_screenshot_and_send_email()
+        elif self._looks_like_login_page():
+            print("Shipinhao login page is visible but iframe switch failed; sending full-page QR screenshot.")
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
             self.take_screenshot_and_send_email()
         elif self.is_publish_editor_ready() or self.find_lazying_art():
             print("Logged in while waiting for login iframe.")
