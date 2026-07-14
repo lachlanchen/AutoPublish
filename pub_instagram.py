@@ -378,11 +378,43 @@ class InstagramPublisher:
         print("Failed to set crop to Original (timeout).")
         return False
 
+    def _wait_for_crop_original(self, timeout=None):
+        """Wait for Instagram's crop controls and require the Original option.
+
+        ``send_keys`` returns before large videos have finished loading into the
+        editor.  Advancing while the crop control is still unavailable makes
+        Instagram apply its default crop.  Keep the dialog on the crop stage
+        until Original can actually be selected.
+        """
+        if timeout is None:
+            try:
+                timeout = int(os.getenv("AUTOPUB_INSTAGRAM_CROP_TIMEOUT", "900"))
+            except (TypeError, ValueError):
+                timeout = 900
+        timeout = max(30, timeout)
+        deadline = time.time() + timeout
+        attempt = 0
+        while time.time() < deadline:
+            attempt += 1
+            remaining = max(1, int(deadline - time.time()))
+            if self._set_crop_original(timeout=min(25, remaining)):
+                print(f"Instagram Original crop confirmed on attempt {attempt}.")
+                return True
+            if self._caption_present():
+                print("Instagram advanced past the crop stage before Original was selected.")
+                return False
+            print(
+                "Instagram crop controls are not ready yet; "
+                f"waiting with {remaining}s remaining."
+            )
+            time.sleep(min(5, remaining))
+        print("Instagram Original crop was not available before the timeout.")
+        return False
+
     def _click_next_until_caption(self, max_clicks=2):
         driver = self.driver
         for idx in range(max_clicks):
             self._dismiss_reels_dialog(timeout=4)
-            self._set_crop_original(timeout=8)
             if self._caption_present():
                 print("Caption screen detected.")
                 return
@@ -393,6 +425,70 @@ class InstagramPublisher:
                 print(f"Clicking Next (button) ({idx + 1}/{max_clicks})...")
                 self._click_xpath("//button[normalize-space()='Next']", timeout=20)
             time.sleep(2)
+        if not self._caption_present():
+            raise TimeoutException("Instagram caption screen was not reached")
+
+    def _publish_verification_terms(self):
+        terms = []
+        for meta in (self.metadata.get("english_version"), self.metadata):
+            if not isinstance(meta, dict):
+                continue
+            for key in ("title", "brief_description"):
+                value = str(meta.get(key) or "").strip()
+                if len(value) >= 6 and value not in terms:
+                    terms.append(value)
+        return terms
+
+    def _verify_latest_profile_post(self, timeout=60):
+        """Verify an uncertain Share result against the newest profile post."""
+        driver = self.driver
+        profile_xpaths = [
+            "//a[@href and .//span[normalize-space()='Profile']]",
+            "//a[@href and .//*[name()='svg' and @aria-label='Profile']]",
+        ]
+        profile_url = None
+        for xpath in profile_xpaths:
+            for element in driver.find_elements(By.XPATH, xpath):
+                href = element.get_attribute("href")
+                if href:
+                    profile_url = href
+                    break
+            if profile_url:
+                break
+        if not profile_url:
+            print("Instagram profile URL was not available for fallback verification.")
+            return False
+
+        try:
+            driver.get(profile_url)
+            WebDriverWait(driver, timeout).until(
+                lambda d: d.find_elements(
+                    By.XPATH,
+                    "//main//a[contains(@href, '/reel/') or contains(@href, '/p/')]",
+                )
+            )
+            latest = driver.find_elements(
+                By.XPATH,
+                "//main//a[contains(@href, '/reel/') or contains(@href, '/p/')]",
+            )[0]
+            latest_url = latest.get_attribute("href")
+            if latest_url:
+                driver.get(latest_url)
+            WebDriverWait(driver, timeout).until(
+                lambda d: d.find_elements(By.TAG_NAME, "body")
+            )
+            body_text = driver.find_element(By.TAG_NAME, "body").text
+            normalized_body = "".join(body_text.split())
+            for term in self._publish_verification_terms():
+                if term in body_text or "".join(term.split()) in normalized_body:
+                    print(f"Instagram profile verification matched: {term!r}")
+                    return True
+        except Exception as exc:
+            print(f"Instagram profile verification failed: {exc}")
+            return False
+
+        print("Instagram newest profile post did not match this publish package.")
+        return False
 
     def _click_share_button(self):
         dialog = self._get_create_dialog()
@@ -441,7 +537,9 @@ class InstagramPublisher:
 
     def publish(self):
         if self.retry_count >= 3:
-            return
+            return False
+
+        share_clicked = False
 
         try:
             driver = self.driver
@@ -486,8 +584,13 @@ class InstagramPublisher:
             self._upload_video()
 
             self._dismiss_reels_dialog(timeout=10)
-            crop_set = self._set_crop_original(timeout=25)
+            crop_set = self._wait_for_crop_original()
             print(f"Crop set to Original: {crop_set}")
+            if not crop_set:
+                raise RuntimeError(
+                    "Instagram Original crop could not be confirmed; "
+                    "refusing to publish a cropped video"
+                )
 
             self._click_next_until_caption(max_clicks=2)
 
@@ -511,19 +614,26 @@ class InstagramPublisher:
 
             print("Clicking Share...")
             self._click_share_button()
+            share_clicked = True
 
             print("Waiting for publish confirmation...")
             if self._wait_for_publish_complete():
                 print("Instagram publish confirmed.")
-            else:
-                print("Instagram publish not confirmed (confirmation timed out).")
+                return True
+            print("Instagram publish confirmation timed out; checking the profile.")
+            if self._verify_latest_profile_post():
+                print("Instagram publish confirmed from the latest profile post.")
+                return True
+            print("Instagram publish could not be confirmed.")
+            return False
         except Exception as exc:
             self.retry_count += 1
             print(f"Instagram publish failed: {exc}")
             traceback.print_exc()
-            if self.retry_count < 3:
+            if self.retry_count < 3 and not share_clicked:
                 time.sleep(10)
-                self.publish()
+                return self.publish()
+            return False
 
 
 if __name__ == "__main__":
