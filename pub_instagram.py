@@ -597,18 +597,28 @@ class InstagramPublisher:
             caption = self._build_caption()
             if caption:
                 print(f"Adding caption ({len(caption)} chars)...")
-                try:
-                    caption_box = WebDriverWait(driver, 30).until(
-                        EC.presence_of_element_located((By.XPATH, "//div[@aria-label='Write a caption...']"))
+                def visible_caption_box(current_driver):
+                    selectors = (
+                        "div[role='dialog'] div[role='textbox'][contenteditable='true']"
+                        "[aria-label='Write a caption...']",
+                        "div[role='textbox'][contenteditable='true']"
+                        "[aria-label='Write a caption...']",
+                        "textarea[aria-label='Write a caption...']",
                     )
-                    caption_box.click()
-                    caption_box.send_keys(caption)
-                except Exception:
-                    caption_box = WebDriverWait(driver, 30).until(
-                        EC.presence_of_element_located((By.XPATH, "//textarea[@aria-label='Write a caption...']"))
-                    )
-                    caption_box.click()
-                    caption_box.send_keys(caption)
+                    for selector in selectors:
+                        for element in current_driver.find_elements(By.CSS_SELECTOR, selector):
+                            if element.is_displayed() and element.is_enabled():
+                                return element
+                    return False
+
+                caption_box = WebDriverWait(driver, 30).until(visible_caption_box)
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'});"
+                    "arguments[0].focus();"
+                    "arguments[0].click();",
+                    caption_box,
+                )
+                caption_box.send_keys(caption)
             else:
                 print("No caption found in metadata.")
 
