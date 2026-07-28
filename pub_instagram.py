@@ -544,6 +544,10 @@ class InstagramPublisher:
         try:
             driver = self.driver
             print("Starting the publishing process on Instagram...")
+            try:
+                driver.set_window_size(1920, 1080)
+            except Exception as exc:
+                print(f"Could not normalize Instagram browser viewport: {exc}")
             driver.get("https://www.instagram.com/")
             time.sleep(2)
             dismiss_alert(driver)
@@ -605,20 +609,65 @@ class InstagramPublisher:
                         "[aria-label='Write a caption...']",
                         "textarea[aria-label='Write a caption...']",
                     )
+                    fallback = None
                     for selector in selectors:
                         for element in current_driver.find_elements(By.CSS_SELECTOR, selector):
                             if element.is_displayed() and element.is_enabled():
                                 return element
-                    return False
+                            rect = element.rect
+                            if (
+                                fallback is None
+                                and element.is_enabled()
+                                and rect.get("width", 0) > 0
+                                and rect.get("height", 0) > 0
+                            ):
+                                fallback = element
+                    return fallback or False
 
                 caption_box = WebDriverWait(driver, 30).until(visible_caption_box)
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center'});"
-                    "arguments[0].focus();"
-                    "arguments[0].click();",
-                    caption_box,
-                )
-                caption_box.send_keys(caption)
+                if caption_box.is_displayed():
+                    driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center'});"
+                        "arguments[0].focus();"
+                        "arguments[0].click();",
+                        caption_box,
+                    )
+                    caption_box.send_keys(caption)
+                else:
+                    inserted = driver.execute_script(
+                        """
+                        const el = arguments[0];
+                        const text = arguments[1];
+                        el.focus();
+                        if (el.tagName === 'TEXTAREA') {
+                            const setter = Object.getOwnPropertyDescriptor(
+                                HTMLTextAreaElement.prototype, 'value'
+                            ).set;
+                            setter.call(el, text);
+                            el.dispatchEvent(new Event('input', {bubbles: true}));
+                            el.dispatchEvent(new Event('change', {bubbles: true}));
+                            return el.value === text;
+                        }
+                        const selection = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        const ok = document.execCommand('insertText', false, text);
+                        el.dispatchEvent(new InputEvent('input', {
+                            bubbles: true,
+                            inputType: 'insertText',
+                            data: text
+                        }));
+                        return ok || el.textContent.includes(text.slice(0, 20));
+                        """,
+                        caption_box,
+                        caption,
+                    )
+                    if not inserted:
+                        raise RuntimeError(
+                            "Instagram caption field was clipped and DOM input failed"
+                        )
             else:
                 print("No caption found in metadata.")
 
