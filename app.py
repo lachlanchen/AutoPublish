@@ -26,6 +26,7 @@ from pub_bandcamp_music import BandcampMusicPublisher
 from pub_shipinhao import ShiPinHaoPublisher
 from pub_shipinhao_music import ShiPinHaoMusicPublisher
 from pub_instagram import InstagramPublisher
+from publish_attention import PublishAttentionRegistry
 from login_xiaohongshu import XiaoHongShuLogin
 from login_douyin import DouyinLogin
 from login_bilibili import BilibiliLogin
@@ -95,6 +96,7 @@ PUBLISH_JOB_ORDER: list[str] = []
 PUBLISH_LOCK = threading.Lock()
 PUBLISH_COUNTER = itertools.count(1)
 PUBLISH_MAX_HISTORY = 50
+PUBLISH_ATTENTION = PublishAttentionRegistry()
 # Argument parsing for configurable refresh time and port
 parser = argparse.ArgumentParser(description="Auto-publish application with browser refresh feature.")
 parser.add_argument('--refresh-time', type=int, default=1800, help="Time in seconds between each browser refresh.")
@@ -320,7 +322,7 @@ def _new_job_id():
     return f"job-{int(time.time() * 1000)}-{next(PUBLISH_COUNTER)}"
 
 def _serialize_job(job):
-    return {
+    payload = {
         "id": job.get("id"),
         "filename": job.get("filename"),
         "status": job.get("status"),
@@ -331,6 +333,10 @@ def _serialize_job(job):
         "restart_platforms": job.get("restart_platforms", []),
         "error": job.get("error"),
     }
+    attention = PUBLISH_ATTENTION.public(str(job.get("id") or ""))
+    if attention:
+        payload["attention"] = attention
+    return payload
 
 def _enqueue_publish_job(job):
     with PUBLISH_LOCK:
@@ -352,7 +358,36 @@ def _update_job_status(job_id, status, error=None):
         job["updated_at"] = _job_timestamp()
         if error:
             job["error"] = error
-        return job
+    if status in {"done", "failed"}:
+        PUBLISH_ATTENTION.resolve(str(job_id))
+    return job
+
+
+def _job_attention_callback(job_id):
+    def callback(
+        *,
+        status,
+        platform,
+        kind,
+        artifact_path=None,
+        message="",
+    ):
+        if status == "required":
+            PUBLISH_ATTENTION.require(
+                str(job_id),
+                platform=platform,
+                kind=kind,
+                artifact_path=artifact_path,
+                message=message,
+            )
+        elif status == "resolved":
+            PUBLISH_ATTENTION.resolve(
+                str(job_id),
+                platform=platform,
+                kind=kind,
+            )
+
+    return callback
 
 def _get_queue_snapshot():
     with PUBLISH_LOCK:
@@ -897,7 +932,14 @@ def _process_publish_job(job):
         pub_bilibililisher = BilibiliPublisher(_driver_for("Bilibili", 5005), path_mp4, path_cover, metadata_china, test_mode)
         publishers.append((pub_bilibililisher, 'Bilibili'))
     if publish_shipinhao:
-        pub_shipinhaolisher = ShiPinHaoPublisher(_driver_for("ShiPinHao", 5006), path_mp4, path_cover, metadata_china, test_mode)
+        pub_shipinhaolisher = ShiPinHaoPublisher(
+            _driver_for("ShiPinHao", 5006),
+            path_mp4,
+            path_cover,
+            metadata_china,
+            test_mode,
+            attention_callback=_job_attention_callback(job["id"]),
+        )
         publishers.append((pub_shipinhaolisher, 'ShiPinHao'))
     if publish_shipinhao_music:
         pub_shipinhao_music = ShiPinHaoMusicPublisher(
@@ -1240,12 +1282,27 @@ class PublishQueueHandler(tornado.web.RequestHandler):
         }
         self.write(json.dumps(payload))
 
+
+class PublishAttentionHandler(tornado.web.RequestHandler):
+    def get(self, job_id, revision):
+        artifact = PUBLISH_ATTENTION.artifact(job_id, int(revision))
+        if not artifact:
+            self.set_status(404)
+            self.write({"status": "not_found"})
+            return
+        path, media_type = artifact
+        self.set_header("Content-Type", media_type)
+        self.set_header("Cache-Control", "no-store")
+        self.write(path.read_bytes())
+
+
 def make_app():
     # transcription_path = "/home/lachlan/Projects/auto-publish/transcription_data"
     # chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
     return tornado.web.Application([
         (r"/publish", PublishHandler, dict(transcription_root=transcription_root, chromedriver_path=chromedriver_path)),
         (r"/publish/queue", PublishQueueHandler),
+        (r"/publish/jobs/([^/]+)/attention/(\d+)", PublishAttentionHandler),
     ])
 
 if __name__ == "__main__":

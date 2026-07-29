@@ -14,7 +14,7 @@ import os
 import base64
 import traceback
 
-from utils import SendMail
+from utils import QRCodeProcessor, SendMail
 from utils import dismiss_alert, bring_to_front, log_html_snapshot
 
 # class SendMail:
@@ -48,11 +48,26 @@ from utils import dismiss_alert, bring_to_front, log_html_snapshot
 #         print(f"Email sent, status code: {response.status_code}")
 
 class ShiPinHaoLogin:
-    def __init__(self, driver=None, port="5003"):
+    def __init__(self, driver=None, port="5003", attention_callback=None):
         print("Initializing ShiPinHaoLogin class...")
         self.mailer = SendMail()  # Using default parameters
         self.port = port
         self.driver = driver if driver else self.create_new_driver()
+        self.attention_callback = attention_callback
+
+    def _notify_attention(self, status, artifact_path=None):
+        if not self.attention_callback:
+            return
+        try:
+            self.attention_callback(
+                status=status,
+                platform="shipinhao",
+                kind="login_qr",
+                artifact_path=artifact_path,
+                message="Shipinhao login is required. Scan the current QR code.",
+            )
+        except Exception as exc:
+            print(f"Could not update publish attention state: {exc}")
 
     def create_new_driver(self):
         print("Creating new WebDriver instance...")
@@ -374,6 +389,7 @@ class ShiPinHaoLogin:
                 time.sleep(5)
                 if self.is_publish_editor_ready() or self.find_lazying_art():
                     print("Logged in successfully after QR refresh.")
+                    self._notify_attention("resolved")
                     break
                 if self._switch_to_login_iframe(timeout=20):
                     self.take_screenshot_and_send_email()
@@ -394,6 +410,7 @@ class ShiPinHaoLogin:
                 time.sleep(5)  # Check again in 5 seconds
             else:
                 print("Logged in successfully, stopping checks.")
+                self._notify_attention("resolved")
                 break  # Break the loop if logged in
 
         if not (self.is_publish_editor_ready() or self.find_lazying_art()):
@@ -451,6 +468,11 @@ class ShiPinHaoLogin:
     def take_screenshot_and_send_email(self):
         screenshot_path = '/tmp/shipinhao-screenshot.png'
         self.driver.save_screenshot(screenshot_path)
+        try:
+            qr_path = QRCodeProcessor.build_watch_friendly_png(screenshot_path)
+            self._notify_attention("required", qr_path)
+        except Exception as exc:
+            print(f"Could not prepare job-scoped Shipinhao QR artifact: {exc}")
         try:
             sent = self.mailer.send_email(
                 'Shipinhao Login Required',

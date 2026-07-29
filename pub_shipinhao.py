@@ -1144,7 +1144,15 @@ def wait_for_publish_page_ready(driver, duration=45):
         raise
 
 class ShiPinHaoPublisher:
-    def __init__(self, driver, video_path, thumbnail_path, metadata, test=False):
+    def __init__(
+        self,
+        driver,
+        video_path,
+        thumbnail_path,
+        metadata,
+        test=False,
+        attention_callback=None,
+    ):
         self.driver = driver
         self.video_path = video_path
         self.thumbnail_path = thumbnail_path
@@ -1152,7 +1160,10 @@ class ShiPinHaoPublisher:
         self.test = test
         self.retry_count = 0  # initialize retry count
 
-        shi_pin_hao_login = ShiPinHaoLogin(driver)
+        shi_pin_hao_login = ShiPinHaoLogin(
+            driver,
+            attention_callback=attention_callback,
+        )
         shi_pin_hao_login.check_and_act()
 
 
