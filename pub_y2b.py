@@ -355,14 +355,67 @@ return true;
             time.sleep(0.5)
         return False
 
-    def _select_playlist_option(self, playlist_name):
-        wait = WebDriverWait(self.driver, 5)
-        option_xpath = (
-            "//span[contains(@class, 'style-scope') and normalize-space()="
-            f"{json.dumps(playlist_name)}]"
+    def _visible_dialog(self, *, aria_label=None, text_contains=None):
+        """Return a visible YouTube Studio dialog matching the requested scope."""
+        for dialog in self.driver.find_elements(By.CSS_SELECTOR, "tp-yt-paper-dialog"):
+            try:
+                if not dialog.is_displayed():
+                    continue
+                if aria_label and dialog.get_attribute("aria-label") != aria_label:
+                    continue
+                if text_contains and text_contains not in (dialog.text or ""):
+                    continue
+                return dialog
+            except Exception:
+                continue
+        return None
+
+    def _wait_for_dialog(self, *, aria_label=None, text_contains=None, timeout=10):
+        return WebDriverWait(self.driver, timeout).until(
+            lambda _driver: self._visible_dialog(
+                aria_label=aria_label,
+                text_contains=text_contains,
+            )
         )
-        playlist_option = wait.until(EC.visibility_of_element_located((By.XPATH, option_xpath)))
-        playlist_option.click()
+
+    def _select_playlist_option(self, playlist_name, dialog=None):
+        dialog = dialog or self._wait_for_dialog(aria_label="Choose playlists", timeout=5)
+        selected = self.driver.execute_script(
+            r"""
+const dialog = arguments[0];
+const expected = String(arguments[1]).replace(/\s+/g, ' ').trim();
+const labels = Array.from(dialog.querySelectorAll('[id^="checkbox-label-"]'));
+const label = labels.find((el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() === expected);
+if (!label) return false;
+const rowId = label.id.replace('checkbox-label-', 'checkbox-');
+const row = dialog.querySelector('#' + CSS.escape(rowId));
+if (!row) return false;
+const checkbox = row.querySelector('[role="checkbox"]') || row;
+if (checkbox.getAttribute('aria-checked') !== 'true') checkbox.click();
+return true;
+""",
+            dialog,
+            playlist_name,
+        )
+        if not selected:
+            raise RuntimeError(f"Playlist '{playlist_name}' is not present in the open playlist dialog")
+        WebDriverWait(self.driver, 5).until(
+            lambda _driver: self.driver.execute_script(
+                r"""
+const dialog = arguments[0];
+const expected = String(arguments[1]).replace(/\s+/g, ' ').trim();
+const label = Array.from(dialog.querySelectorAll('[id^="checkbox-label-"]')).find(
+  (el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim() === expected
+);
+if (!label) return false;
+const row = dialog.querySelector('#' + CSS.escape(label.id.replace('checkbox-label-', 'checkbox-')));
+const checkbox = row && row.querySelector('[role="checkbox"]');
+return Boolean(checkbox && checkbox.getAttribute('aria-checked') === 'true');
+""",
+                dialog,
+                playlist_name,
+            )
+        )
         print(f'Selected playlist: {playlist_name}')
         return True
 
@@ -386,58 +439,99 @@ return backdrops.length;
 
     def _click_playlist_dropdown(self):
         dropdown_trigger = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "ytcp-text-dropdown-trigger.dropdown"))
+            EC.presence_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    'ytcp-video-metadata-playlists ytcp-dropdown-trigger[aria-label="Select playlists"]',
+                )
+            )
         )
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", dropdown_trigger)
+        time.sleep(0.5)
         try:
             dropdown_trigger.click()
         except Exception:
             self._dismiss_transient_overlays()
             self.driver.execute_script("arguments[0].click();", dropdown_trigger)
-        print('Clicked on playlist dropdown')
-        return dropdown_trigger
+        dialog = self._wait_for_dialog(aria_label="Choose playlists", timeout=8)
+        print('Opened playlist dialog')
+        return dialog
 
-    def _create_playlist_from_dropdown(self, playlist_name):
-        if not self._click_visible_text(["New playlist", "新建播放列表", "创建播放列表", "Create playlist"], timeout=8):
-            raise RuntimeError(f"Playlist '{playlist_name}' not found and create control was not available")
-        time.sleep(1)
-        filled = self.driver.execute_script(
-            r"""
-const value = arguments[0];
-function visible(el) {
-  const rect = el.getBoundingClientRect();
-  const style = window.getComputedStyle(el);
-  return rect.width > 1 && rect.height > 1 && style.display !== 'none' && style.visibility !== 'hidden';
-}
-const fields = Array.from(document.querySelectorAll('input, textarea, [contenteditable="true"]')).filter(visible);
-const field = fields.find((el) => {
-  const label = [
-    el.getAttribute('aria-label'),
-    el.getAttribute('placeholder'),
-    el.getAttribute('label'),
-    el.id,
-  ].filter(Boolean).join(' ').toLowerCase();
-  return /title|name|playlist|标题|名称|播放列表/.test(label);
-}) || fields[0];
-if (!field) return false;
-field.focus();
-if (field.isContentEditable) {
-  field.textContent = value;
-} else {
-  field.value = value;
-}
-field.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: value}));
-field.dispatchEvent(new Event('change', {bubbles: true}));
-return true;
-""",
-            playlist_name,
+    def _create_playlist_from_dropdown(self, playlist_name, choose_dialog):
+        new_playlist_button = next(
+            (
+                button
+                for button in choose_dialog.find_elements(
+                    By.CSS_SELECTOR,
+                    'button[aria-label="New playlist"], button[aria-label="新建播放列表"]',
+                )
+                if button.is_displayed() and button.is_enabled()
+            ),
+            None,
         )
-        if not filled:
-            raise RuntimeError(f"Could not fill new playlist name '{playlist_name}'")
-        if not self._click_visible_text(["Create", "创建", "建立"], timeout=8):
-            raise RuntimeError(f"Could not create playlist '{playlist_name}'")
+        if new_playlist_button is None:
+            raise RuntimeError(f"Playlist '{playlist_name}' not found and New playlist is unavailable")
+        new_playlist_button.click()
+
+        menu = WebDriverWait(self.driver, 8).until(
+            lambda _driver: next(
+                (
+                    dialog
+                    for dialog in self.driver.find_elements(By.CSS_SELECTOR, "tp-yt-paper-dialog")
+                    if dialog.is_displayed()
+                    and dialog.get_attribute("aria-label") != "Choose playlists"
+                    and "New podcast" in (dialog.text or "")
+                ),
+                None,
+            )
+        )
+        menu_item = next(
+            (
+                item
+                for item in menu.find_elements(By.CSS_SELECTOR, 'tp-yt-paper-item[role="menuitem"]')
+                if (item.text or "").strip() in {"New playlist", "新建播放列表"}
+                and item.is_displayed()
+            ),
+            None,
+        )
+        if menu_item is None:
+            raise RuntimeError("YouTube playlist type menu opened without a New playlist item")
+        menu_item.click()
+
+        creation_dialog = self._wait_for_dialog(text_contains="Create a new playlist", timeout=8)
+        title_field = next(
+            (
+                field
+                for field in creation_dialog.find_elements(
+                    By.CSS_SELECTOR,
+                    '[contenteditable="true"][aria-label="Add title"], [contenteditable="true"][aria-label="添加标题"]',
+                )
+                if field.is_displayed()
+            ),
+            None,
+        )
+        if title_field is None:
+            raise RuntimeError("YouTube playlist creation dialog has no scoped title field")
+        title_field.click()
+        title_field.send_keys(playlist_name)
+
+        create_button = WebDriverWait(self.driver, 8).until(
+            lambda _driver: next(
+                (
+                    button
+                    for button in creation_dialog.find_elements(
+                        By.CSS_SELECTOR,
+                        'button[aria-label="Create"], button[aria-label="创建"]',
+                    )
+                    if button.is_displayed() and button.is_enabled()
+                ),
+                None,
+            )
+        )
+        create_button.click()
+        WebDriverWait(self.driver, 10).until(lambda _driver: not creation_dialog.is_displayed())
         print(f"Created playlist: {playlist_name}")
-        time.sleep(2)
-        self._dismiss_transient_overlays()
+        return self._wait_for_dialog(aria_label="Choose playlists", timeout=8)
             
     def set_playlist(self):
         """
@@ -446,24 +540,32 @@ return true;
         """
         playlist_name = resolve_youtube_playlist(self.metadata, media_kind="video")
         try:
-            self._click_playlist_dropdown()
+            dialog = self._click_playlist_dropdown()
 
             try:
-                self._select_playlist_option(playlist_name)
+                self._select_playlist_option(playlist_name, dialog)
             except Exception:
                 print(f"Playlist '{playlist_name}' not found; trying to create it.")
-                self._create_playlist_from_dropdown(playlist_name)
-                self._click_playlist_dropdown()
-                self._select_playlist_option(playlist_name)
-            
-            wait = WebDriverWait(self.driver, 10)  # Adjust timeout as needed
-            done_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ytcp-button.done-button")))
-            try:
-                done_button.click()
-            except Exception:
-                self._dismiss_transient_overlays()
-                self.driver.execute_script("arguments[0].click();", done_button)
+                dialog = self._create_playlist_from_dropdown(playlist_name, dialog)
+                self._select_playlist_option(playlist_name, dialog)
+
+            done_button = next(
+                (
+                    button
+                    for button in dialog.find_elements(
+                        By.CSS_SELECTOR,
+                        'button[aria-label="Done"], button[aria-label="完成"]',
+                    )
+                    if button.is_displayed() and button.is_enabled()
+                ),
+                None,
+            )
+            if done_button is None:
+                raise RuntimeError("YouTube playlist dialog has no enabled Done button")
+            done_button.click()
+            WebDriverWait(self.driver, 8).until(lambda _driver: not dialog.is_displayed())
             print('Clicked on the Done button.')
+            return True
 
         except Exception as e:
             self._dismiss_transient_overlays()

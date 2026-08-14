@@ -268,9 +268,21 @@ def move_to_playlist(driver, video_id: str, playlist: str, *, apply: bool) -> di
         return {"video_id": video_id, "target_playlist": playlist, "dry_run": True}
     open_edit_page(driver, video_id)
     publisher = YouTubePublisher(driver, "", "", {"playlist_name": playlist}, test=False)
-    publisher.set_playlist()
+    selected = publisher.set_playlist()
+    if not selected:
+        return {
+            "video_id": video_id,
+            "target_playlist": playlist,
+            "selected": False,
+            "saved": False,
+        }
     saved = click_save(driver)
-    return {"video_id": video_id, "target_playlist": playlist, "saved": saved}
+    return {
+        "video_id": video_id,
+        "target_playlist": playlist,
+        "selected": True,
+        "saved": saved,
+    }
 
 
 def delete_video(driver, video_id: str, *, title_contains: str, apply: bool) -> dict:
