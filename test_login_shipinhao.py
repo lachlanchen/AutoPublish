@@ -65,6 +65,22 @@ class ShipinhaoQrExpiryTests(unittest.TestCase):
         with patch.dict(os.environ, {"AUTOPUBLISH_LOGIN_WAIT_SECONDS": "7200"}):
             self.assertEqual(self.login._login_wait_seconds(), 7200)
 
+    def test_email_uses_direct_watch_qr_artifact(self):
+        self.login.mailer = MagicMock()
+        self.login._notify_attention = MagicMock()
+        self.login._save_visible_qr_screenshot = MagicMock(return_value="/tmp/qr-source.png")
+        utils_stub.QRCodeProcessor.build_watch_friendly_png.return_value = "/tmp/watch-qr.png"
+
+        self.login.take_screenshot_and_send_email()
+
+        self.login._notify_attention.assert_called_once_with("required", "/tmp/watch-qr.png")
+        self.login.mailer.send_email.assert_called_once_with(
+            "Shipinhao Login Required",
+            "Login is required. Please scan the attached QR code.",
+            "/tmp/watch-qr.png",
+            "shipinhao-login-qr.png",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

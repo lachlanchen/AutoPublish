@@ -534,6 +534,25 @@ class ShiPinHaoLogin:
                 pass
         return True
 
+    def _save_visible_qr_screenshot(self, output_path):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        if not self._switch_to_login_iframe(timeout=5):
+            return None
+
+        selectors = ("img.js_qrcode_img", "img.qrcode")
+        for selector in selectors:
+            try:
+                for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    if element.is_displayed():
+                        element.screenshot(output_path)
+                        return output_path
+            except Exception:
+                continue
+        return None
+
     def take_screenshot_and_send_email(self, subject=None, content=None):
         screenshot_path = '/tmp/shipinhao-screenshot.png'
         try:
@@ -541,17 +560,21 @@ class ShiPinHaoLogin:
         except Exception:
             pass
         self.driver.save_screenshot(screenshot_path)
+        qr_source_path = self._save_visible_qr_screenshot('/tmp/shipinhao-qr-source.png')
+        qr_source_path = qr_source_path or screenshot_path
+        qr_path = None
         try:
-            qr_path = QRCodeProcessor.build_watch_friendly_png(screenshot_path)
+            qr_path = QRCodeProcessor.build_watch_friendly_png(qr_source_path)
             self._notify_attention("required", qr_path)
         except Exception as exc:
             print(f"Could not prepare job-scoped Shipinhao QR artifact: {exc}")
         try:
+            email_path = qr_path or qr_source_path
             sent = self.mailer.send_email(
                 subject or 'Shipinhao Login Required',
-                content or 'Login is required. Please see the attached screenshot.',
-                screenshot_path,
-                'shipinhao-screenshot.png'
+                content or 'Login is required. Please scan the attached QR code.',
+                email_path,
+                'shipinhao-login-qr.png'
             )
             if not sent:
                 print("Login email was not sent (SMTP not configured or authentication failed).")
