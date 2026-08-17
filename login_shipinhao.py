@@ -69,6 +69,13 @@ class ShiPinHaoLogin:
         except Exception as exc:
             print(f"Could not update publish attention state: {exc}")
 
+    @staticmethod
+    def _login_wait_seconds():
+        try:
+            return max(60, int(os.environ.get("AUTOPUBLISH_LOGIN_WAIT_SECONDS", "1800")))
+        except (TypeError, ValueError):
+            return 1800
+
     def create_new_driver(self):
         print("Creating new WebDriver instance...")
         options = webdriver.ChromeOptions()
@@ -371,39 +378,20 @@ class ShiPinHaoLogin:
             log_html_snapshot(self.driver, "shipinhao", "login_iframe_missing")
             raise RuntimeError("Shipinhao login iframe was not available and the publish editor is not ready.")
 
-        end_time = time.time() + 1800  # 30 minutes from now
-        last_refresh_time = time.time()
-        last_email_time = time.time() - 30  # Initialize to send email immediately
+        end_time = time.time() + self._login_wait_seconds()
 
         while time.time() < end_time:
-            current_time = time.time()
-        
-            # if self.is_qr_outdated() or (current_time - last_refresh_time >= 180):
             if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
-                try:
-                    self.driver.switch_to.default_content()
-                except Exception:
-                    pass
-                self.driver.refresh()
-                time.sleep(5)
+                self.refresh_qr_code()
                 if self.is_publish_editor_ready() or self.find_lazying_art():
                     print("Logged in successfully after QR refresh.")
                     self._notify_attention("resolved")
                     break
-                if self._switch_to_login_iframe(timeout=20):
-                    self.take_screenshot_and_send_email()
-                else:
-                    print("Login iframe disappeared after QR refresh; rechecking login state instead of failing.")
-                    log_html_snapshot(self.driver, "shipinhao", "login_iframe_after_refresh_missing")
-                    time.sleep(5)
-                    continue
-                last_refresh_time = time.time()
-
-            # if time.time() - last_email_time >= 60:  # Take screenshot and send email every 60 seconds
-            #     print("Taking screenshot and sending email...")
-            #     self.take_screenshot_and_send_email()
-            #     last_email_time = time.time()
+                self.take_screenshot_and_send_email(
+                    subject="Shipinhao Login Required - Refreshed QR",
+                    content="The previous Shipinhao QR expired. Please scan this refreshed QR code.",
+                )
 
             if self.needs_login():
                 print("Login required, will check again in 5 seconds...")
@@ -419,33 +407,114 @@ class ShiPinHaoLogin:
 
         # self.driver.quit()
 
-    # def is_qr_outdated(self):
-    #     elements = self.driver.find_elements(By.CSS_SELECTOR, ".refresh-wrap .refresh-tip")
-    #     for element in elements:
-    #         if element.text == "二维码已过期，点击刷新":
-    #             return True
-    #     return False
+    def _visible_refresh_control(self):
+        selectors = (
+            ".js_refresh_qrcode",
+            ".web_qrcode_refresh_btn",
+            ".mask.show .refresh-wrap",
+            ".refresh-wrap",
+        )
+        for selector in selectors:
+            try:
+                for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    if element.is_displayed():
+                        return element
+            except Exception:
+                continue
+        return None
+
+    def _current_context_has_outdated_qr(self):
+        text_selectors = (
+            ".mask.show .refresh-tip",
+            ".refresh-tip",
+            ".web_qrcode_msg_error",
+        )
+        expired_markers = ("二维码已过期", "二维码失效", "重新扫码", "刷新二维码")
+        for selector in text_selectors:
+            try:
+                for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    text = (element.text or "").strip()
+                    if element.is_displayed() and any(marker in text for marker in expired_markers):
+                        return True
+            except Exception:
+                continue
+        return self._visible_refresh_control() is not None
+
     def is_qr_outdated(self):
         try:
-            self._switch_to_login_iframe(timeout=1)
-            # Look for the more specific structure - a visible mask containing the refresh message
-            elements = self.driver.find_elements(By.CSS_SELECTOR, ".mask.show .refresh-tip")
-            for element in elements:
-                if "二维码已过期" in element.text:
-                    return True
-                    
-            # Alternative approach - check if the mask with refresh is visible
-            outdated_masks = self.driver.find_elements(By.CSS_SELECTOR, ".mask.show")
-            for mask in outdated_masks:
-                refresh_tips = mask.find_elements(By.CSS_SELECTOR, ".refresh-tip")
-                for tip in refresh_tips:
-                    if "二维码已过期" in tip.text:
-                        return True
-                        
+            self.driver.switch_to.default_content()
+            if self._current_context_has_outdated_qr():
+                return True
+            if self._switch_to_login_iframe(timeout=1):
+                return self._current_context_has_outdated_qr()
             return False
         except Exception as e:
             print(f"Error checking if QR is outdated: {e}")
             return False
+
+    def refresh_qr_code(self):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+
+        contexts = ["default"]
+        if self._switch_to_login_iframe(timeout=2):
+            contexts.insert(0, "iframe")
+
+        for context in contexts:
+            if context == "default":
+                try:
+                    self.driver.switch_to.default_content()
+                except Exception:
+                    pass
+
+            control = self._visible_refresh_control()
+            if control is None:
+                continue
+
+            old_sources = {
+                element.get_attribute("src")
+                for element in self.driver.find_elements(By.CSS_SELECTOR, "img.js_qrcode_img")
+                if element.is_displayed() and element.get_attribute("src")
+            }
+            try:
+                control.click()
+            except Exception:
+                self.driver.execute_script("arguments[0].click();", control)
+
+            def qr_replaced(driver):
+                new_sources = {
+                    element.get_attribute("src")
+                    for element in driver.find_elements(By.CSS_SELECTOR, "img.js_qrcode_img")
+                    if element.is_displayed() and element.get_attribute("src")
+                }
+                return bool(new_sources and (not old_sources or new_sources != old_sources))
+
+            try:
+                WebDriverWait(self.driver, 20).until(qr_replaced)
+                print("Shipinhao QR code refreshed with the visible refresh control.")
+                return True
+            except TimeoutException:
+                print("Shipinhao QR refresh control did not produce a new QR in time.")
+                break
+
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        print("Refreshing the Shipinhao login page as a QR refresh fallback.")
+        self.driver.refresh()
+        time.sleep(5)
+        if not self._switch_to_login_iframe(timeout=20):
+            raise RuntimeError("Shipinhao login iframe did not return after refreshing the expired QR.")
+        WebDriverWait(self.driver, 20).until(
+            lambda driver: any(
+                element.is_displayed()
+                for element in driver.find_elements(By.CSS_SELECTOR, "img.js_qrcode_img")
+            )
+        )
+        return True
 
     def needs_login(self):
         if self.is_publish_editor_ready():
@@ -465,8 +534,12 @@ class ShiPinHaoLogin:
                 pass
         return True
 
-    def take_screenshot_and_send_email(self):
+    def take_screenshot_and_send_email(self, subject=None, content=None):
         screenshot_path = '/tmp/shipinhao-screenshot.png'
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
         self.driver.save_screenshot(screenshot_path)
         try:
             qr_path = QRCodeProcessor.build_watch_friendly_png(screenshot_path)
@@ -475,8 +548,8 @@ class ShiPinHaoLogin:
             print(f"Could not prepare job-scoped Shipinhao QR artifact: {exc}")
         try:
             sent = self.mailer.send_email(
-                'Shipinhao Login Required',
-                'Login is required. Please see the attached screenshot.',
+                subject or 'Shipinhao Login Required',
+                content or 'Login is required. Please see the attached screenshot.',
                 screenshot_path,
                 'shipinhao-screenshot.png'
             )

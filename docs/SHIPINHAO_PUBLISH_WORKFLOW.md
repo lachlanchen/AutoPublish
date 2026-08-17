@@ -40,6 +40,21 @@ If readiness times out, inspect:
 - `logs/selenium-shipinhao.log`
 - `logs/shipinhao-publish_ready_timeout.png`
 
+## QR login notifications
+
+AutoPublish sends the first Shipinhao login QR by email and exposes it through
+the publish job attention API. If WeChat marks that QR as expired, the worker
+clicks the visible refresh control, waits until the QR image changes, updates
+the attention artifact, and emails the replacement QR. It does not resend an
+unchanged QR on every five-second login check.
+
+The operator wait window uses the shared setting below and defaults to 30
+minutes:
+
+```bash
+AUTOPUBLISH_LOGIN_WAIT_SECONDS=1800
+```
+
 ## Local fix and release workflow
 
 From the local submodule checkout:

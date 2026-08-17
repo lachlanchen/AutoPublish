@@ -97,11 +97,13 @@ class SendMail:
             server.quit()
             
             print(f"Email sent successfully to {self.to_email}!")
+            return True
             
         except Exception as e:
             print(f"Error sending email: {e}")
             import traceback
             traceback.print_exc()
+            return False
 
     def _find_and_crop_qr_code(self, image_path, margin_ratio=0.1):
         """QR code processing - only called if libraries are available"""
