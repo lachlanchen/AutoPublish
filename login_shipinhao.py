@@ -13,6 +13,9 @@ import time
 import os
 import base64
 import traceback
+from pathlib import Path
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 
 from utils import QRCodeProcessor, SendMail
 from utils import dismiss_alert, bring_to_front, log_html_snapshot
@@ -534,7 +537,7 @@ class ShiPinHaoLogin:
                 pass
         return True
 
-    def _save_visible_qr_screenshot(self, output_path):
+    def _save_visible_qr_source(self, output_path):
         try:
             self.driver.switch_to.default_content()
         except Exception:
@@ -546,9 +549,25 @@ class ShiPinHaoLogin:
         for selector in selectors:
             try:
                 for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
-                    if element.is_displayed():
-                        element.screenshot(output_path)
-                        return output_path
+                    if not element.is_displayed():
+                        continue
+                    source_url = element.get_attribute("src") or ""
+                    parsed = urlsplit(source_url)
+                    if parsed.scheme != "https" or parsed.hostname != "open.weixin.qq.com":
+                        continue
+                    request = Request(
+                        source_url,
+                        headers={
+                            "User-Agent": "Mozilla/5.0",
+                            "Referer": "https://open.weixin.qq.com/",
+                        },
+                    )
+                    with urlopen(request, timeout=20) as response:
+                        data = response.read(2 * 1024 * 1024 + 1)
+                    if not data or len(data) > 2 * 1024 * 1024:
+                        continue
+                    Path(output_path).write_bytes(data)
+                    return output_path
             except Exception:
                 continue
         return None
@@ -560,7 +579,7 @@ class ShiPinHaoLogin:
         except Exception:
             pass
         self.driver.save_screenshot(screenshot_path)
-        qr_source_path = self._save_visible_qr_screenshot('/tmp/shipinhao-qr-source.png')
+        qr_source_path = self._save_visible_qr_source('/tmp/shipinhao-qr-source.jpg')
         qr_source_path = qr_source_path or screenshot_path
         qr_path = None
         try:

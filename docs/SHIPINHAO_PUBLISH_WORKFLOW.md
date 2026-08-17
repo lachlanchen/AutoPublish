@@ -48,9 +48,10 @@ clicks the visible refresh control, waits until the QR image changes, updates
 the attention artifact, and emails the replacement QR. It does not resend an
 unchanged QR on every five-second login check.
 
-The Shipinhao flow captures the QR element directly before creating the
-high-contrast watch-sized attachment. It does not shrink the full login-page
-screenshot into the watch attachment.
+The Shipinhao flow reads the visible WeChat QR image source directly before
+creating the high-contrast watch-sized attachment. This avoids Chromium's
+blank cross-origin element screenshots and does not shrink the full login page
+into the watch attachment.
 
 The operator wait window uses the shared setting below and defaults to 30
 minutes:

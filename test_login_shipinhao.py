@@ -1,7 +1,9 @@
 import os
 import sys
+import tempfile
 import types
 import unittest
+from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 utils_stub = types.ModuleType("utils")
@@ -68,7 +70,7 @@ class ShipinhaoQrExpiryTests(unittest.TestCase):
     def test_email_uses_direct_watch_qr_artifact(self):
         self.login.mailer = MagicMock()
         self.login._notify_attention = MagicMock()
-        self.login._save_visible_qr_screenshot = MagicMock(return_value="/tmp/qr-source.png")
+        self.login._save_visible_qr_source = MagicMock(return_value="/tmp/qr-source.jpg")
         utils_stub.QRCodeProcessor.build_watch_friendly_png.return_value = "/tmp/watch-qr.png"
 
         self.login.take_screenshot_and_send_email()
@@ -80,6 +82,25 @@ class ShipinhaoQrExpiryTests(unittest.TestCase):
             "/tmp/watch-qr.png",
             "shipinhao-login-qr.png",
         )
+
+    def test_direct_qr_source_is_downloaded_from_wechat(self):
+        qr_element = element(
+            visible=True,
+            src="https://open.weixin.qq.com/connect/qrcode/test-token",
+        )
+        self.login._switch_to_login_iframe = MagicMock(return_value=True)
+        self.login.driver.find_elements.return_value = [qr_element]
+        response = MagicMock()
+        response.__enter__.return_value = BytesIO(b"qr-image-bytes")
+        response.__exit__.return_value = False
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = os.path.join(temp_dir, "qr.jpg")
+            with patch("login_shipinhao.urlopen", return_value=response):
+                result = self.login._save_visible_qr_source(output)
+            self.assertEqual(result, output)
+            with open(output, "rb") as handle:
+                self.assertEqual(handle.read(), b"qr-image-bytes")
 
 
 if __name__ == "__main__":
