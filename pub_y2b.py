@@ -61,6 +61,30 @@ def remove_non_bmp(text):
     """
     return ''.join(ch for ch in text if ord(ch) <= 0xFFFF)
 
+
+def reviewed_video_title(metadata):
+    """Return the reviewed title without adding tags or otherwise rewriting it."""
+    return metadata["title"]
+
+
+def insert_contenteditable_text(driver, element, text):
+    """Replace a contenteditable field using Chrome's native text insertion path."""
+    driver.execute_script(
+        """
+        const element = arguments[0];
+        element.focus();
+
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        """,
+        element,
+    )
+    driver.execute_cdp_cmd("Input.insertText", {"text": text})
+
+
 class YouTubePublisher:
     def __init__(self, driver, video_path, thumbnail_path, metadata, test=False):
         self.driver = driver
@@ -239,67 +263,28 @@ class YouTubePublisher:
         return False
 
     def create_video_title_with_limited_tags(self, metadata):
-        """
-        Creates a video title that includes as many tags as possible without exceeding
-        the 100-character limit. Also ensures we stay within the BMP for ChromeDriver.
-        """
-        max_length = 100  # Maximum length of the title with tags
-        title = metadata["title"]
-        tags = metadata["tags"]
-        
-        # Start with the full title, then truncate if necessary
-        if len(title) > max_length:
-            # If the title itself exceeds the max length, truncate it
-            optimized_title = title[:max_length]
-        else:
-            optimized_title = title
-            remaining_length = max_length - len(optimized_title) - 1  # Space for separator
-        
-            # Try to add as many tags as possible
-            tags_str = ""
-            for tag in tags:
-                tag_with_prefix = " #" + tag.replace(" ", "")
-                if len(tag_with_prefix) <= remaining_length:
-                    tags_str += tag_with_prefix
-                    remaining_length -= len(tag_with_prefix)
-                else:
-                    # No more tags can be added without exceeding the max length
-                    break
-            
-            # Append tags to the title if there's any space left
-            if tags_str:
-                optimized_title += " " + tags_str.strip()
-        
-        # Strip out non-BMP characters from the final title string
-        optimized_title = remove_non_bmp(optimized_title)
-        return optimized_title
+        """Compatibility wrapper: tags are no longer added to reviewed titles."""
+        return reviewed_video_title(metadata)
 
     def set_video_details(self):
         """
-        Sets the title and description of the uploaded video.
-        Ensures that both fields are stripped of non-BMP characters.
+        Sets the reviewed title and description of the uploaded video exactly.
         """
         try:
-            # Prepare title
-            video_title_with_tags = self.create_video_title_with_limited_tags(self.metadata)
-            
-            # Prepare description
-            # Strip out non-BMP characters from the description to avoid ChromeDriver error
-            safe_description = remove_non_bmp(self.metadata["long_description"])
+            video_title = reviewed_video_title(self.metadata)
+            description = self.metadata["long_description"]
 
             title_input_xpath = "//div[@id='textbox'][@contenteditable='true']"
             title_input = WebDriverWait(self.driver, 600).until(EC.element_to_be_clickable((By.XPATH, title_input_xpath)))
-            title_input.clear()
-            title_input.send_keys(video_title_with_tags)
-            print(f'The video title was set to "{video_title_with_tags}"')
+            insert_contenteditable_text(self.driver, title_input, video_title)
+            print(f'The video title was set to "{video_title}"')
 
             time.sleep(3)
             
             description_input_xpath = "//div[@id='textbox'][@contenteditable='true' and @aria-label='Tell viewers about your video (type @ to mention a channel)']"
             description_input = WebDriverWait(self.driver, 20).until(EC.element_to_be_clickable((By.XPATH, description_input_xpath)))
-            description_input.clear()
-            description_input.send_keys(safe_description)
-            print(f'The video description was set to "{self.metadata["long_description"]}" (non-BMP chars removed if any)')
+            insert_contenteditable_text(self.driver, description_input, description)
+            print(f'The video description was set to "{description}"')
         except Exception as e:
             raise Exception(f"Failed to set video details: {e}")
     
