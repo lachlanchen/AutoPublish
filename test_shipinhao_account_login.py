@@ -55,13 +55,25 @@ class IsolatedShipinhaoLoginTests(unittest.TestCase):
                 b"chromium\0" + port + b"\0--type=renderer\0"
             )
             (correct / "cmdline").write_bytes(
-                b"chromium\0"
+                b"chromium --type=renderer "
                 + port
-                + b"\0--user-data-dir="
+                + b" --user-data-dir="
                 + str(profile).encode()
-                + b"\0"
+                + b" https://channels.weixin.qq.com/\0"
             )
             self.assertTrue(matching_browser_process(5016, profile, proc_root))
+
+    def test_browser_match_rejects_profile_prefix_collision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            proc_root = Path(directory)
+            process = proc_root / "10"
+            process.mkdir()
+            profile = Path("/tmp/chromium_dev_session_shipinhao_bolanjie")
+            (process / "cmdline").write_bytes(
+                b"chromium --remote-debugging-port=5016 "
+                b"--user-data-dir=/tmp/chromium_dev_session_shipinhao_bolanjie-other\0"
+            )
+            self.assertFalse(matching_browser_process(5016, profile, proc_root))
 
     def test_qr_state_versions_changes_only(self):
         with tempfile.TemporaryDirectory() as directory:

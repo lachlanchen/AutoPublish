@@ -155,7 +155,19 @@ def matching_browser_process(
             decoded = [part.decode("utf-8", errors="replace") for part in arguments]
         except (OSError, PermissionError):
             continue
-        if expected_port in decoded and expected_profile in decoded:
+        # Chromium may rewrite its Linux process title so /proc exposes the
+        # complete command as one argv entry. Match whole whitespace/NUL-bound
+        # arguments in either representation, not arbitrary substrings.
+        command_text = "\0".join(decoded)
+        port_matches = re.search(
+            rf"(?:^|[\s\0]){re.escape(expected_port)}(?=$|[\s\0])",
+            command_text,
+        )
+        profile_matches = re.search(
+            rf"(?:^|[\s\0]){re.escape(expected_profile)}(?=$|[\s\0])",
+            command_text,
+        )
+        if port_matches and profile_matches:
             return True
     return False
 
