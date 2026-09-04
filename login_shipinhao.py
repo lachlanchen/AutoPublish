@@ -51,12 +51,39 @@ from utils import dismiss_alert, bring_to_front, log_html_snapshot
 #         print(f"Email sent, status code: {response.status_code}")
 
 class ShiPinHaoLogin:
-    def __init__(self, driver=None, port="5003", attention_callback=None):
+    ACCOUNT_NAME_SELECTORS = (
+        ".account-info .name",
+        ".account_info .name",
+        ".account-name",
+        ".user-info .name",
+        ".user_info .name",
+        "[class*='account-info'] [class*='name']",
+        "[class*='account_info'] [class*='name']",
+    )
+    AUTHENTICATED_PAGE_MARKERS = (
+        "内容管理",
+        "数据概览",
+        "发表动态",
+        "视频管理",
+        "直播管理",
+    )
+
+    def __init__(
+        self,
+        driver=None,
+        port="5003",
+        attention_callback=None,
+        *,
+        send_email=True,
+        account_profile="default",
+    ):
         print("Initializing ShiPinHaoLogin class...")
-        self.mailer = SendMail()  # Using default parameters
+        self.mailer = SendMail() if send_email else None
         self.port = port
         self.driver = driver if driver else self.create_new_driver()
         self.attention_callback = attention_callback
+        self.account_profile = str(account_profile or "default")
+        self.last_account_name = None
 
     def _notify_attention(self, status, artifact_path=None):
         if not self.attention_callback:
@@ -257,22 +284,21 @@ class ShiPinHaoLogin:
     #         print("Did not find '陈苗LazyingArt懒人艺术'.")
     #     return False
     def _expected_account_names(self):
+        """Optional account guard retained for operators who explicitly set it.
+
+        Login detection itself is account-neutral.  A configured name can be
+        used by callers as a diagnostic guard, but the absence of the old
+        LazyingArt account name must never mean that a valid session is logged
+        out.
+        """
         env_names = os.environ.get("SHIPINHAO_ACCOUNT_NAMES") or os.environ.get("SHIPINHAO_ACCOUNT_NAME")
         if env_names:
             return [name.strip() for name in env_names.split(",") if name.strip()]
-        return [
-            "LazyingArt懒人艺术",
-            "LazyingArt懶人藝術",
-            "陈苗LazyingArt懒人艺术",
-            "LazyingArt",
-            "陈苗",
-            "懒人艺术",
-            "懶人藝術",
-        ]
+        return []
 
-    def find_lazying_art(self):
+    def find_logged_in_account(self):
+        """Return the visible account name for any authenticated account."""
         try:
-            # First switch to default content in case we're in an iframe
             try:
                 self.driver.switch_to.default_content()
             except Exception as e:
@@ -280,58 +306,68 @@ class ShiPinHaoLogin:
 
             if self.is_login_iframe_present():
                 print("Login iframe is present; not logged in yet.")
-                return False
-                
-            # Try multiple selector strategies for better reliability
-            selectors = [
-                # Original approach - specific class and text
-                "//span[contains(@class, 'name') and contains(text(), 'LazyingArt懒人艺术')]",
-                "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt懒人艺术')]",
-                # More flexible - just look for the class with partial text
-                "//span[contains(@class, 'name') and contains(text(), 'LazyingArt')]",
-                "//span[contains(@class, 'name') and contains(text(), '陈苗LazyingArt')]",
-                # Even more flexible - any element with account info near it
-                "//div[contains(@class, 'account-info')]//span[contains(text(), 'LazyingArt')]",
-                "//div[contains(@class, 'account-info')]//span[contains(text(), '陈苗')]",
-                # Try CSS selector approach
-                ".account-info .name"
-            ]
+                return None
 
-            expected_names = self._expected_account_names()
-            for selector in selectors:
+            for selector in self.ACCOUNT_NAME_SELECTORS:
                 try:
-                    wait = WebDriverWait(self.driver, 5)
-                    if selector.startswith('.'):
-                        elements = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector)))
-                    else:
-                        elements = wait.until(EC.presence_of_all_elements_located((By.XPATH, selector)))
-                    
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
                     for element in elements:
                         text = (element.text or "").strip()
-                        if not text:
-                            continue
-                        if any(name in text for name in expected_names):
-                            print(f"Found user element with text: '{element.text}' using selector: {selector}")
-                            return True
-                        if selector == ".account-info .name":
-                            print(f"Found account name element without match: '{text}'. Treating as logged in.")
-                            return True
+                        if text and element.is_displayed():
+                            self.last_account_name = text
+                            print(
+                                f"Detected authenticated Shipinhao account {text!r} "
+                                f"for profile {getattr(self, 'account_profile', 'default')!r}."
+                            )
+                            return text
                 except Exception as e:
-                    print(f"Selector {selector} failed: {e}")
+                    print(f"Account selector {selector} failed: {e}")
                     continue
-                    
-            # Take a screenshot for debugging
-            debug_path = '/tmp/debug-screenshot.png'
-            self.driver.save_screenshot(debug_path)
-            print(f"Saved debug screenshot to {debug_path}")
-            log_html_snapshot(self.driver, "shipinhao", "login_check")
-            
-            print(f"Did not find any expected Shipinhao account names: {expected_names}")
-            return False
+
+            return None
         except Exception as e:
-            print(f"Error in find_lazying_art: {e}")
+            print(f"Error while discovering Shipinhao account identity: {e}")
             traceback.print_exc()
+            return None
+
+    def _has_authenticated_shell(self):
+        try:
+            self.driver.switch_to.default_content()
+        except Exception:
+            pass
+        try:
+            page_text = self.driver.page_source or ""
+            current_url = self.driver.current_url or ""
+        except Exception:
             return False
+        if "/login" in current_url or self._page_source_has_login_qr(page_text):
+            return False
+        marker_count = sum(marker in page_text for marker in self.AUTHENTICATED_PAGE_MARKERS)
+        return marker_count >= 2 and "channels.weixin.qq.com/platform/" in current_url
+
+    def is_logged_in(self):
+        """Detect authentication from page state, independent of account name."""
+        if self.is_login_iframe_present():
+            return False
+        if self.is_publish_editor_ready():
+            self.find_logged_in_account()
+            return True
+        if self.find_logged_in_account():
+            return True
+        if self._has_authenticated_shell():
+            print(
+                "Authenticated Shipinhao application shell detected; "
+                "account-name text is not currently visible."
+            )
+            return True
+        return False
+
+    def find_lazying_art(self):
+        """Backward-compatible alias for old callers; accepts any account."""
+        return self.is_logged_in()
+
+    def _mark_login_resolved(self):
+        self._notify_attention("resolved")
 
 
     def check_and_act(self):
@@ -349,8 +385,12 @@ class ShiPinHaoLogin:
 
         bring_to_front(["视频号"])
 
-        if self.is_publish_editor_ready() or self.find_lazying_art():
-            print("Already logged in. ")
+        if self.is_logged_in():
+            print(
+                "Already logged in"
+                + (f" as {self.last_account_name!r}." if self.last_account_name else ".")
+            )
+            self._mark_login_resolved()
             return
 
         if self.is_login_iframe_present():
@@ -374,8 +414,9 @@ class ShiPinHaoLogin:
             except Exception:
                 pass
             self.take_screenshot_and_send_email()
-        elif self.is_publish_editor_ready() or self.find_lazying_art():
+        elif self.is_logged_in():
             print("Logged in while waiting for login iframe.")
+            self._mark_login_resolved()
             return
         else:
             log_html_snapshot(self.driver, "shipinhao", "login_iframe_missing")
@@ -387,9 +428,9 @@ class ShiPinHaoLogin:
             if self.is_qr_outdated():
                 print("QR code is outdated, refreshing...")
                 self.refresh_qr_code()
-                if self.is_publish_editor_ready() or self.find_lazying_art():
+                if self.is_logged_in():
                     print("Logged in successfully after QR refresh.")
-                    self._notify_attention("resolved")
+                    self._mark_login_resolved()
                     break
                 self.take_screenshot_and_send_email(
                     subject="Shipinhao Login Required - Refreshed QR",
@@ -401,10 +442,10 @@ class ShiPinHaoLogin:
                 time.sleep(5)  # Check again in 5 seconds
             else:
                 print("Logged in successfully, stopping checks.")
-                self._notify_attention("resolved")
+                self._mark_login_resolved()
                 break  # Break the loop if logged in
 
-        if not (self.is_publish_editor_ready() or self.find_lazying_art()):
+        if not self.is_logged_in():
             log_html_snapshot(self.driver, "shipinhao", "login_timeout")
             raise RuntimeError("Shipinhao login required; QR login was not completed before timeout.")
 
@@ -520,9 +561,7 @@ class ShiPinHaoLogin:
         return True
 
     def needs_login(self):
-        if self.is_publish_editor_ready():
-            return False
-        if self.find_lazying_art():
+        if self.is_logged_in():
             return False
         if self._looks_like_login_page():
             return True
@@ -587,19 +626,20 @@ class ShiPinHaoLogin:
             self._notify_attention("required", qr_path)
         except Exception as exc:
             print(f"Could not prepare job-scoped Shipinhao QR artifact: {exc}")
-        try:
-            email_path = qr_path or qr_source_path
-            sent = self.mailer.send_email(
-                subject or 'Shipinhao Login Required',
-                content or 'Login is required. Please scan the attached QR code.',
-                email_path,
-                'shipinhao-login-qr.png'
-            )
-            if not sent:
-                print("Login email was not sent (SMTP not configured or authentication failed).")
-        except Exception as exc:
-            print(f"Failed to send login email: {exc}")
-            traceback.print_exc()
+        if self.mailer is not None:
+            try:
+                email_path = qr_path or qr_source_path
+                sent = self.mailer.send_email(
+                    subject or 'Shipinhao Login Required',
+                    content or 'Login is required. Please scan the attached QR code.',
+                    email_path,
+                    'shipinhao-login-qr.png'
+                )
+                if not sent:
+                    print("Login email was not sent (SMTP not configured or authentication failed).")
+            except Exception as exc:
+                print(f"Failed to send login email: {exc}")
+                traceback.print_exc()
 
 if __name__ == "__main__":
     import argparse

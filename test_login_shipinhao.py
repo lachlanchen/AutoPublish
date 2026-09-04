@@ -102,6 +102,25 @@ class ShipinhaoQrExpiryTests(unittest.TestCase):
             with open(output, "rb") as handle:
                 self.assertEqual(handle.read(), b"qr-image-bytes")
 
+    def test_any_visible_account_name_is_accepted(self):
+        account = element(visible=True, text="深界实验室")
+        self.login.account_profile = "bolanjie"
+        self.login.is_login_iframe_present = MagicMock(return_value=False)
+
+        def find_elements(_by, selector):
+            if selector == ".account-info .name":
+                return [account]
+            return []
+
+        self.login.driver.find_elements.side_effect = find_elements
+
+        self.assertEqual(self.login.find_logged_in_account(), "深界实验室")
+        self.assertEqual(self.login.last_account_name, "深界实验室")
+
+    def test_old_account_name_list_is_not_a_login_requirement(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(self.login._expected_account_names(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

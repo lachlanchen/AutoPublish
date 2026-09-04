@@ -1,0 +1,61 @@
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from scripts.shipinhao_account_login import (
+    PNG_SIGNATURE,
+    QrState,
+    isolated_profile_dir,
+    safe_profile_name,
+    validate_ports,
+)
+
+
+class IsolatedShipinhaoLoginTests(unittest.TestCase):
+    def test_profile_name_is_filesystem_safe(self):
+        self.assertEqual(safe_profile_name("波澜界 / test"), "test")
+        with self.assertRaises(ValueError):
+            safe_profile_name("中文")
+
+    def test_only_named_isolated_profile_path_is_allowed(self):
+        with tempfile.TemporaryDirectory() as home:
+            expected = Path(home) / "chromium_dev_session_shipinhao_bolanjie"
+            with patch.dict(os.environ, {"HOME": home}):
+                with patch("pathlib.Path.home", return_value=Path(home)):
+                    self.assertEqual(isolated_profile_dir("bolanjie"), expected)
+                    self.assertEqual(
+                        isolated_profile_dir("bolanjie", expected), expected
+                    )
+                    with self.assertRaises(ValueError):
+                        isolated_profile_dir(
+                            "bolanjie", Path(home) / "chromium_dev_session_5006"
+                        )
+
+    def test_legacy_ports_are_reserved(self):
+        for port in (5003, 5004, 5005, 5006, 5007, 9222):
+            with self.subTest(port=port), self.assertRaises(ValueError):
+                validate_ports(port, 8765)
+        with self.assertRaises(ValueError):
+            validate_ports(5016, 5016)
+        validate_ports(5016, 8765)
+
+    def test_qr_state_versions_changes_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.png"
+            state = QrState(root / "state", "bolanjie")
+            source.write_bytes(PNG_SIGNATURE + b"first")
+            state.require(str(source), "scan")
+            self.assertEqual(state.snapshot()["revision"], 1)
+            state.require(str(source), "scan")
+            self.assertEqual(state.snapshot()["revision"], 1)
+            source.write_bytes(PNG_SIGNATURE + b"second")
+            state.require(str(source), "scan")
+            self.assertEqual(state.snapshot()["revision"], 2)
+            self.assertEqual(state.qr_bytes(), PNG_SIGNATURE + b"second")
+
+
+if __name__ == "__main__":
+    unittest.main()
