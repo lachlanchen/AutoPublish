@@ -8,6 +8,7 @@ from scripts.shipinhao_account_login import (
     PNG_SIGNATURE,
     QrState,
     isolated_profile_dir,
+    matching_browser_process,
     safe_profile_name,
     validate_ports,
 )
@@ -40,6 +41,27 @@ class IsolatedShipinhaoLoginTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_ports(5016, 5016)
         validate_ports(5016, 8765)
+
+    def test_browser_match_checks_all_chromium_children(self):
+        with tempfile.TemporaryDirectory() as directory:
+            proc_root = Path(directory)
+            wrong = proc_root / "10"
+            correct = proc_root / "20"
+            wrong.mkdir()
+            correct.mkdir()
+            port = b"--remote-debugging-port=5016"
+            profile = Path("/tmp/chromium_dev_session_shipinhao_bolanjie")
+            (wrong / "cmdline").write_bytes(
+                b"chromium\0" + port + b"\0--type=renderer\0"
+            )
+            (correct / "cmdline").write_bytes(
+                b"chromium\0"
+                + port
+                + b"\0--user-data-dir="
+                + str(profile).encode()
+                + b"\0"
+            )
+            self.assertTrue(matching_browser_process(5016, profile, proc_root))
 
     def test_qr_state_versions_changes_only(self):
         with tempfile.TemporaryDirectory() as directory:

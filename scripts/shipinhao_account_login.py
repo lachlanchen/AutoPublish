@@ -31,7 +31,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from load_env import load_env  # noqa: E402
-from login_shipinhao import ShiPinHaoLogin  # noqa: E402
 
 
 CREATE_URL = "https://channels.weixin.qq.com/platform/post/create"
@@ -143,17 +142,21 @@ def browser_flags() -> list[str]:
     return configured.split()
 
 
-def matching_browser_process(port: int, profile_dir: Path) -> bool:
+def matching_browser_process(
+    port: int,
+    profile_dir: Path,
+    proc_root: Path = Path("/proc"),
+) -> bool:
     expected_port = f"--remote-debugging-port={port}"
     expected_profile = f"--user-data-dir={profile_dir}"
-    for command_path in Path("/proc").glob("[0-9]*/cmdline"):
+    for command_path in proc_root.glob("[0-9]*/cmdline"):
         try:
             arguments = command_path.read_bytes().split(b"\0")
             decoded = [part.decode("utf-8", errors="replace") for part in arguments]
         except (OSError, PermissionError):
             continue
-        if expected_port in decoded:
-            return expected_profile in decoded
+        if expected_port in decoded and expected_profile in decoded:
+            return True
     return False
 
 
@@ -314,6 +317,10 @@ def handler_for(state: QrState):
 
 
 def main() -> int:
+    # Keep Selenium/login side effects out of module import so validation and
+    # QR-state helpers remain independently testable.
+    from login_shipinhao import ShiPinHaoLogin
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", required=True, help="Isolated account/profile label")
     parser.add_argument("--debug-port", type=int, default=5016)
