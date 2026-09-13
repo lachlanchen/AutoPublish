@@ -4,8 +4,11 @@
 
 Every browser attached through `app.create_new_driver` now uses
 `browser_window.fit_browser_window`. It reads the current monitor's available
-rectangle, including panel offsets, instead of assuming a 1920x1080 desktop.
-This changes only window bounds, not the profile, URL, page zoom, or upload.
+rectangle, then asks the window manager to maximize instead of assuming a
+1920x1080 desktop. Maximizing accounts for external title-bar decorations;
+assigning the entire available height to the client rectangle can otherwise
+overflow the desktop. This changes only window bounds, not the profile, URL,
+page zoom, or upload.
 Instagram's standalone publisher also uses this helper.
 
 ## YouTube Checks
@@ -42,6 +45,15 @@ Finding the title in the upload wizard or in a private draft does not count.
 python -m pytest tests/test_youtube_check_flow.py tests/test_pub_y2b_metadata.py \
   test_publish_ui_regressions.py test_instagram_caption.py -q
 python -m py_compile app.py pub_y2b.py youtube_checks.py browser_window.py
+```
+
+On an existing server without pytest, the tests also run with standard-library
+unittest (use discovery for the `tests/` directory):
+
+```bash
+python -m unittest discover -s tests -p test_youtube_check_flow.py -q
+python -m unittest discover -s tests -p test_pub_y2b_metadata.py -q
+python -m unittest test_publish_ui_regressions test_instagram_caption test_youtube_playlist_safety -q
 ```
 
 Live review should confirm all browser edges fit inside the desktop and retain

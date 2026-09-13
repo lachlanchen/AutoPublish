@@ -27,12 +27,18 @@ class SubmitEvidenceTests(unittest.TestCase):
 class DesktopBoundsTests(unittest.TestCase):
     def test_small_desktop_and_panel_offset(self):
         calls = []
-        driver = SimpleNamespace(execute_script=lambda script: dict(x=0, y=36, width=1024, height=732), set_window_rect=lambda **kw: calls.append(kw))
-        self.assertEqual(fit_browser_window(driver), dict(x=0, y=36, width=1024, height=732))
+        actual = dict(x=0, y=64, width=1024, height=704)
+        driver = SimpleNamespace(
+            execute_script=lambda script: dict(x=0, y=36, width=1024, height=732),
+            maximize_window=lambda: calls.append("maximize"),
+            get_window_rect=lambda: actual,
+        )
+        self.assertEqual(fit_browser_window(driver), actual)
         self.assertEqual(len(calls), 1)
+        self.assertEqual(actual["y"] + actual["height"], 768)
 
     def test_invalid_bounds_do_not_resize(self):
-        driver = SimpleNamespace(execute_script=lambda script: dict(x=0, y=0, width=0, height=0), set_window_rect=lambda **kw: self.fail("unexpected resize"))
+        driver = SimpleNamespace(execute_script=lambda script: dict(x=0, y=0, width=0, height=0), maximize_window=lambda: self.fail("unexpected resize"))
         with self.assertRaises(ValueError):
             fit_browser_window(driver)
 

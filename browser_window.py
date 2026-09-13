@@ -11,5 +11,7 @@ def fit_browser_window(driver):
     bounds = {key: int(bounds[key]) for key in ("x", "y", "width", "height")}
     if bounds["width"] < 100 or bounds["height"] < 100:
         raise ValueError("Desktop bounds are too small")
-    driver.set_window_rect(**bounds)
-    return bounds
+    # The window manager accounts for title bars and panels; assigning the
+    # full available height to a decorated client window can overflow.
+    driver.maximize_window()
+    return driver.get_window_rect()
