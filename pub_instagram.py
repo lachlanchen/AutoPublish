@@ -14,6 +14,10 @@ from selenium.common.exceptions import TimeoutException, ElementClickIntercepted
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_instagram import InstagramLogin
 from instagram_caption import build_instagram_caption
+from instagram_caption_input import (
+    InstagramCaptionError, enter_verified_caption, rendered_caption_matches,
+    verify_editor_caption,
+)
 from browser_window import fit_browser_window
 
 CAPTION_LABELS = ("Write a caption...", "Add a caption...")
@@ -93,6 +97,7 @@ class InstagramPublisher:
         self.metadata = metadata or {}
         self.test = test
         self.retry_count = 0
+        self.published_post_url = None
 
         InstagramLogin(driver).check_and_act()
 
@@ -145,8 +150,15 @@ class InstagramPublisher:
         raise TimeoutException("Element not found")
 
     def _caption_present(self):
-        driver = self.driver
-        return any(driver.find_elements(By.CSS_SELECTOR, selector) for selector in CAPTION_SELECTORS)
+        return bool(self._find_caption_editor(self.driver))
+
+    @staticmethod
+    def _find_caption_editor(driver):
+        for selector in CAPTION_SELECTORS:
+            for element in driver.find_elements(By.CSS_SELECTOR, selector):
+                if element.is_displayed() and element.is_enabled():
+                    return element
+        return False
 
     def _get_create_dialog(self):
         driver = self.driver
@@ -428,7 +440,7 @@ class InstagramPublisher:
         return terms
 
     def _verify_latest_profile_post(self, timeout=60):
-        """Verify an uncertain Share result against the newest profile post."""
+        """Verify the saved caption on the newest post, not just a Share receipt."""
         driver = self.driver
         profile_xpaths = [
             "//a[@href and .//span[normalize-space()='Profile']]",
@@ -461,16 +473,20 @@ class InstagramPublisher:
             )[0]
             latest_url = latest.get_attribute("href")
             if latest_url:
+                self.published_post_url = latest_url
                 driver.get(latest_url)
+            caption = self._build_caption()
             WebDriverWait(driver, timeout).until(
-                lambda d: d.find_elements(By.TAG_NAME, "body")
+                lambda d: any(rendered_caption_matches(text, caption) for text in
+                    d.execute_script("""
+                        return [...document.querySelectorAll(
+                            'main h1, main span, article h1, article span')]
+                            .filter(e => e.checkVisibility({visibilityProperty: true}))
+                            .map(e => e.innerText);
+                    """))
             )
-            body_text = driver.find_element(By.TAG_NAME, "body").text
-            normalized_body = "".join(body_text.split())
-            for term in self._publish_verification_terms():
-                if term in body_text or "".join(term.split()) in normalized_body:
-                    print(f"Instagram profile verification matched: {term!r}")
-                    return True
+            print(f"Instagram saved caption verified: {self.published_post_url}")
+            return True
         except Exception as exc:
             print(f"Instagram profile verification failed: {exc}")
             return False
@@ -587,86 +603,29 @@ class InstagramPublisher:
             self._click_next_until_caption(max_clicks=2)
 
             caption = self._build_caption()
-            if caption:
-                print(f"Adding caption ({len(caption)} chars)...")
-                def visible_caption_box(current_driver):
-                    selectors = CAPTION_SELECTORS
-                    fallback = None
-                    for selector in selectors:
-                        for element in current_driver.find_elements(By.CSS_SELECTOR, selector):
-                            if element.is_displayed() and element.is_enabled():
-                                return element
-                            rect = element.rect
-                            if (
-                                fallback is None
-                                and element.is_enabled()
-                                and rect.get("width", 0) > 0
-                                and rect.get("height", 0) > 0
-                            ):
-                                fallback = element
-                    return fallback or False
-
-                caption_box = WebDriverWait(driver, 30).until(visible_caption_box)
-                if caption_box.is_displayed():
-                    driver.execute_script(
-                        "arguments[0].scrollIntoView({block: 'center'});"
-                        "arguments[0].focus();"
-                        "arguments[0].click();",
-                        caption_box,
-                    )
-                    caption_box.send_keys(caption)
-                else:
-                    inserted = driver.execute_script(
-                        """
-                        const el = arguments[0];
-                        const text = arguments[1];
-                        el.focus();
-                        if (el.tagName === 'TEXTAREA') {
-                            const setter = Object.getOwnPropertyDescriptor(
-                                HTMLTextAreaElement.prototype, 'value'
-                            ).set;
-                            setter.call(el, text);
-                            el.dispatchEvent(new Event('input', {bubbles: true}));
-                            el.dispatchEvent(new Event('change', {bubbles: true}));
-                            return el.value === text;
-                        }
-                        const selection = window.getSelection();
-                        const range = document.createRange();
-                        range.selectNodeContents(el);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                        const ok = document.execCommand('insertText', false, text);
-                        el.dispatchEvent(new InputEvent('input', {
-                            bubbles: true,
-                            inputType: 'insertText',
-                            data: text
-                        }));
-                        return ok || el.textContent.includes(text.slice(0, 20));
-                        """,
-                        caption_box,
-                        caption,
-                    )
-                    if not inserted:
-                        raise RuntimeError(
-                            "Instagram caption field was clipped and DOM input failed"
-                        )
-            else:
-                print("No caption found in metadata.")
+            print(f"Adding and verifying caption ({len(caption)} chars)...")
+            enter_verified_caption(driver, self._find_caption_editor, caption)
 
             print("Clicking Share...")
-            self._click_share_button()
+            verify_editor_caption(driver, self._find_caption_editor, caption)
+            # A click may succeed even if the driver response is lost.
             share_clicked = True
+            self._click_share_button()
 
             print("Waiting for publish confirmation...")
             if self._wait_for_publish_complete():
-                print("Instagram publish confirmed.")
-                return True
-            print("Instagram publish confirmation timed out; checking the profile.")
+                print("Instagram reel shared; verifying its saved caption.")
+            else:
+                print("Instagram publish confirmation timed out; checking the profile.")
             if self._verify_latest_profile_post():
                 print("Instagram publish confirmed from the latest profile post.")
                 return True
-            print("Instagram publish could not be confirmed.")
-            return False
+            raise InstagramCaptionError(
+                "Instagram post/caption could not be verified. Keep the existing post; "
+                f"do not reupload. Candidate URL: {self.published_post_url or 'unavailable'}"
+            )
+        except InstagramCaptionError:
+            raise
         except Exception as exc:
             self.retry_count += 1
             print(f"Instagram publish failed: {exc}")
