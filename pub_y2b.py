@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -12,7 +13,7 @@ from selenium.common.exceptions import NoAlertPresentException
 import traceback
 
 from publish_routing import resolve_youtube_playlist
-from publish_verification import verify_publish_in_management
+from youtube_checks import checks_outcome
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 # from utils import dismiss_alert, bring_to_front
 #   This assumes you have a 'utils.py' containing these functions. 
@@ -54,6 +55,15 @@ class VideoPublishingException(YouTubePublishingException):
         self.message = message
         super().__init__(self.message)
 
+
+class YouTubePublishPendingException(YouTubePublishingException):
+    """Keep an existing upload intact when its publication is not confirmed."""
+
+
+class YouTubeCheckReviewException(YouTubePublishPendingException):
+    """A completed check has a restriction that needs human review."""
+
+
 def remove_non_bmp(text):
     """
     Strips out any characters outside the Basic Multilingual Plane (BMP),
@@ -92,6 +102,7 @@ class YouTubePublisher:
         self.thumbnail_path = thumbnail_path
         self.metadata = metadata
         self.test = test
+        self._upload_started = False
         # self.load_metadata()
         
     # def load_metadata(self):
@@ -125,7 +136,9 @@ class YouTubePublisher:
             # Upload the video file
             absolute_video_path = str(Path.cwd() / self.video_path)
             bring_to_front(["YouTube"])
-            self.driver.find_element(By.XPATH, "//input[@type='file']").send_keys(absolute_video_path)
+            upload_input = self.driver.find_element(By.XPATH, "//input[@type='file']")
+            self._upload_started = True
+            upload_input.send_keys(absolute_video_path)
             print('Attached video {}'.format(self.video_path))
         except Exception as e:
             raise Exception(f"Failed to upload video: {e}")
@@ -179,11 +192,11 @@ class YouTubePublisher:
         Waits until the video finishes uploading or checking,
         or an error/daily limit is encountered.
         """
+        if mode == "check":
+            return self.wait_for_checks(interval=interval, duration=duration)
         try:
             expected_texts = []
-            if mode == "check":
-                expected_texts.append("Checks complete. No issues found.")
-            elif mode == "upload":
+            if mode == "upload":
                 expected_texts.extend(["Upload complete", "Processing up to", "Checking", "Checks complete. No issues found."])
             else:
                 expected_texts.extend(["complete", "Complete", "Processing up to", "Checking", "Checks complete. No issues found."])
@@ -212,18 +225,9 @@ class YouTubePublisher:
                         print('The expected text "{}" is present in the span element.'.format(expected_text))
                         found = True
                         break
-                if not found and mode == "check" and (
-                    "No issues found" in page_text or "Checks complete" in page_text
-                ):
-                    print('YouTube checks appear complete in page text.')
-                    found = True
                 if not found and ("Video published" in page_text or "视频已发布" in page_text):
                     print("YouTube publish dialog already visible while waiting for checks.")
                     found = True
-                if not found and mode == "check" and self._next_button_ready_after_upload(page_text):
-                    print("YouTube check wait continuing because the Next button is ready after upload completion.")
-                    found = True
-
                 if found:
                     break
                 elif self.driver.find_elements(By.XPATH, error_xpath):
@@ -233,34 +237,69 @@ class YouTubePublisher:
         except TimeoutException:
             raise ProcessingTimeoutException()
 
-    def _next_button_ready_after_upload(self, page_text):
-        upload_done = (
-            "Upload complete" in page_text
-            or "Video link" in page_text
-            or "视频链接" in page_text
+    def _check_snapshot(self):
+        return self.driver.execute_script("""
+            const root = document.querySelector('ytcp-uploads-dialog');
+            const visible = e => e.checkVisibility({visibilityProperty: true});
+            const progress = root ? [...root.querySelectorAll('.progress-label')]
+                .filter(visible).map(e => e.innerText).join('\n') : '';
+            const warning = [...document.querySelectorAll('ytcp-prechecks-warning-dialog')]
+                .some(e => visible(e) && /still checking your content/i.test(e.innerText));
+            return {progress, details: root ? root.innerText : '', warning};
+        """) or {}
+
+    def wait_for_checks(self, interval=5, duration=900):
+        deadline = time.monotonic() + duration
+        previous = None
+        while time.monotonic() < deadline:
+            snapshot = self._check_snapshot()
+            outcome = checks_outcome(
+                snapshot.get("progress"), snapshot.get("details"),
+                snapshot.get("warning", False),
+            )
+            if snapshot.get("progress") != previous:
+                previous = snapshot.get("progress")
+                print(f"YouTube checks: {previous or 'waiting for status'}")
+            if outcome == "complete":
+                return True
+            if outcome == "review":
+                raise YouTubeCheckReviewException(
+                    "YouTube checks need review; preserving the existing draft. "
+                    + str(snapshot.get("progress", ""))
+                )
+            time.sleep(interval)
+        raise YouTubePublishPendingException(
+            "YouTube checks are not complete; preserving the existing upload."
         )
-        if not upload_done:
-            return False
-        lower_text = page_text.lower()
-        active_upload_markers = [
-            "uploading ",
-            "processing ",
-            "checking ",
-            "上传中",
-            "处理中",
-            "检查中",
-        ]
-        if any(marker in lower_text for marker in active_upload_markers):
-            return False
-        buttons = self.driver.find_elements(By.ID, "next-button")
+
+    def _return_from_check_warning(self):
+        buttons = self.driver.find_elements(
+            By.CSS_SELECTOR, 'ytcp-prechecks-warning-dialog button[aria-label="Go back"]'
+        )
         for button in buttons:
-            try:
-                disabled = button.get_attribute("disabled") or button.get_attribute("aria-disabled")
-                if button.is_displayed() and button.is_enabled() and str(disabled).lower() not in {"true", "disabled"}:
-                    return True
-            except Exception:
-                continue
-        return False
+            if button.is_displayed():
+                button.click()
+                try:
+                    WebDriverWait(self.driver, 5).until(
+                        lambda _: not self._check_snapshot().get("warning")
+                    )
+                except TimeoutException:
+                    self.driver.switch_to.active_element.send_keys(Keys.ESCAPE)
+                return
+        raise YouTubePublishPendingException("Cannot dismiss YouTube check warning safely.")
+
+    def _wait_for_publish_receipt(self, duration=120):
+        deadline = time.monotonic() + duration
+        while time.monotonic() < deadline:
+            if self._published_dialog_result():
+                return True
+            if self._check_snapshot().get("warning"):
+                self._return_from_check_warning()
+                return False
+            time.sleep(2)
+        raise YouTubePublishPendingException(
+            "No YouTube publication receipt yet; do not upload a duplicate."
+        )
 
     def create_video_title_with_limited_tags(self, metadata):
         """Compatibility wrapper: tags are no longer added to reviewed titles."""
@@ -604,11 +643,15 @@ return backdrops.length;
         Clicks 'Next' a few times, sets the video to PUBLIC, and finally clicks Publish.
         """
         try:
-            for _ in range(3):
+            for _ in range(2):
                 next_button = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.ID, "next-button")))
                 next_button.click()
                 time.sleep(2)
-            
+            self.wait_for_checks()
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "next-button"))
+            ).click()
+
             # Set the video's visibility and publish
             self.driver.find_element(By.NAME, 'PUBLIC').click()
             time.sleep(3)
@@ -622,13 +665,25 @@ return backdrops.length;
             publish_button = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.ID, "done-button")))
             publish_button.click()
             print('Clicked on the Publish button.')
-            time.sleep(3)
+            if self._wait_for_publish_receipt():
+                return True
 
-            video_id = self._extract_youtube_video_id()
-            if video_id:
-                print(f'YouTube video ID candidate: {video_id}')
-            else:
-                print(f'YouTube upload URL after publish click: {self.driver.current_url}')
+            # A warning can race with a completed footer. Return to the same
+            # upload's check step, never choose "Publish anyway" or reupload.
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "step-badge-2"))
+            ).click()
+            self.wait_for_checks()
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "step-badge-3"))
+            ).click()
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "done-button"))
+            ).click()
+            if not self._wait_for_publish_receipt():
+                raise YouTubePublishPendingException(
+                    "YouTube still asks to wait for checks; keeping the same draft."
+                )
             return True
         except TimeoutException:
             raise Exception("Failed to set visibility or click on the Publish button.")
@@ -657,10 +712,18 @@ return backdrops.length;
 
     def _published_dialog_result(self):
         try:
-            text = self.driver.execute_script("return document.body ? document.body.innerText : '';") or ""
+            text = self.driver.execute_script("""
+                const dialogs = [...document.querySelectorAll(
+                    'ytcp-video-share-dialog tp-yt-paper-dialog')];
+                return dialogs.filter(e => e.checkVisibility({visibilityProperty: true}))
+                    .map(e => e.innerText).join('\n');
+            """) or ""
         except Exception:
             return None
         if "Video published" not in text and "视频已发布" not in text:
+            return None
+        title = self.create_video_title_with_limited_tags(self.metadata)
+        if title and title not in text:
             return None
         match = re.search(r"https://(?:www\.)?youtube\.com/(?:shorts/|watch\?v=)([A-Za-z0-9_-]{6,})", text)
         if not match:
@@ -676,19 +739,9 @@ return backdrops.length;
         if dialog_result:
             print(f"YouTube publish dialog confirmed video: {dialog_result['url']}")
             return True
-        verify_publish_in_management(
-            self.driver,
-            self._studio_content_url(),
-            self.metadata,
-            platform_name="YouTube",
-            timeout=int(os.environ.get("AUTOPUB_YOUTUBE_VERIFY_TIMEOUT", "360")),
-            include_english=True,
-            tab_xpaths=[
-                '//*[contains(normalize-space(),"Content")]',
-                '//*[contains(normalize-space(),"内容")]',
-                '//*[contains(normalize-space(),"Videos")]',
-                '//*[contains(normalize-space(),"视频")]',
-            ],
+        raise YouTubePublishPendingException(
+            "YouTube has no visible publish receipt. A title in an upload dialog "
+            "or a private draft is not proof of public publication."
         )
     
     def publish(self):
@@ -715,9 +768,6 @@ return backdrops.length;
                 self.set_tags_and_more()
                 time.sleep(3)
                     
-                # Wait for the final checks to finish before clicking Publish
-                self.wait_for_processing(mode="check", interval=1, duration=600)
-
                 if self.set_visibility_and_publish() is False:
                     return False
 
@@ -729,7 +779,13 @@ return backdrops.length;
             except DailyUploadLimitReachedException as e:
                 print(f"Publishing failed: {e.message}")
                 return False
+            except YouTubePublishPendingException:
+                raise
             except Exception as e:
+                if self._upload_started:
+                    raise YouTubePublishPendingException(
+                        f"Existing YouTube upload needs recovery; no duplicate upload: {e}"
+                    ) from e
                 print(f"Attempt {attempt + 1} of {max_attempts} failed: {e}")
                 if attempt < max_attempts - 1:
                     print("Retrying...")

@@ -37,6 +37,7 @@ from selenium.webdriver.chrome.service import Service
 import subprocess
 
 from utils import bring_to_front, log_html_snapshot
+from browser_window import fit_browser_window
 
 import argparse
 import itertools
@@ -436,6 +437,10 @@ def create_new_driver(port=5003, label=None, attempts=3):
         try:
             print(f"Attaching ChromeDriver to {target} on port {port} (attempt {attempt}/{attempts}); {_debug_summary(port)}")
             driver = webdriver.Chrome(service=service, options=options)
+            try:
+                print(f"Fitted {target} browser to desktop: {fit_browser_window(driver)}")
+            except Exception as exc:
+                print(f"Could not fit {target} browser; keeping its current bounds: {exc}")
             try:
                 print(f"Attached ChromeDriver to {target}: title={driver.title!r} url={driver.current_url!r}")
             except Exception:
