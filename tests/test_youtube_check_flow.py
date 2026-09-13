@@ -1,4 +1,8 @@
 import sys
+import ast
+from pathlib import Path
+import shutil
+import subprocess
 import types
 import unittest
 from unittest.mock import MagicMock, patch
@@ -48,6 +52,38 @@ class PublishFlowTests(unittest.TestCase):
         ]) as snapshot, patch.object(pub_y2b.time, "sleep"):
             self.assertTrue(self.publisher.wait_for_checks())
             self.assertEqual(snapshot.call_count, 2)
+
+    @unittest.skipUnless(shutil.which("node"), "Node is required to validate embedded JavaScript")
+    def test_embedded_javascript_is_syntactically_valid(self):
+        tree = ast.parse(Path(pub_y2b.__file__).read_text())
+        checked = 0
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "execute_script" and node.args
+                    and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)):
+                continue
+            result = subprocess.run(
+                ["node", "--check"],
+                input="function seleniumScript() {\n" + node.args[0].value + "\n}",
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, f"line {node.lineno}: {result.stderr}")
+            checked += 1
+        self.assertGreater(checked, 5)
+
+    def test_matching_draft_is_resumed_without_upload_navigation(self):
+        self.driver.execute_script.return_value = {"open": True, "matches": True}
+        with patch.object(pub_y2b, "WebDriverWait"):
+            self.publisher.upload_video()
+        self.driver.get.assert_not_called()
+        self.assertTrue(self.publisher._upload_started)
+
+    def test_different_draft_is_preserved(self):
+        self.driver.execute_script.return_value = {"open": True, "matches": False}
+        with self.assertRaises(pub_y2b.YouTubePublishPendingException):
+            self.publisher.upload_video()
+        self.driver.get.assert_not_called()
 
     def test_timeout_keeps_upload_pending(self):
         with self.assertRaises(pub_y2b.YouTubePublishPendingException):

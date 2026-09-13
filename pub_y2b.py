@@ -123,6 +123,8 @@ class YouTubePublisher:
         Navigates to the YouTube upload page and attaches the video file.
         """
         try:
+            if self._resume_matching_open_upload():
+                return
             self.driver.get('https://www.youtube.com/upload')
             time.sleep(1)  # Wait for the page to load
             
@@ -140,8 +142,32 @@ class YouTubePublisher:
             self._upload_started = True
             upload_input.send_keys(absolute_video_path)
             print('Attached video {}'.format(self.video_path))
+        except YouTubePublishPendingException:
+            raise
         except Exception as e:
             raise Exception(f"Failed to upload video: {e}")
+
+    def _resume_matching_open_upload(self):
+        """Resume an exact-title draft without attaching the media a second time."""
+        state = self.driver.execute_script(r"""
+            const root = document.querySelector('ytcp-uploads-dialog');
+            if (!root || !root.checkVisibility({visibilityProperty: true}) ||
+                    !root.querySelector('#step-badge-0')) return {open: false};
+            const lines = root.innerText.split('\n').map(s => s.trim());
+            return {open: true, matches: lines.includes(arguments[0].trim())};
+        """, reviewed_video_title(self.metadata)) or {}
+        if not state.get("open"):
+            return False
+        if not state.get("matches"):
+            raise YouTubePublishPendingException(
+                "Another YouTube draft is open; preserving it instead of replacing it."
+            )
+        self._upload_started = True
+        WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "step-badge-0"))
+        ).click()
+        print("Resuming matching YouTube draft; no duplicate video attachment.")
+        return True
     
     # def wait_for_processing(self):
     #     """
@@ -238,7 +264,7 @@ class YouTubePublisher:
             raise ProcessingTimeoutException()
 
     def _check_snapshot(self):
-        return self.driver.execute_script("""
+        return self.driver.execute_script(r"""
             const root = document.querySelector('ytcp-uploads-dialog');
             const visible = e => e.checkVisibility({visibilityProperty: true});
             const progress = root ? [...root.querySelectorAll('.progress-label')]
@@ -712,7 +738,7 @@ return backdrops.length;
 
     def _published_dialog_result(self):
         try:
-            text = self.driver.execute_script("""
+            text = self.driver.execute_script(r"""
                 const dialogs = [...document.querySelectorAll(
                     'ytcp-video-share-dialog tp-yt-paper-dialog')];
                 return dialogs.filter(e => e.checkVisibility({visibilityProperty: true}))
