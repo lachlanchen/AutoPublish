@@ -18,6 +18,7 @@ import os
 import json
 
 from publish_verification import verify_publish_in_management
+from douyin_submit import submit_outcome
 
 
 DOUYIN_MANAGEMENT_URL = "https://creator.douyin.com/creator-micro/content/manage"
@@ -574,25 +575,6 @@ class DouyinPublisher:
         )
 
     def _wait_for_publish_submit_result(self, timeout=180):
-        success_terms = [
-            "发布成功",
-            "提交成功",
-            "已提交",
-            "审核中",
-            "正在审核",
-            "作品管理",
-            "内容管理",
-        ]
-        failure_terms = [
-            "发布失败",
-            "提交失败",
-            "请填写",
-            "不能为空",
-            "请先",
-            "未完成",
-            "上传失败",
-            "上传异常",
-        ]
         deadline = time.time() + timeout
         last_text = ""
         while time.time() < deadline:
@@ -605,17 +587,15 @@ class DouyinPublisher:
             body_text = self._body_text()
             if body_text:
                 last_text = body_text[:1000]
-            if "creator-micro/content/manage" in current_url:
-                print("Douyin publish submit accepted; browser moved to management page.")
+            outcome = submit_outcome(current_url, body_text)
+            if outcome == "accepted":
+                print("Douyin publish submit accepted by receipt or management navigation.")
                 return True
-            if any(term in body_text for term in success_terms):
-                print("Douyin publish submit accepted by page text.")
-                return True
-            if any(term in body_text for term in failure_terms):
+            if outcome == "blocked":
                 raise RuntimeError(f"Douyin publish submit failed or blocked. Page excerpt: {last_text!r}")
             time.sleep(5)
 
-        raise RuntimeError(f"Timed out waiting for Douyin publish submit result. Page excerpt: {last_text!r}")
+        raise PublishVerificationException(f"Timed out waiting for Douyin publish submit result. Page excerpt: {last_text!r}")
 
     def _set_input_value(self, element, text):
         try:

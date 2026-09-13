@@ -14,6 +14,18 @@ from selenium.common.exceptions import TimeoutException, ElementClickIntercepted
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_instagram import InstagramLogin
 from instagram_caption import build_instagram_caption
+from browser_window import fit_browser_window
+
+CAPTION_LABELS = ("Write a caption...", "Add a caption...")
+CAPTION_SELECTORS = tuple(
+    selector
+    for label in CAPTION_LABELS
+    for selector in (
+        f"div[role='dialog'] div[role='textbox'][contenteditable='true'][aria-label='{label}']",
+        f"div[role='textbox'][contenteditable='true'][aria-label='{label}']",
+        f"textarea[aria-label='{label}']",
+    )
+)
 
 try:
     from publish_routing import infer_publish_category
@@ -134,17 +146,13 @@ class InstagramPublisher:
 
     def _caption_present(self):
         driver = self.driver
-        return bool(
-            driver.find_elements(By.XPATH, "//div[@aria-label='Write a caption...']")
-            or driver.find_elements(By.XPATH, "//textarea[@aria-label='Write a caption...']")
-        )
+        return any(driver.find_elements(By.CSS_SELECTOR, selector) for selector in CAPTION_SELECTORS)
 
     def _get_create_dialog(self):
         driver = self.driver
         dialog_candidates = [
             "//div[@role='dialog' and @aria-label='Create new post']",
-            "//div[@role='dialog' and .//div[@aria-label='Write a caption...']]",
-            "//div[@role='dialog' and .//textarea[@aria-label='Write a caption...']]",
+            *[f"//div[@role='dialog' and .//*[@aria-label='{label}']]" for label in CAPTION_LABELS],
         ]
         for xpath in dialog_candidates:
             dialogs = driver.find_elements(By.XPATH, xpath)
@@ -525,7 +533,7 @@ class InstagramPublisher:
             driver = self.driver
             print("Starting the publishing process on Instagram...")
             try:
-                driver.set_window_size(1920, 1080)
+                print(f"Instagram desktop bounds: {fit_browser_window(driver)}")
             except Exception as exc:
                 print(f"Could not normalize Instagram browser viewport: {exc}")
             driver.get("https://www.instagram.com/")
@@ -582,13 +590,7 @@ class InstagramPublisher:
             if caption:
                 print(f"Adding caption ({len(caption)} chars)...")
                 def visible_caption_box(current_driver):
-                    selectors = (
-                        "div[role='dialog'] div[role='textbox'][contenteditable='true']"
-                        "[aria-label='Write a caption...']",
-                        "div[role='textbox'][contenteditable='true']"
-                        "[aria-label='Write a caption...']",
-                        "textarea[aria-label='Write a caption...']",
-                    )
+                    selectors = CAPTION_SELECTORS
                     fallback = None
                     for selector in selectors:
                         for element in current_driver.find_elements(By.CSS_SELECTOR, selector):
