@@ -13,6 +13,7 @@ from selenium.common.exceptions import TimeoutException, ElementClickIntercepted
 
 from utils import dismiss_alert, bring_to_front, close_extra_tabs
 from login_instagram import InstagramLogin
+from instagram_caption import build_instagram_caption
 
 try:
     from publish_routing import infer_publish_category
@@ -245,28 +246,7 @@ class InstagramPublisher:
         )
 
     def _build_caption(self):
-        def build_from(meta):
-            if not isinstance(meta, dict):
-                return ""
-            title = (meta.get("title") or "").strip()
-            desc = (meta.get("long_description") or "").strip()
-            if not desc:
-                desc = (meta.get("brief_description") or "").strip()
-            tags = meta.get("tags") or []
-            tag_text = " ".join([f"#{tag}" for tag in tags if tag])
-            parts = [part for part in [title, desc, tag_text] if part]
-            return "\n\n".join(parts).strip()
-
-        en_meta = self.metadata.get("english_version")
-        en_caption = build_from(en_meta) if isinstance(en_meta, dict) else ""
-        zh_caption = build_from(self.metadata)
-
-        if en_caption and zh_caption and zh_caption != en_caption:
-            caption = f"{en_caption}\n\n{zh_caption}"
-        else:
-            caption = en_caption or zh_caption
-
-        return remove_non_bmp(caption)[:2200]
+        return build_instagram_caption(self.metadata)
 
     def _log_category_routing(self):
         if infer_publish_category is None:
@@ -430,7 +410,7 @@ class InstagramPublisher:
 
     def _publish_verification_terms(self):
         terms = []
-        for meta in (self.metadata.get("english_version"), self.metadata):
+        for meta in (self.metadata.get("japanese_version"), self.metadata.get("english_version"), self.metadata):
             if not isinstance(meta, dict):
                 continue
             for key in ("title", "brief_description"):
