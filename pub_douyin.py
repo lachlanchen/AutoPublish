@@ -18,7 +18,7 @@ import os
 import json
 
 from publish_verification import verify_publish_in_management
-from douyin_submit import submit_outcome
+from douyin_submit import submit_outcome, upload_outcome
 
 
 DOUYIN_MANAGEMENT_URL = "https://creator.douyin.com/creator-micro/content/manage"
@@ -725,29 +725,16 @@ class DouyinPublisher:
                 bring_to_front(["抖音"])  # This should be defined somewhere in your code
                 close_extra_tabs(driver)
 
-                # Monitor upload status
-                reupload_xpaths = [
-                    '//*[text()="重新上传"]',
-                    '//*[contains(text(),"替换视频")]',
-                    '//*[contains(text(),"重新上传")]',
-                    '//*[contains(text(),"上传完成")]',
-                ]
-                failure_xpaths = [
-                    '//*[text()="上传失败，重新上传"]',
-                    '//*[contains(text(),"上传失败")]',
-                    '//*[contains(text(),"上传异常")]',
-                ]
-
                 allow_draft_reuse = self._allow_draft_reuse()
                 resumed_draft = self._resume_unpublished_draft_if_present(for_replacement=not allow_draft_reuse)
                 upload_started_at = None
-                draft_upload_failed = self._find_any(failure_xpaths, timeout=2, visible=False)
+                draft_upload_failed = upload_outcome(self._body_text()) == "failed"
                 if draft_upload_failed:
                     print("Existing Douyin draft has a failed upload; reuploading inside the draft.")
                     upload_started_at = self._upload_video_file(path_mp4)
                 elif resumed_draft and not allow_draft_reuse:
                     upload_started_at = self._replace_existing_draft_video(path_mp4)
-                elif resumed_draft or self._find_any(reupload_xpaths, timeout=5, visible=False):
+                elif resumed_draft or upload_outcome(self._body_text()) == "ready":
                     print("Using existing Douyin draft/upload; skipping video upload.")
                 else:
                     upload_started_at = self._upload_video_file(path_mp4)
@@ -763,7 +750,11 @@ class DouyinPublisher:
                     if time.time() - start_time > timeout:
                         raise Exception("Timeout reached while waiting for video to be uploaded or for a failure message.")
 
-                    if self._find_any(failure_xpaths, timeout=2, visible=False):
+                    # Inspect failure/progress/completion atomically. The old
+                    # presence-only XPath could match hidden controls or the
+                    # "重新上传" substring inside an upload-failed message.
+                    upload_state = upload_outcome(self._body_text())
+                    if upload_state == "failed":
                         if upload_started_at and time.time() - upload_started_at < stale_failure_grace:
                             print("Ignoring possible stale Douyin upload failure indicator from the previous draft state.")
                             time.sleep(5)
@@ -771,7 +762,7 @@ class DouyinPublisher:
                         print("Upload failed! Raising an error to initiate retry...")
                         raise UploadFailedException("Upload failed due to presence of failure indicator.")
 
-                    if self._find_any(reupload_xpaths, timeout=5, visible=False):
+                    if upload_state == "ready":
                         print("Video upload prompt detected, indicating upload completion.")
                         break
 
