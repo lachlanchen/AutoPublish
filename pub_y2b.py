@@ -149,6 +149,7 @@ class YouTubePublisher:
 
     def _resume_matching_open_upload(self):
         """Resume an exact-title draft without attaching the media a second time."""
+        self._close_completed_publication()
         state = self.driver.execute_script(r"""
             const root = document.querySelector('ytcp-uploads-dialog');
             if (!root || !root.checkVisibility({visibilityProperty: true}) ||
@@ -167,6 +168,40 @@ class YouTubePublisher:
             EC.element_to_be_clickable((By.ID, "step-badge-0"))
         ).click()
         print("Resuming matching YouTube draft; no duplicate video attachment.")
+        return True
+
+    def _close_completed_publication(self):
+        """Close only a proven success receipt, never an unfinished upload."""
+        result = self.driver.execute_script(r"""
+            const dialogs = [...document.querySelectorAll(
+                'ytcp-video-share-dialog tp-yt-paper-dialog')];
+            const receipt = dialogs.find(e =>
+                e.checkVisibility({visibilityProperty: true}) &&
+                /Video published|视频已发布/.test(e.innerText) &&
+                /https:\/\/(?:www\.)?youtube\.com\/(?:shorts\/|watch\?v=)[A-Za-z0-9_-]{6,}/.test(e.innerText));
+            if (!receipt) return {completed: false};
+            const close = [...receipt.querySelectorAll('button, [role="button"]')].find(e =>
+                e.checkVisibility({visibilityProperty: true}) &&
+                /^(Close|关闭)$/.test((e.getAttribute('aria-label') || e.innerText || '').trim()));
+            if (!close) return {completed: true, closed: false};
+            close.click();
+            return {completed: true, closed: true};
+        """) or {}
+        if not result.get("completed"):
+            return False
+        if not result.get("closed"):
+            raise YouTubePublishPendingException("Cannot close the completed YouTube receipt safely.")
+        try:
+            WebDriverWait(self.driver, 15).until(lambda _: self.driver.execute_script(r"""
+                return ![...document.querySelectorAll(
+                    'ytcp-video-share-dialog tp-yt-paper-dialog, ytcp-uploads-dialog')]
+                    .some(e => e.checkVisibility({visibilityProperty: true}));
+            """))
+        except TimeoutException as exc:
+            raise YouTubePublishPendingException(
+                "YouTube success receipt is still closing; do not replace the underlying wizard."
+            ) from exc
+        print("Closed completed YouTube publication receipt.")
         return True
     
     # def wait_for_processing(self):
@@ -800,6 +835,12 @@ return backdrops.length;
                 time.sleep(10)
                 self.verify_published_in_studio()
                 print("Video published successfully.")
+                try:
+                    self._close_completed_publication()
+                except Exception as exc:
+                    # The receipt is already verified. A cleanup failure must not
+                    # turn this into a failed job and invite duplicate publication.
+                    print(f"Published receipt cleanup deferred until next upload: {exc}")
                 return True
 
             except DailyUploadLimitReachedException as e:

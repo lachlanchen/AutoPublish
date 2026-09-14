@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import types
 import unittest
+from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 from youtube_checks import checks_outcome
@@ -84,6 +85,43 @@ class PublishFlowTests(unittest.TestCase):
         with self.assertRaises(pub_y2b.YouTubePublishPendingException):
             self.publisher.upload_video()
         self.driver.get.assert_not_called()
+
+    def test_success_overlay_is_closed_before_draft_guard(self):
+        self.driver.execute_script.side_effect = [
+            {"completed": True, "closed": True}, {"open": False},
+        ]
+        with patch.object(pub_y2b, "WebDriverWait"):
+            self.assertFalse(self.publisher._resume_matching_open_upload())
+        self.assertIn("ytcp-video-share-dialog", self.driver.execute_script.call_args_list[0].args[0])
+
+    def test_receipt_without_safe_close_blocks_new_upload(self):
+        self.driver.execute_script.return_value = {"completed": True, "closed": False}
+        with self.assertRaises(pub_y2b.YouTubePublishPendingException):
+            self.publisher.upload_video()
+        self.driver.get.assert_not_called()
+
+    def test_delayed_receipt_close_must_finish_before_new_upload(self):
+        self.driver.execute_script.return_value = {"completed": True, "closed": True}
+        with patch.object(pub_y2b, "WebDriverWait") as wait:
+            wait.return_value.until.side_effect = pub_y2b.TimeoutException()
+            with self.assertRaises(pub_y2b.YouTubePublishPendingException):
+                self.publisher.upload_video()
+        self.driver.get.assert_not_called()
+
+    def test_cleanup_failure_does_not_fail_verified_publication(self):
+        with ExitStack() as stack:
+            for name in ("upload_video", "wait_for_processing", "set_video_details",
+                         "set_thumbnail", "set_playlist", "set_not_for_kids",
+                         "set_tags_and_more", "set_visibility_and_publish",
+                         "verify_published_in_studio"):
+                stack.enter_context(patch.object(self.publisher, name, return_value=True))
+            stack.enter_context(patch.object(pub_y2b.time, "sleep"))
+            stack.enter_context(patch.object(
+                self.publisher, "_close_completed_publication",
+                side_effect=pub_y2b.YouTubePublishPendingException("still closing"),
+            ))
+            self.assertTrue(self.publisher.publish())
+            self.publisher.upload_video.assert_called_once()
 
     def test_timeout_keeps_upload_pending(self):
         with self.assertRaises(pub_y2b.YouTubePublishPendingException):
