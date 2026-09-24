@@ -79,29 +79,20 @@ def enter_verified_caption(driver, find_editor, caption):
             editor.send_keys(Keys.CONTROL, "a")
             editor.send_keys(Keys.BACKSPACE)
         else:
-            # Instagram's Lexical editor can leave an older caption selected
-            # only visually when Ctrl+A is sent through WebDriver.  Selecting
-            # the actual DOM range makes the replacement deterministic.
-            driver.execute_script(
-                """
-                const el = arguments[0];
-                el.focus();
-                const selection = window.getSelection();
-                const range = document.createRange();
-                range.selectNodeContents(el);
-                selection.removeAllRanges();
-                selection.addRange(range);
-                """,
-                editor,
-            )
+            # Instagram's Lexical editor does not reliably commit a DOM-range
+            # replacement.  Use the browser's real select-all/backspace path;
+            # this updates Lexical's internal state as well as the DOM.
+            editor.send_keys(Keys.CONTROL, "a")
             editor.send_keys(Keys.BACKSPACE)
+            time.sleep(0.35)
 
         # Long WebDriver key streams can be coalesced or partially ignored by
-        # Lexical.  Small chunks preserve the site's input events and make the
-        # committed DOM/state match reliable for multilingual captions.
+        # Lexical.  Smaller paced chunks preserve the site's input events and
+        # make the committed DOM/state match reliable for multilingual
+        # captions, including after a previous failed upload left stale text.
         for start in range(0, len(caption), 180):
             editor.send_keys(caption[start:start + 180])
-            time.sleep(0.015)
+            time.sleep(0.08)
         editor.send_keys(Keys.TAB)
         verify_editor_caption(driver, find_editor, caption)
     except InstagramCaptionError:
