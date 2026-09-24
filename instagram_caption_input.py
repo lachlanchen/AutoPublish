@@ -103,13 +103,20 @@ def enter_verified_caption(driver, find_editor, caption):
                 _clear_lexical_editor(driver, find_editor)
 
             editor = WebDriverWait(driver, 10).until(find_editor)
-            # Long WebDriver key streams can be coalesced or partially ignored
-            # by Lexical. Smaller paced chunks preserve the site's input events
-            # and make the committed DOM/state match reliable for multilingual
-            # captions, including after a failed upload left stale text.
-            for start in range(0, len(caption), 180):
-                editor.send_keys(caption[start:start + 180])
-                time.sleep(0.08)
+            if editor.tag_name.lower() == "textarea":
+                editor.send_keys(caption)
+            else:
+                # Chrome's input event reaches Lexical's internal editor state
+                # reliably, while long Selenium key streams can be dropped or
+                # merged with stale text after a previous upload failed.
+                try:
+                    driver.execute_cdp_cmd("Input.insertText", {"text": caption})
+                except Exception:
+                    # Keep a compatible fallback for non-Chrome WebDriver
+                    # implementations used by local tests or future backends.
+                    for start in range(0, len(caption), 180):
+                        editor.send_keys(caption[start:start + 180])
+                        time.sleep(0.08)
             editor.send_keys(Keys.TAB)
             try:
                 verify_editor_caption(driver, find_editor, caption)
