@@ -1,6 +1,7 @@
 """Enter captions through browser input and verify the editor committed them."""
 
 import re
+import time
 import unicodedata
 
 from selenium.webdriver.common.keys import Keys
@@ -74,8 +75,33 @@ def enter_verified_caption(driver, find_editor, caption):
         editor = WebDriverWait(driver, 20).until(find_editor)
         driver.execute_script("arguments[0].scrollIntoView({block:'center'});", editor)
         editor.click()
-        editor.send_keys(Keys.CONTROL, "a")
-        editor.send_keys(caption)
+        if editor.tag_name.lower() == "textarea":
+            editor.send_keys(Keys.CONTROL, "a")
+            editor.send_keys(Keys.BACKSPACE)
+        else:
+            # Instagram's Lexical editor can leave an older caption selected
+            # only visually when Ctrl+A is sent through WebDriver.  Selecting
+            # the actual DOM range makes the replacement deterministic.
+            driver.execute_script(
+                """
+                const el = arguments[0];
+                el.focus();
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                """,
+                editor,
+            )
+            editor.send_keys(Keys.BACKSPACE)
+
+        # Long WebDriver key streams can be coalesced or partially ignored by
+        # Lexical.  Small chunks preserve the site's input events and make the
+        # committed DOM/state match reliable for multilingual captions.
+        for start in range(0, len(caption), 180):
+            editor.send_keys(caption[start:start + 180])
+            time.sleep(0.015)
         editor.send_keys(Keys.TAB)
         verify_editor_caption(driver, find_editor, caption)
     except InstagramCaptionError:
