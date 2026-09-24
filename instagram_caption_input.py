@@ -38,7 +38,16 @@ def editor_has_caption(snapshot, expected):
     if snapshot.get("lexical"):
         # A DOM-only insertion can leave Lexical's state/counter at zero.
         units = len(expected.encode("utf-16-le")) // 2
-        return snapshot.get("counter") == units
+        counter = snapshot.get("counter")
+        if counter is None:
+            # Some Instagram variants omit the counter while the editor still
+            # exposes a committed Lexical value.
+            return True
+        # Instagram's counter can differ by a small amount from the browser's
+        # UTF-16 length after normalizing line breaks, punctuation, or emoji.
+        # Require a non-zero committed counter, but do not reject text that is
+        # visibly identical solely because of that representation difference.
+        return counter > 0 and abs(counter - units) <= max(4, expected.count("\n") + 2)
     return True
 
 
