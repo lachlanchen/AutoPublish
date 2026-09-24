@@ -154,10 +154,30 @@ class InstagramPublisher:
 
     @staticmethod
     def _find_caption_editor(driver):
+        candidates = []
+        seen = set()
+        # Instagram uses "Add a caption..." for the active post editor and
+        # "Write a caption..." in an earlier/alternate dialog.  Gather all
+        # visible candidates first so a transition cannot make us write into
+        # the stale editor.
         for selector in CAPTION_SELECTORS:
             for element in driver.find_elements(By.CSS_SELECTOR, selector):
-                if element.is_displayed() and element.is_enabled():
-                    return element
+                if not element.is_displayed() or not element.is_enabled():
+                    continue
+                if element.id in seen:
+                    continue
+                seen.add(element.id)
+                candidates.append(element)
+
+        for label in ("Add a caption...", "Write a caption..."):
+            labeled = [
+                element for element in candidates
+                if element.get_attribute("aria-label") == label
+            ]
+            if labeled:
+                return labeled[-1]
+        if candidates:
+            return candidates[-1]
         return False
 
     def _get_create_dialog(self):
