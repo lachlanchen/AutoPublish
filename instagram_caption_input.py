@@ -68,33 +68,58 @@ def verify_editor_caption(driver, find_editor, expected, timeout=10):
         raise InstagramCaptionError("Instagram caption did not persist in the editor; not sharing.") from exc
 
 
+def _clear_lexical_editor(driver, find_editor, timeout=5):
+    """Clear the active Lexical editor and verify that its state is empty."""
+    editor = WebDriverWait(driver, timeout).until(find_editor)
+    editor.click()
+    editor.send_keys(Keys.CONTROL, "a")
+    editor.send_keys(Keys.BACKSPACE)
+
+    def is_empty(_):
+        current = find_editor(driver)
+        return bool(current) and normalized_caption(editor_snapshot(driver, current).get("text")) == ""
+
+    try:
+        WebDriverWait(driver, timeout, poll_frequency=0.25).until(is_empty)
+    except Exception as exc:
+        raise InstagramCaptionError(
+            "Instagram caption editor could not be cleared safely; not sharing."
+        ) from exc
+
+
 def enter_verified_caption(driver, find_editor, caption):
     if not normalized_caption(caption):
         raise InstagramCaptionError("Publication metadata produced an empty Instagram caption.")
     try:
-        editor = WebDriverWait(driver, 20).until(find_editor)
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", editor)
-        editor.click()
-        if editor.tag_name.lower() == "textarea":
-            editor.send_keys(Keys.CONTROL, "a")
-            editor.send_keys(Keys.BACKSPACE)
-        else:
-            # Instagram's Lexical editor does not reliably commit a DOM-range
-            # replacement.  Use the browser's real select-all/backspace path;
-            # this updates Lexical's internal state as well as the DOM.
-            editor.send_keys(Keys.CONTROL, "a")
-            editor.send_keys(Keys.BACKSPACE)
-            time.sleep(0.35)
+        last_error = None
+        for attempt in range(2):
+            editor = WebDriverWait(driver, 20).until(find_editor)
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", editor)
+            if editor.tag_name.lower() == "textarea":
+                editor.click()
+                editor.send_keys(Keys.CONTROL, "a")
+                editor.send_keys(Keys.BACKSPACE)
+            else:
+                _clear_lexical_editor(driver, find_editor)
 
-        # Long WebDriver key streams can be coalesced or partially ignored by
-        # Lexical.  Smaller paced chunks preserve the site's input events and
-        # make the committed DOM/state match reliable for multilingual
-        # captions, including after a previous failed upload left stale text.
-        for start in range(0, len(caption), 180):
-            editor.send_keys(caption[start:start + 180])
-            time.sleep(0.08)
-        editor.send_keys(Keys.TAB)
-        verify_editor_caption(driver, find_editor, caption)
+            editor = WebDriverWait(driver, 10).until(find_editor)
+            # Long WebDriver key streams can be coalesced or partially ignored
+            # by Lexical. Smaller paced chunks preserve the site's input events
+            # and make the committed DOM/state match reliable for multilingual
+            # captions, including after a failed upload left stale text.
+            for start in range(0, len(caption), 180):
+                editor.send_keys(caption[start:start + 180])
+                time.sleep(0.08)
+            editor.send_keys(Keys.TAB)
+            try:
+                verify_editor_caption(driver, find_editor, caption)
+                return
+            except InstagramCaptionError as exc:
+                last_error = exc
+                if attempt == 0:
+                    time.sleep(0.75)
+        if last_error:
+            raise last_error
     except InstagramCaptionError:
         raise
     except Exception as exc:
