@@ -233,8 +233,19 @@ def verify_publish_in_management(
     deadline = time.time() + timeout
     last_excerpt = ""
     tab_xpaths = list(tab_xpaths or [])
+    pass_number = 0
     while time.time() < deadline:
         safe_get(driver, management_url, timeout=45, label=f"{platform_name} management page")
+        # safe_get deliberately skips same-route navigation. A SPA can keep
+        # yesterday's content list after accepting today's upload; refresh the
+        # management page on a verification retry, never resubmit the post.
+        if pass_number and platform_name.lower() == "douyin":
+            try:
+                driver.refresh()
+                print(f"{platform_name} refreshed stale management listing for verification.")
+            except Exception as exc:
+                print(f"{platform_name} management refresh failed: {exc}")
+        pass_number += 1
         time.sleep(5)
         for tab_xpath in [None, *tab_xpaths]:
             if tab_xpath:
