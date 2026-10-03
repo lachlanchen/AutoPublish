@@ -7,6 +7,7 @@ import asyncio
 import json
 import threading
 import urllib.request
+import urllib.error
 import tornado.ioloop
 import tornado.web
 import app as publisher
@@ -23,6 +24,40 @@ _opening = False
 
 
 class PlatformLoginHandler(tornado.web.RequestHandler):
+    async def delete(self):
+        """Close only the selected private browser, never during publication."""
+        data = json.loads(self.request.body)
+        platform = data.get('platform')
+        if platform not in PLATFORMS:
+            raise tornado.web.HTTPError(400, 'Unknown platform')
+        if _opening or publisher.is_publishing or not publisher.PUBLISH_QUEUE.empty():
+            self.set_status(409)
+            self.write({'error': 'Publishing is active. Wait before closing a browser.'})
+            return
+        if not publisher.BROWSER_CONTROL_LOCK.acquire(blocking=False):
+            self.set_status(409)
+            self.write({'error': 'The publisher is using the browser. Try again later.'})
+            return
+        try:
+            def close_browser():
+                port, _url = PLATFORMS[platform]
+                try:
+                    with urllib.request.urlopen(f'http://127.0.0.1:{port}/json/version', timeout=3) as response:
+                        info = json.load(response)
+                except urllib.error.URLError:
+                    return  # Already closed; reopening preserves its profile.
+                address = info.get('webSocketDebuggerUrl', '')
+                if not address.startswith(f'ws://127.0.0.1:{port}/devtools/browser/'):
+                    raise RuntimeError('Unexpected private browser endpoint')
+                import websocket
+                from contextlib import closing
+                with closing(websocket.create_connection(address, timeout=3, suppress_origin=True)) as socket:
+                    socket.send(json.dumps({'id': 1, 'method': 'Browser.close'}))
+            await asyncio.to_thread(close_browser)
+            self.write({'closed': True, 'platform': platform})
+        finally:
+            publisher.BROWSER_CONTROL_LOCK.release()
+
     async def post(self):
         global _opening
         data = json.loads(self.request.body)

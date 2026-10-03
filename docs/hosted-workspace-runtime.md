@@ -56,3 +56,18 @@ python -m pytest -q tests/test_queue_journal.py tests/test_hosted_account_detect
 
 Queue persistence is deliberately opt-in, so merely pulling this change on an
 existing host does not migrate its runtime or restart its publisher.
+
+## Explicit private-browser close
+
+The authenticated Studio desktop has a **Close platform browser** action. It
+calls this loopback adapter's `DELETE /platform-login` for one of the six fixed
+platform names. An active or queued publish, an opening browser, or an occupied
+browser-control lock returns 409. The adapter accepts only the selected port's
+observed loopback CDP browser endpoint and uses `Browser.close`; profile files
+are retained. A later open reuses the login. Pausing the stream or freezing a QR
+does not close the browser, so a pending scan can still finish.
+
+This adapter is Docker-only. Updating it does not require a pull/restart of the
+owner's Pi or any change to terminal Chromium aliases. Regression coverage in
+`tests/test_container_login_control.py` checks publish fencing, unknown
+platforms, endpoint validation and lock release without touching real accounts.
