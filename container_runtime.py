@@ -55,10 +55,37 @@ class PlatformLoginHandler(tornado.web.RequestHandler):
             def activate():
                 with urllib.request.urlopen(f'http://127.0.0.1:{port}/json/list', timeout=3) as response:
                     pages = json.load(response)
-                page = next((p for p in pages if p.get('type') == 'page'), None)
+                page = next((p for p in pages if p.get('type') == 'page' and p.get('url', '').startswith(('https://', 'http://'))), None)
                 if page:
                     with urllib.request.urlopen(f'http://127.0.0.1:{port}/json/activate/{page["id"]}', timeout=3):
                         pass
+                    # Fit only this observed profile's window. Chromium's
+                    # initial 800x600 window wastes the mobile desktop viewport.
+                    import subprocess
+                    import websocket
+                    from contextlib import closing
+                    with urllib.request.urlopen(f'http://127.0.0.1:{port}/json/version', timeout=3) as response:
+                        info = json.load(response)
+                    dimensions = subprocess.check_output(['xdotool', 'getdisplaygeometry'], timeout=3, text=True).split()
+                    with closing(websocket.create_connection(info['webSocketDebuggerUrl'], timeout=3, suppress_origin=True)) as socket:
+                        def call(identifier, method, params):
+                            import time
+                            deadline = time.monotonic() + 3
+                            socket.send(json.dumps({'id': identifier, 'method': method, 'params': params}))
+                            for _ in range(100):
+                                socket.settimeout(max(.01, deadline-time.monotonic()))
+                                reply = json.loads(socket.recv())
+                                if reply.get('id') == identifier:
+                                    if 'error' in reply:
+                                        raise RuntimeError('Browser window operation failed')
+                                    return reply
+                                if time.monotonic() >= deadline:
+                                    break
+                            raise TimeoutError('Browser window response timed out')
+                        reply = call(1, 'Browser.getWindowForTarget', {'targetId': page['id']})
+                        window = reply['result']['windowId']
+                        call(2, 'Browser.setWindowBounds', {'windowId': window, 'bounds': {'windowState': 'normal'}})
+                        call(3, 'Browser.setWindowBounds', {'windowId': window, 'bounds': {'left': 0, 'top': 0, 'width': int(dimensions[0]), 'height': int(dimensions[1])}})
             try:
                 await asyncio.to_thread(activate)
             except Exception as exc:
