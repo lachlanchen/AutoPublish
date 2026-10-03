@@ -36,6 +36,8 @@ class BilibiliLogin:
         env_names = os.environ.get("BILIBILI_ACCOUNT_NAMES") or os.environ.get("BILIBILI_ACCOUNT_NAME")
         if env_names:
             return [name.strip() for name in env_names.split(",") if name.strip()]
+        if os.getenv('AUTOPUBLISH_ACCOUNT_NEUTRAL') == '1':
+            return []
         return [
             "LazyingArt懒人艺术",
             "LazyingArt懶人藝術",

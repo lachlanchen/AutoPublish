@@ -1,4 +1,5 @@
 import os
+import asyncio
 import csv
 import re
 import traceback
@@ -45,6 +46,8 @@ import queue
 import threading
 import time
 import random
+from queue_journal import QueueJournal
+from local_package import resolve_package, checksum, clean_scratch
 
 
 def _same_existing_file(path: str, content: bytes) -> bool:
@@ -95,9 +98,11 @@ PUBLISH_QUEUE: "queue.Queue[str]" = queue.Queue()
 PUBLISH_JOBS: dict[str, dict] = {}
 PUBLISH_JOB_ORDER: list[str] = []
 PUBLISH_LOCK = threading.Lock()
+BROWSER_CONTROL_LOCK = threading.Lock()
 PUBLISH_COUNTER = itertools.count(1)
 PUBLISH_MAX_HISTORY = 50
 PUBLISH_ATTENTION = PublishAttentionRegistry()
+PUBLISH_JOURNAL = QueueJournal(os.getenv("AUTOPUBLISH_QUEUE_JOURNAL"))
 # Argument parsing for configurable refresh time and port
 parser = argparse.ArgumentParser(description="Auto-publish application with browser refresh feature.")
 parser.add_argument('--refresh-time', type=int, default=1800, help="Time in seconds between each browser refresh.")
@@ -148,11 +153,12 @@ PLATFORM_ALIASES = {
 
 
 # Global variables for paths and publishers
-logs_folder_root = '/home/lachlan/Projects/auto-publish/logs'
-autopublish_folder_root = '/home/lachlan/Projects/auto-publish/videos'
-videos_db_path = '/home/lachlan/Projects/auto-publish/videos_db.csv'
-processed_path = '/home/lachlan/Projects/auto-publish/processed.csv'
-transcription_root = "/home/lachlan/Projects/auto-publish/transcription_data"
+runtime_root = os.getenv('AUTOPUBLISH_DATA_ROOT', '/home/lachlan/Projects/auto-publish')
+logs_folder_root = os.path.join(runtime_root, 'logs')
+autopublish_folder_root = os.path.join(runtime_root, 'videos')
+videos_db_path = os.path.join(runtime_root, 'videos_db.csv')
+processed_path = os.path.join(runtime_root, 'processed.csv')
+transcription_root = os.path.join(runtime_root, 'transcription_data')
 upload_url = 'http://lachlanserver:8081/upload'
 process_url = 'http://lachlanserver:8081/video-processing'
 
@@ -343,11 +349,13 @@ def _enqueue_publish_job(job):
     with PUBLISH_LOCK:
         PUBLISH_JOBS[job["id"]] = job
         PUBLISH_JOB_ORDER.append(job["id"])
-        if len(PUBLISH_JOB_ORDER) > PUBLISH_MAX_HISTORY:
-            overflow = PUBLISH_JOB_ORDER[:-PUBLISH_MAX_HISTORY]
+        terminal = [j for j in PUBLISH_JOB_ORDER if PUBLISH_JOBS[j]['status'] in {'done', 'failed'}]
+        if len(terminal) > PUBLISH_MAX_HISTORY:
+            overflow = terminal[:-PUBLISH_MAX_HISTORY]
             for job_id in overflow:
                 PUBLISH_JOBS.pop(job_id, None)
-            del PUBLISH_JOB_ORDER[:-PUBLISH_MAX_HISTORY]
+                PUBLISH_JOB_ORDER.remove(job_id)
+        PUBLISH_JOURNAL.save([PUBLISH_JOBS[j] for j in PUBLISH_JOB_ORDER])
     PUBLISH_QUEUE.put(job["id"])
 
 def _update_job_status(job_id, status, error=None):
@@ -359,9 +367,26 @@ def _update_job_status(job_id, status, error=None):
         job["updated_at"] = _job_timestamp()
         if error:
             job["error"] = error
+        PUBLISH_JOURNAL.save([PUBLISH_JOBS[j] for j in PUBLISH_JOB_ORDER])
     if status in {"done", "failed"}:
         PUBLISH_ATTENTION.resolve(str(job_id))
     return job
+
+
+def restore_publish_queue():
+    """Call once before starting the single queue worker."""
+    for job in PUBLISH_JOURNAL.restore():
+        PUBLISH_JOBS[job['id']] = job
+        PUBLISH_JOB_ORDER.append(job['id'])
+        if job['status'] == 'queued':
+            PUBLISH_QUEUE.put(job['id'])
+        elif job.get('local_package'):
+            # Includes an interrupted submission marked failed by the journal.
+            # The canonical package remains available for a reviewed retry.
+            try:
+                clean_scratch(job, os.path.join(transcription_root, 'scratch'))
+            except Exception as exc:
+                print(f'Could not clean previous publication scratch: {exc}')
 
 
 def _job_attention_callback(job_id):
@@ -847,6 +872,8 @@ def _process_publish_job(job):
         raise ValueError("Publish job missing filename or paths.")
     if not os.path.exists(transcription_path):
         raise FileNotFoundError(f"Missing zip at {transcription_path}")
+    if job.get('local_package') and checksum(transcription_path) != job.get('package_sha256'):
+        raise ValueError('Publication package changed after queue submission; review before retrying')
 
     print(f"Loading publish package: zip={transcription_path} extract_dir={transcription_dir}")
     if _zip_members_current(transcription_path, transcription_dir):
@@ -1018,13 +1045,19 @@ def _publish_worker():
         is_publishing = True
         _update_job_status(job_id, "running")
         try:
-            _process_publish_job(job)
+            with BROWSER_CONTROL_LOCK:
+                _process_publish_job(job)
             _update_job_status(job_id, "done")
         except Exception as exc:
             _update_job_status(job_id, "failed", str(exc))
             print(f"Publish job failed: {exc}")
             traceback.print_exc()
         finally:
+            if job.get('local_package'):
+                try:
+                    clean_scratch(job, os.path.join(transcription_root, 'scratch'))
+                except Exception as cleanup_error:
+                    print(f'Could not clean publication scratch: {cleanup_error}')
             is_publishing = False
             PUBLISH_QUEUE.task_done()
 
@@ -1139,7 +1172,7 @@ class PublishHandler(tornado.web.RequestHandler):
         return not os.path.exists(ignore_filename) and flag_name
 
     # @tornado.web.stream_request_body
-    def post(self):
+    async def post(self):
         # Read publishing options from request
         publish_xhs = self.get_argument('publish_xhs', 'false').lower() == 'true'
         publish_bilibili = self.get_argument('publish_bilibili', 'false').lower() == 'true'
@@ -1186,6 +1219,23 @@ class PublishHandler(tornado.web.RequestHandler):
         # Extract filename from form fields or use current datetime as default
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = self.get_argument('filename')
+        if filename != os.path.basename(filename) or not filename.lower().endswith('.zip'):
+            raise tornado.web.HTTPError(400, 'Expected a ZIP basename')
+        local_package = self.get_argument('local_package', '')
+        local_path = package_sha256 = None
+        if local_package:
+            try:
+                local_path, package_sha256 = await asyncio.to_thread(
+                    resolve_package, local_package,
+                    os.getenv('AUTOPUBLISH_LOCAL_PACKAGE_ROOT'), self.request.remote_ip,
+                )
+            except (ValueError, OSError) as exc:
+                self.set_status(400)
+                self.write({'error': str(exc)})
+                return
+            if os.path.basename(local_path) != filename:
+                raise tornado.web.HTTPError(400, 'Package basename mismatch')
+        job_id = _new_job_id()
 
         print("Received publish request: ", filename)
         # basename = Path(filename_provided).stem
@@ -1195,14 +1245,20 @@ class PublishHandler(tornado.web.RequestHandler):
         
         # Define path for the zip file
         video_name_without_ext = Path(filename).stem
-        transcription_dir = os.path.join(self.transcription_root, video_name_without_ext)
+        if local_path:
+            transcription_path = local_path
+            transcription_dir = os.path.join(self.transcription_root, 'scratch', job_id)
+        else:
+            transcription_dir = os.path.join(self.transcription_root, video_name_without_ext)
+            transcription_path = os.path.join(transcription_dir, filename)
         os.makedirs(transcription_dir, exist_ok=True)
-        transcription_path = os.path.join(transcription_dir, filename)
 
         # Write the received content to the file. Retries often submit the same
         # large package; avoid truncating and rewriting a multi-GB file when the
         # remote copy is already current.
-        if reuse_existing:
+        if local_path:
+            print('Using shared workspace package without a second ZIP copy.')
+        elif reuse_existing:
             if not os.path.exists(transcription_path):
                 self.set_status(400)
                 self.write(json.dumps({
@@ -1239,11 +1295,12 @@ class PublishHandler(tornado.web.RequestHandler):
         if publish_instagram:
             platforms.append("instagram")
 
-        job_id = _new_job_id()
         job = {
             "id": job_id,
             "filename": filename,
             "zip_path": transcription_path,
+            "local_package": bool(local_path),
+            "package_sha256": package_sha256,
             "transcription_dir": transcription_dir,
             "publish_xhs": publish_xhs,
             "publish_bilibili": publish_bilibili,
@@ -1323,11 +1380,13 @@ if __name__ == "__main__":
     refresh_thread = threading.Thread(target=refresh_browsers, args=(ports_patterns,), daemon=True)
     refresh_thread.start()
 
+    restore_publish_queue()
     publish_thread = threading.Thread(target=_publish_worker, daemon=True)
     publish_thread.start()
 
     app = make_app()
-    app.listen(port, max_body_size=10*1024 * 1024 * 1024)
+    app.listen(port, address=os.getenv('AUTOPUBLISH_BIND', ''), max_body_size=10*1024 * 1024 * 1024)
     print("Listen on: ", f"http://lazyingart:{port}")
-    tornado.autoreload.start()
+    if os.getenv('AUTOPUBLISH_AUTORELOAD', '1') == '1':
+        tornado.autoreload.start()
     tornado.ioloop.IOLoop.current().start()
