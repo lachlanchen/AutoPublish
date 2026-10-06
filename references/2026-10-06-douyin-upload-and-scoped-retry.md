@@ -68,10 +68,37 @@ The full suite also has two pre-existing failures in
 `test_instagram_caption_persistence.py` (missing counter expectation and native input
 replacement expectation). These are outside the changed publisher path;
 Instagram's real publication and saved-caption check succeeded in this run.
-Full pytest result after the package/handler tests: **79 passed, 2 failed**;
-excluding that unchanged Instagram test module: **67 passed**.
+Full pytest result after the package/handler/diagnostics tests: **81 passed, 2 failed**;
+excluding that unchanged Instagram test module: **69 passed**.
 
 Deploy only with the shared queue idle. Save old receipts before restarting a
 non-journaled worker. Do not interrupt another project's publication. Code
 validation and queue acceptance are not proof of a successful Douyin post;
 record the platform management confirmation separately.
+
+For a recurring upload failure, observe the existing browser without touching
+its navigation or replaying network requests:
+
+```bash
+python scripts/diagnose_douyin_upload.py --port 5004 --seconds 600
+```
+
+This read-only CDP probe records upload hosts, timing, HTTP status, network
+errors and selected JSON status/error fields. It omits signed URLs, request
+bodies, headers, cookies and upload IDs. A canceled request during the publisher's
+navigation is not automatically the cause of a preceding upload failure.
+
+## Live recovery result
+
+Corrected raw-ZIP job `job-1791282667698-1` ran only Douyin. Its first upload
+failed at 96%; the bounded retry recovered the editor, finished uploading and
+received an HTTP 200 JSON `code: 2000, message: Success` from upload storage.
+The final publish receipt and management-title match completed at 18:39:52
+Asia/Hong_Kong on 2026-10-06. A separate read-only management check showed the
+02:26 song row, creation time 18:39 and **审核中**. Submission succeeded; public
+visibility still depends on Douyin moderation. Queue `done` is not a claim that
+platform moderation has completed.
+
+No Instagram, Shipinhao or YouTube publication was repeated during recovery.
+The precise cause of the intermittent upload transport failure remains unknown;
+the fixes improve retry reliability and diagnostics, not a guaranteed network cure.
