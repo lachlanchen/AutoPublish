@@ -47,15 +47,9 @@ import threading
 import time
 import random
 from queue_journal import QueueJournal
+from publish_batch import publish_batch
+from publish_package import store_publish_package, validate_archive
 from local_package import resolve_package, checksum, clean_scratch
-
-
-def _same_existing_file(path: str, content: bytes) -> bool:
-    try:
-        stat = os.stat(path)
-    except OSError:
-        return False
-    return stat.st_size == len(content)
 
 
 def _zip_members_current(zip_path: str, extract_dir: str) -> bool:
@@ -339,6 +333,7 @@ def _serialize_job(job):
         "force_browser_restart": job.get("force_browser_restart", False),
         "restart_platforms": job.get("restart_platforms", []),
         "error": job.get("error"),
+        "platform_results": job.get("platform_results", {}),
     }
     attention = PUBLISH_ATTENTION.public(str(job.get("id") or ""))
     if attention:
@@ -371,6 +366,18 @@ def _update_job_status(job_id, status, error=None):
     if status in {"done", "failed"}:
         PUBLISH_ATTENTION.resolve(str(job_id))
     return job
+
+
+def _record_platform_result(job_id, platform, result):
+    with PUBLISH_LOCK:
+        job = PUBLISH_JOBS.get(job_id)
+        if job is None:
+            return
+        job.setdefault("platform_results", {})[platform] = {
+            **result, "updated_at": _job_timestamp(),
+        }
+        job["updated_at"] = _job_timestamp()
+        PUBLISH_JOURNAL.save([PUBLISH_JOBS[j] for j in PUBLISH_JOB_ORDER])
 
 
 def restore_publish_queue():
@@ -872,7 +879,7 @@ def _process_publish_job(job):
         raise ValueError("Publish job missing filename or paths.")
     if not os.path.exists(transcription_path):
         raise FileNotFoundError(f"Missing zip at {transcription_path}")
-    if job.get('local_package') and checksum(transcription_path) != job.get('package_sha256'):
+    if job.get('package_sha256') and checksum(transcription_path) != job['package_sha256']:
         raise ValueError('Publication package changed after queue submission; review before retrying')
 
     print(f"Loading publish package: zip={transcription_path} extract_dir={transcription_dir}")
@@ -1007,7 +1014,7 @@ def _process_publish_job(job):
         pub_y2blisher = YouTubePublisher(_driver_for("YouTube", 9222), path_mp4, path_cover, metadata_en, test_mode)
         publishers.append((pub_y2blisher, 'YouTube'))
 
-    for publisher, name in publishers:
+    def focus_platform(name):
         if name == 'XiaoHongShu':
             bring_to_front(["小红书", "你访问的页面不见了"])
         elif name == 'Douyin':
@@ -1027,8 +1034,10 @@ def _process_publish_job(job):
         elif name == 'YouTube':
             bring_to_front(["YouTube"])
 
-        if not publish_platform(publisher, name):
-            raise RuntimeError(f"{name} publish failed")
+    publish_batch(
+        publishers, publish_platform, before_each=focus_platform,
+        on_result=lambda name, result: _record_platform_result(job["id"], name, result),
+    )
 
 def _publish_worker():
     global is_publishing
@@ -1253,27 +1262,29 @@ class PublishHandler(tornado.web.RequestHandler):
             transcription_path = os.path.join(transcription_dir, filename)
         os.makedirs(transcription_dir, exist_ok=True)
 
-        # Write the received content to the file. Retries often submit the same
-        # large package; avoid truncating and rewriting a multi-GB file when the
-        # remote copy is already current.
-        if local_path:
-            print('Using shared workspace package without a second ZIP copy.')
-        elif reuse_existing:
-            if not os.path.exists(transcription_path):
-                self.set_status(400)
-                self.write(json.dumps({
-                    "status": "error",
-                    "error": f"reuse_existing requested but package does not exist: {transcription_path}",
-                }))
-                return
-            print(f"Reusing existing publish package by request: {transcription_path}")
-        elif _same_existing_file(transcription_path, self.request.body):
-            print(f"Reusing existing publish package without rewrite: {transcription_path}")
-        else:
-            tmp_path = f"{transcription_path}.tmp-{os.getpid()}-{int(time.time())}"
-            with open(tmp_path, 'wb') as f:
-                f.write(self.request.body)
-            os.replace(tmp_path, transcription_path)
+        # Do not let a body-less/multipart retry destroy an existing valid ZIP.
+        try:
+            if local_path:
+                await asyncio.to_thread(validate_archive, local_path)
+                print('Using shared workspace package without a second ZIP copy.')
+            else:
+                # Keep acceptance serialized with queue insertion. The server
+                # already buffers the ZIP; no second request may replace it
+                # while the first has validated but not yet enqueued it.
+                with PUBLISH_LOCK:
+                    busy = any(
+                        j.get('zip_path') == transcription_path
+                        and j.get('status') in {'queued', 'running'}
+                        for j in PUBLISH_JOBS.values()
+                    )
+                package_sha256 = store_publish_package(
+                    transcription_path, self.request.body,
+                    reuse_existing=reuse_existing, allow_replace=not busy,
+                )
+        except (ValueError, OSError) as exc:
+            self.set_status(409 if isinstance(exc, FileExistsError) else 400)
+            self.write({'status': 'error', 'error': str(exc)})
+            return
 
         platforms = []
         if publish_xhs:

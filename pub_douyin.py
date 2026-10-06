@@ -18,7 +18,7 @@ import os
 import json
 
 from publish_verification import verify_publish_in_management
-from douyin_submit import submit_outcome, upload_outcome
+from douyin_submit import submit_outcome, upload_outcome, upload_progress
 
 
 DOUYIN_MANAGEMENT_URL = "https://creator.douyin.com/creator-micro/content/manage"
@@ -447,16 +447,32 @@ class DouyinPublisher:
             print("Douyin unpublished draft prompt detected; opening draft to replace failed/stale media.")
         else:
             print("Douyin unpublished draft prompt detected; continuing existing draft.")
-        self._click_first(
-            [
-                '//button[normalize-space()="继续编辑"]',
-                '//*[normalize-space()="继续编辑"]/ancestor::button[1]',
-                '//*[normalize-space()="继续编辑"]',
-            ],
-            timeout=10,
-        )
-        time.sleep(5)
-        return True
+        # The SPA can enter the editor while a stale prompt snapshot is being
+        # inspected. Poll the route and visible control together, not 3 serial
+        # XPath waits against a modal which may no longer exist.
+        deadline = time.monotonic() + 12
+        clicked = False
+        while time.monotonic() < deadline:
+            state = self.driver.execute_script("""
+                const visible = el => {
+                    const r = el.getBoundingClientRect(), s = getComputedStyle(el);
+                    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden'
+                        && s.display !== 'none';
+                };
+                const button = Array.from(document.querySelectorAll('button,[role="button"],a,span'))
+                    .find(el => visible(el) && el.textContent.trim() === '继续编辑');
+                const editor = location.pathname.endsWith('/content/post/video');
+                return {editor, button, prompt: (document.body?.innerText || '').includes('你还有上次未发布的视频')};
+            """) or {}
+            if state.get("button") and not clicked:
+                clicked = self._safe_click(state["button"])
+            elif state.get("editor"):
+                return True
+            elif not state.get("prompt") and not clicked:
+                return False
+            time.sleep(0.5)
+        base, _ = self._save_upload_debug_snapshot("draft_resume_timeout")
+        raise UploadInputMissingException(f"Douyin draft did not enter the editor; inspect {base}.*")
 
     def _allow_draft_reuse(self):
         return os.environ.get("AUTOPUB_DOUYIN_REUSE_DRAFT", "0").strip().lower() in {
@@ -745,6 +761,7 @@ class DouyinPublisher:
                 start_time = time.time()
                 timeout = 3600  # 3600 seconds timeout
                 stale_failure_grace = int(os.environ.get("AUTOPUB_DOUYIN_STALE_FAILURE_GRACE", "45"))
+                last_progress_log = 0
                 
                 while True:
                     if time.time() - start_time > timeout:
@@ -753,14 +770,20 @@ class DouyinPublisher:
                     # Inspect failure/progress/completion atomically. The old
                     # presence-only XPath could match hidden controls or the
                     # "重新上传" substring inside an upload-failed message.
-                    upload_state = upload_outcome(self._body_text())
+                    progress = upload_progress(self._body_text())
+                    upload_state = progress["status"]
+                    if time.time() - last_progress_log >= 30:
+                        print(f"Douyin upload progress: {json.dumps(progress, ensure_ascii=False)}")
+                        last_progress_log = time.time()
                     if upload_state == "failed":
                         if upload_started_at and time.time() - upload_started_at < stale_failure_grace:
                             print("Ignoring possible stale Douyin upload failure indicator from the previous draft state.")
                             time.sleep(5)
                             continue
-                        print("Upload failed! Raising an error to initiate retry...")
-                        raise UploadFailedException("Upload failed due to presence of failure indicator.")
+                        base, _ = self._save_upload_debug_snapshot("upload_failed")
+                        raise UploadFailedException(
+                            f"Douyin reported upload failure; progress={progress}; evidence={base}.*"
+                        )
 
                     if upload_state == "ready":
                         print("Video upload prompt detected, indicating upload completion.")
