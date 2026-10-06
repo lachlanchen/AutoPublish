@@ -34,6 +34,8 @@ This was a malformed retry plus missing server validation, not a Douyin outage.
   also validates the existing ZIP. Compare hashes, not only sizes. Block changed
   package bytes while that path belongs to a queued/running job (HTTP 409).
 - Retain the accepted archive SHA-256 in each new job and reject later mutation.
+- Check CRCs of extracted members, not only their sizes, before reusing them.
+  Same-length corrected metadata must not leave a stale extracted title behind.
 
 ## Retry contract
 
@@ -63,9 +65,11 @@ python -m unittest discover -s tests -p 'test_publish*.py' -v
 ```
 
 The full suite also has two pre-existing failures in
-`test_instagram_caption.py` (missing counter expectation and native input
+`test_instagram_caption_persistence.py` (missing counter expectation and native input
 replacement expectation). These are outside the changed publisher path;
 Instagram's real publication and saved-caption check succeeded in this run.
+Full pytest result after the package/handler tests: **79 passed, 2 failed**;
+excluding that unchanged Instagram test module: **67 passed**.
 
 Deploy only with the shared queue idle. Save old receipts before restarting a
 non-journaled worker. Do not interrupt another project's publication. Code

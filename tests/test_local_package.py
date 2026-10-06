@@ -1,10 +1,13 @@
 """Shared-volume delivery must not duplicate media or clean canonical files."""
 import ast
 import hashlib
+import io
 import json
 import os
 import queue
 import tempfile
+import threading
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -15,6 +18,14 @@ import tornado.web
 import tornado.testing
 
 from local_package import checksum, clean_scratch, resolve_package
+from publish_package import store_publish_package, validate_archive
+
+
+def valid_zip(text='reviewed metadata'):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, 'w') as archive:
+        archive.writestr('video_metadata.json', text)
+    return stream.getvalue()
 
 
 def test_resolve_requires_opt_in_loopback_and_real_workspace_path(tmp_path):
@@ -70,6 +81,7 @@ class TestLocalPackageEndpoint(tornado.testing.AsyncHTTPTestCase):
         self.storage = tempfile.TemporaryDirectory()
         self.root = Path(self.storage.name)
         self.jobs = []
+        self.registry = {}
         self.environment = patch.dict(os.environ, {'AUTOPUBLISH_LOCAL_PACKAGE_ROOT': str(self.root / 'data')})
         self.environment.start()
         super().setUp()
@@ -82,12 +94,14 @@ class TestLocalPackageEndpoint(tornado.testing.AsyncHTTPTestCase):
     def get_app(self):
         source = ast.parse((Path(__file__).parents[1] / 'app.py').read_text())
         names = {'PublishHandler', '_parse_bool_arg', '_parse_restart_platforms',
-                 '_normalize_platform_name', '_same_existing_file'}
+                 '_normalize_platform_name'}
         nodes = [n for n in source.body if isinstance(n, (ast.ClassDef, ast.FunctionDef)) and n.name in names]
         context = {'tornado': __import__('tornado'), 'asyncio': __import__('asyncio'), 'os': os, 'Path': Path,
                    'datetime': datetime, 'json': json, 'time': __import__('time'),
                    're': __import__('re'), 'PLATFORM_ALIASES': {},
                    'resolve_package': resolve_package, '_new_job_id': lambda: 'job-1',
+                   'store_publish_package': store_publish_package, 'validate_archive': validate_archive,
+                   'PUBLISH_LOCK': threading.Lock(), 'PUBLISH_JOBS': self.registry,
                    '_enqueue_publish_job': self.jobs.append, 'PUBLISH_QUEUE': queue.Queue(),
                    '_job_timestamp': lambda: 'test'}
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'app.py', 'exec'), context)
@@ -97,7 +111,7 @@ class TestLocalPackageEndpoint(tornado.testing.AsyncHTTPTestCase):
     def test_local_delivery_keeps_one_archive(self):
         package = self.root / 'data' / 'video.zip'
         package.parent.mkdir()
-        package.write_bytes(b'archive')
+        package.write_bytes(valid_zip())
         response = self.fetch('/publish?' + urlencode({'filename': 'video.zip', 'local_package': str(package)}),
                               method='POST', body=b'')
         assert response.code == 200
@@ -107,7 +121,29 @@ class TestLocalPackageEndpoint(tornado.testing.AsyncHTTPTestCase):
         assert not (self.root / 'publisher' / 'video').exists()
 
     def test_remote_body_delivery_still_works(self):
-        response = self.fetch('/publish?filename=video.zip', method='POST', body=b'original remote upload')
+        body = valid_zip()
+        response = self.fetch('/publish?filename=video.zip', method='POST', body=body)
         assert response.code == 200
         assert self.jobs[0]['local_package'] is False
-        assert Path(self.jobs[0]['zip_path']).read_bytes() == b'original remote upload'
+        assert Path(self.jobs[0]['zip_path']).read_bytes() == body
+        assert self.jobs[0]['package_sha256'] == hashlib.sha256(body).hexdigest()
+
+    def test_malformed_retry_is_400_without_overwriting_or_queueing(self):
+        package = self.root / 'publisher' / 'video' / 'video.zip'
+        package.parent.mkdir(parents=True)
+        package.write_bytes(valid_zip())
+        before = package.read_bytes()
+        response = self.fetch('/publish?filename=video.zip', method='POST', body=b'--multipart-fields-only')
+        assert response.code == 400
+        assert not self.jobs
+        assert package.read_bytes() == before
+
+    def test_replacing_active_job_package_is_409(self):
+        package = self.root / 'publisher' / 'video' / 'video.zip'
+        package.parent.mkdir(parents=True)
+        package.write_bytes(valid_zip())
+        self.registry['existing'] = {'zip_path': str(package), 'status': 'running'}
+        response = self.fetch('/publish?filename=video.zip', method='POST', body=valid_zip('new metadata'))
+        assert response.code == 409
+        assert not self.jobs
+        assert package.read_bytes() == valid_zip()

@@ -5,8 +5,31 @@ import os
 from pathlib import Path, PurePosixPath
 import tempfile
 import zipfile
+import zlib
 
 from local_package import checksum
+
+
+def extracted_members_current(zip_path, extract_dir):
+    root = Path(extract_dir).resolve()
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            members = [item for item in archive.infolist() if not item.is_dir()]
+        if not members:
+            return False
+        for member in members:
+            path = (root / member.filename).resolve()
+            if not path.is_relative_to(root) or path.stat().st_size != member.file_size:
+                return False
+            crc = 0
+            with path.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    crc = zlib.crc32(block, crc)
+            if crc != member.CRC:
+                return False
+        return True
+    except (OSError, zipfile.BadZipFile):
+        return False
 
 
 def validate_archive(source):

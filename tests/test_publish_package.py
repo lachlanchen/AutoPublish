@@ -4,7 +4,7 @@ import tempfile
 import unittest
 import zipfile
 
-from publish_package import store_publish_package
+from publish_package import extracted_members_current, store_publish_package
 
 
 def package(text="one"):
@@ -48,6 +48,23 @@ class PublishPackageTests(unittest.TestCase):
         self.assertEqual(len(replacement), len(self.original))
         store_publish_package(self.path, replacement)
         self.assertEqual(self.path.read_bytes(), replacement)
+
+    def test_same_size_stale_extracted_file_is_not_reused(self):
+        extracted = self.path.parent / "song_metadata.json"
+        extracted.write_text("two")
+        self.assertFalse(extracted_members_current(self.path, self.path.parent))
+        extracted.write_text("one")
+        self.assertTrue(extracted_members_current(self.path, self.path.parent))
+
+    def test_missing_extracted_file_is_not_current(self):
+        self.assertFalse(extracted_members_current(self.path, self.path.parent))
+
+    def test_corrupt_payload_is_rejected_before_replacement(self):
+        corrupt = bytearray(self.original)
+        corrupt[corrupt.index(b"one")] = ord("x")
+        with self.assertRaisesRegex(ValueError, "CRC"):
+            store_publish_package(self.path, corrupt)
+        self.assertEqual(self.path.read_bytes(), self.original)
 
     def test_active_job_blocks_replacement_but_allows_identical_bytes(self):
         store_publish_package(self.path, self.original, allow_replace=False)

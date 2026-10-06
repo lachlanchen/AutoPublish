@@ -48,31 +48,9 @@ import time
 import random
 from queue_journal import QueueJournal
 from publish_batch import publish_batch
-from publish_package import store_publish_package, validate_archive
+from publish_package import extracted_members_current, store_publish_package, validate_archive
 from local_package import resolve_package, checksum, clean_scratch
 
-
-def _zip_members_current(zip_path: str, extract_dir: str) -> bool:
-    try:
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            infos = [info for info in zip_ref.infolist() if not info.is_dir()]
-    except zipfile.BadZipFile:
-        return False
-    if not infos:
-        return False
-    for info in infos:
-        member_path = os.path.abspath(os.path.join(extract_dir, info.filename))
-        root = os.path.abspath(extract_dir)
-        if not member_path.startswith(root + os.sep):
-            return False
-        if not os.path.exists(member_path):
-            return False
-        try:
-            if os.path.getsize(member_path) != info.file_size:
-                return False
-        except OSError:
-            return False
-    return True
 
 # Add this import
 from load_env import load_env
@@ -883,8 +861,8 @@ def _process_publish_job(job):
         raise ValueError('Publication package changed after queue submission; review before retrying')
 
     print(f"Loading publish package: zip={transcription_path} extract_dir={transcription_dir}")
-    if _zip_members_current(transcription_path, transcription_dir):
-        print("Publish package already extracted with current member sizes; skipping extraction.")
+    if extracted_members_current(transcription_path, transcription_dir):
+        print("Publish package already extracted with verified member CRCs; skipping extraction.")
     else:
         with zipfile.ZipFile(transcription_path, 'r') as zip_ref:
             zip_ref.extractall(transcription_dir)
