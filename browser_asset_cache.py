@@ -46,8 +46,9 @@ class AssetCache:
         self.socket = websocket.create_connection(socket_url, suppress_origin=True, timeout=2)
         self.stop = threading.Event()
         self.serial = 0
-        self.send('Fetch.enable', {'patterns': [
-            {'urlPattern': url, 'requestStage': 'Request'} for url in assets]})
+        self.patterns = {'patterns': [
+            {'urlPattern': url, 'requestStage': 'Request'} for url in assets]}
+        self.send('Fetch.enable', self.patterns)
         response = json.loads(self.socket.recv())
         if response.get('error'):
             self.socket.close()
@@ -57,7 +58,8 @@ class AssetCache:
 
     def send(self, method, params):
         self.serial += 1
-        self.socket.send(json.dumps({'id': self.serial, 'method': method, 'params': params}))
+        message = {'id': self.serial, 'method': method, 'params': params}
+        self.socket.send(json.dumps(message))
 
     def run(self):
         try:
@@ -109,10 +111,10 @@ def shipinhao_assets(driver, platform):
                 address = driver.capabilities['goog:chromeOptions']['debuggerAddress']
                 if not re.fullmatch(r'(?:127\.0\.0\.1|localhost):\d+', address):
                     raise ValueError('Asset cache requires a loopback browser')
-                pages = requests.get(f'http://{address}/json/list', timeout=10).json()
-                target = driver.current_window_handle.removeprefix('CDwindow-')
-                page = next(p for p in pages if p['id'] == target)
-                cache = AssetCache(page['webSocketDebuggerUrl'], assets)
+                # Browser-level Fetch covers dedicated-worker downloads too;
+                # the worker's own CDP session does not implement Fetch.
+                version = requests.get(f'http://{address}/json/version', timeout=10).json()
+                cache = AssetCache(version['webSocketDebuggerUrl'], assets)
         yield
     finally:
         if cache:

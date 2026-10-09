@@ -788,6 +788,9 @@ if (scoped) {
   const updatedInput = norm((scope.querySelector('input:not([type="hidden"]):not([type="file"])') || {}).value || '');
   const updatedDropdown = norm((scope.querySelector('.weui-desktop-form__dropdowncascade__dt') || {}).innerText || '');
   const updated = updatedInput || updatedDropdown || visibleText(scope);
+  if (label.includes('语言') && !wantedTexts.includes(updatedInput)) {
+    return {ok: false, reason: 'selection-pending', wanted: targetText};
+  }
   if (wantedTexts.some((wantedText) => updated.includes(wantedText) || scoped.text === wantedText)) {
     return {ok: true, selected: updated, wanted: scopedWanted, option: scoped};
   }

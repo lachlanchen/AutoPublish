@@ -25,7 +25,9 @@ an authorized machine with working access to that CDN. Do not synthesize them,
 disable TLS verification, or commit cached binaries.
 
 The cache attaches only during Shipinhao video/music publication, to its existing
-loopback Chrome target, and supplies the exact vendor bytes. All authenticated
+dedicated loopback Chrome browser, and supplies the exact vendor bytes. Browser
+level Fetch is necessary: worker sessions reject `Fetch.enable`, and page-level
+interception misses the worker's downloads. All authenticated
 APIs and every other request still use the platform normally. Cover readiness,
 form validation and publication verification remain mandatory. The connection
 and interception are closed after the publisher exits. Without a manifest the
@@ -69,6 +71,10 @@ Run `python -m unittest discover -s tests -p 'test_published_retention.py'` and
 the analogous `test_browser_asset_cache.py`. Retention tests cover partial
 failures/retries, active jobs, source paths, changed files, unknown evidence,
 test/shared packages, symlinks and idempotency.
+
+With Playwright installed, also run `test_shipinhao_music_dropdown.py` and
+`test_browser_asset_cache_worker.py`. These exercise asynchronous menu toggling,
+selection readback, and an actual dedicated worker fetching a pinned dependency.
 
 Deploy only after the queue is idle. Preserve receipts before an old
 non-journaled process restarts. Retry failed platforms only, never all targets.
