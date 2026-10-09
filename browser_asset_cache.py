@@ -4,6 +4,7 @@ This supplies the vendor's original bytes when its CDN is unreachable. It never
 intercepts authenticated APIs or replaces platform validation/success responses.
 """
 import base64
+from collections import deque
 from contextlib import contextmanager
 import hashlib
 import json
@@ -56,11 +57,16 @@ class AssetCache:
         self.socket = websocket.create_connection(socket_url, suppress_origin=True, timeout=2)
         self.stop = threading.Event()
         self.serial = 0
+        self.pending = deque()
         self.patterns = {'patterns': [
             {'urlPattern': pattern, 'requestStage': 'Request'}
             for url in assets for pattern in (url, url + '?*')]}
         self.send('Fetch.enable', self.patterns)
-        response = json.loads(self.socket.recv())
+        while True:
+            response = json.loads(self.socket.recv())
+            if response.get('id') == self.serial:
+                break
+            self.pending.append(response)
         if response.get('error'):
             self.socket.close()
             raise RuntimeError('Could not enable public asset cache')
@@ -76,7 +82,7 @@ class AssetCache:
         try:
             while not self.stop.is_set():
                 try:
-                    message = json.loads(self.socket.recv())
+                    message = self.pending.popleft() if self.pending else json.loads(self.socket.recv())
                 except websocket.WebSocketTimeoutException:
                     continue
                 if message.get('method') != 'Fetch.requestPaused':
