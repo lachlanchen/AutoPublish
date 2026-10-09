@@ -1400,6 +1400,8 @@ if __name__ == "__main__":
     app = make_app()
     app.listen(port, address=os.getenv('AUTOPUBLISH_BIND', ''), max_body_size=10*1024 * 1024 * 1024)
     print("Listen on: ", f"http://lazyingart:{port}")
-    if os.getenv('AUTOPUBLISH_AUTORELOAD', '1') == '1':
+    # A development reload can interrupt a real platform submission. Production
+    # deployments must drain the queue and restart explicitly.
+    if os.getenv('AUTOPUBLISH_AUTORELOAD', '0') == '1':
         tornado.autoreload.start()
     tornado.ioloop.IOLoop.current().start()

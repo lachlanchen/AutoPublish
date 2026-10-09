@@ -84,3 +84,7 @@ selection readback, and an actual dedicated worker fetching a pinned dependency.
 
 Deploy only after the queue is idle. Preserve receipts before an old
 non-journaled process restarts. Retry failed platforms only, never all targets.
+`AUTOPUBLISH_AUTORELOAD` now defaults to `0`: even a source-only `git pull`
+could otherwise interrupt an in-flight music form. Enable it only for local
+development without real publishing. The interrupted attempt is retained as
+failed/unknown by the journal, never silently replayed.
