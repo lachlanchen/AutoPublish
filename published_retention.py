@@ -85,6 +85,9 @@ def cleanup_published(jobs, root, *, apply=False):
                 rel = Path(member.filename)
                 if rel.is_absolute() or '..' in rel.parts:
                     raise ValueError('Unsafe archive member in published package')
+                if any(part.lower() in {'proof', 'proofs', 'evidence', 'covers'}
+                       for part in rel.parts[:-1]):
+                    continue
                 target = directory / rel
                 if rel.suffix.lower() in MEDIA_SUFFIXES and _regular_file(target, directory):
                     with archive.open(member) as stream:

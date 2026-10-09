@@ -48,6 +48,18 @@ class PublishedRetentionTests(unittest.TestCase):
         for results in [{}, {'YouTube': {'status': 'done'}, 'ShiPinHao': {'status': 'failed'}}]:
             self.assertEqual(cleanup_published([{**self.job, 'platform_results': results}], self.root), [])
 
+    def test_audio_and_video_inside_proof_directories_are_preserved(self):
+        names = ['proof/session.wav', 'evidence/recording.mp4', 'covers/animated.webm']
+        with zipfile.ZipFile(self.archive, 'a') as archive:
+            for name in names:
+                archive.writestr(name, b'production evidence')
+        with zipfile.ZipFile(self.archive) as archive:
+            archive.extractall(self.directory)
+        self.job['package_sha256'] = sha256(self.archive)
+        cleanup_published([self.job], self.root, apply=True)
+        for name in names:
+            self.assertTrue((self.directory / name).exists())
+
     def test_failed_batch_then_scoped_retry_completes_all_targets(self):
         failed = {**self.job, 'status': 'failed', 'platform_results': {
             'YouTube': {'status': 'done'}, 'ShiPinHao': {'status': 'failed'}}}
