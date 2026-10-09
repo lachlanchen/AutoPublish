@@ -654,7 +654,6 @@ function click(el) {
   el.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, view: window}));
   if (typeof el.click === 'function') el.click();
   el.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, view: window}));
-  el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
 }
 
 const genreLeafMap = {
@@ -761,7 +760,11 @@ const clickable = scope.querySelector('.weui-desktop-form__dropdowncascade__dt')
   || Array.from(scope.querySelectorAll('button, input, [class*="select"], [class*="dropdown"], .weui-desktop-form__dropdown, .weui-desktop-dropdown, .display, .display-text, .arrow-icon, .content, div, span'))
     .find((el) => isVisible(el) && el !== labelEl)
   || scope;
-click(clickable);
+// A second click closes this menu. Vue renders options on the next tick, so
+// leave an already-open menu open when Python polls this function again.
+const menuOpen = Array.from(scope.querySelectorAll('.weui-desktop-dropdown__list-ele'))
+  .some(isVisible);
+if (!menuOpen) click(clickable);
 
 if (label.includes('歌曲曲风') && targetText !== optionText) {
   const parent = clickOption(scope, optionText, false);

@@ -50,6 +50,8 @@ from queue_journal import QueueJournal
 from publish_batch import publish_batch
 from publish_package import extracted_members_current, store_publish_package, validate_archive
 from local_package import resolve_package, checksum, clean_scratch
+from published_retention import cleanup_published
+from browser_asset_cache import shipinhao_assets
 
 
 # Add this import
@@ -74,7 +76,6 @@ BROWSER_CONTROL_LOCK = threading.Lock()
 PUBLISH_COUNTER = itertools.count(1)
 PUBLISH_MAX_HISTORY = 50
 PUBLISH_ATTENTION = PublishAttentionRegistry()
-PUBLISH_JOURNAL = QueueJournal(os.getenv("AUTOPUBLISH_QUEUE_JOURNAL"))
 # Argument parsing for configurable refresh time and port
 parser = argparse.ArgumentParser(description="Auto-publish application with browser refresh feature.")
 parser.add_argument('--refresh-time', type=int, default=1800, help="Time in seconds between each browser refresh.")
@@ -131,6 +132,8 @@ autopublish_folder_root = os.path.join(runtime_root, 'videos')
 videos_db_path = os.path.join(runtime_root, 'videos_db.csv')
 processed_path = os.path.join(runtime_root, 'processed.csv')
 transcription_root = os.path.join(runtime_root, 'transcription_data')
+PUBLISH_JOURNAL = QueueJournal(os.getenv(
+    'AUTOPUBLISH_QUEUE_JOURNAL', os.path.join(logs_folder_root, 'publish-queue.json')))
 upload_url = 'http://lachlanserver:8081/upload'
 process_url = 'http://lachlanserver:8081/video-processing'
 
@@ -772,7 +775,8 @@ def refresh_browsers(ports_patterns):
 def publish_platform(publisher, platform_name):
     try:
         print(f"Publishing on {platform_name}...")
-        result = publisher.publish()
+        with shipinhao_assets(publisher.driver, platform_name):
+            result = publisher.publish()
         if result is False:
             raise RuntimeError(f"{platform_name} publisher returned unsuccessful status")
         print(f"Successfully published on {platform_name}.")
@@ -1040,6 +1044,16 @@ def _publish_worker():
             print(f"Publish job failed: {exc}")
             traceback.print_exc()
         finally:
+            if os.getenv('AUTOPUBLISH_CLEAN_PUBLISHED', '1') != '0':
+                try:
+                    # Serialize with package acceptance so a queued retry can
+                    # never lose its media while cleanup runs.
+                    with PUBLISH_LOCK:
+                        cleaned = cleanup_published(list(PUBLISH_JOBS.values()), transcription_root, apply=True)
+                    if cleaned:
+                        print(f'Cleaned verified published staging packages: {[r["filename"] for r in cleaned]}')
+                except Exception as cleanup_error:
+                    print(f'Published staging cleanup deferred: {cleanup_error}')
             if job.get('local_package'):
                 try:
                     clean_scratch(job, os.path.join(transcription_root, 'scratch'))
