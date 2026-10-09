@@ -442,6 +442,42 @@ return {
 """
 
 
+MUSIC_VALIDATION_STATE_SCRIPT = r"""
+return (async () => {
+  const components = [...new Set(Array.from(document.querySelectorAll('*'))
+    .map(el => el.__vue__).filter(Boolean))];
+  const root = components.find(vm => vm.postMusicStore && vm.$refs &&
+    'hasCheckLawText' in (vm.$data || {}));
+  if (!root) return {ready: false, reason: 'form-validator-unavailable'};
+  const uploads = components.filter(vm => 'uploading' in (vm.$data || {}));
+  const uploading = uploads.some(vm => vm.uploading);
+  const uploadError = uploads.some(vm => !!vm.errorMessage);
+  const store = root.postMusicStore;
+  const audioReady = !!store.songInfo?.originalDataUrl;
+  const coverReady = !!store.albumInfo?.coverUrl;
+  const state = {ready: false, uploading, uploadError, audioReady, coverReady,
+    agreement: !!root.hasCheckLawText};
+  if (uploading || uploadError || !audioReady || !coverReady) return state;
+  // Use the site's real validators, never modify their results or readiness flags.
+  const fields = [];
+  for (const name of Object.keys(store.formRef || {})) {
+    const form = root.$refs[name];
+    fields.push({name, valid: !!(form && typeof form.validate === 'function' &&
+      await form.validate())});
+  }
+  state.fields = fields;
+  state.ready = state.agreement && fields.length > 0 && fields.every(f => f.valid);
+  return state;
+})();
+"""
+
+
+MUSIC_SUBMITTED_STATE_SCRIPT = r"""
+const text = (document.body?.innerText || '').replace(/\s+/g, ' ');
+return {submitted: text.includes('你的音乐已提交')};
+"""
+
+
 MUSIC_PROOF_UPLOAD_STATE_SCRIPT = r"""
 function norm(value) {
   return (value || '').replace(/\s+/g, ' ').trim();
@@ -1108,6 +1144,31 @@ def _wait_for_music_proof_upload(driver, duration=45):
     raise TimeoutException(f"Timed out waiting for Shipinhao music proof upload. Last state: {last_state}")
 
 
+def _wait_for_music_validation(driver, duration=180):
+    deadline = time.monotonic() + duration
+    last_state = None
+    while time.monotonic() < deadline:
+        state = _execute_in_content_frame(driver, MUSIC_VALIDATION_STATE_SCRIPT)
+        if state != last_state:
+            print(f"Shipinhao music readiness: {json.dumps(state, ensure_ascii=False)}")
+            last_state = state
+        if isinstance(state, dict) and state.get("ready"):
+            return state
+        time.sleep(2)
+    raise TimeoutException(f"Shipinhao music form never validated: {last_state}")
+
+
+def _wait_for_music_submitted(driver, duration=60):
+    deadline = time.monotonic() + duration
+    while time.monotonic() < deadline:
+        state = _execute_in_content_frame(driver, MUSIC_SUBMITTED_STATE_SCRIPT)
+        if isinstance(state, dict) and state.get("submitted"):
+            return state
+        _raise_on_visible_music_error(driver)
+        time.sleep(1)
+    raise TimeoutException("No explicit Shipinhao music submission confirmation")
+
+
 def _remove_stuck_music_proof_upload(driver):
     try:
         result = _execute_in_content_frame(driver, MUSIC_REMOVE_STUCK_PROOF_SCRIPT)
@@ -1456,6 +1517,12 @@ class ShiPinHaoMusicPublisher:
                 duration=8,
             )
         _select_music_option(self.driver, "是否已在其他平台发表", "是" if published_elsewhere else "否", duration=8)
+        if published_elsewhere:
+            source_url = _metadata_text(metadata, "source_url", "canonical_url", "website_url", default="")
+            _set_music_field(
+                self.driver, ["站外歌曲播放地址"], ["请填写站外歌曲播放地址链接"],
+                source_url, required=True, duration=10,
+            )
 
         if bool(metadata.get("declare_original", False)):
             try:
@@ -1488,6 +1555,7 @@ class ShiPinHaoMusicPublisher:
         if self.retry_count >= 3:
             raise RuntimeError("Maximum retry attempts reached. Shipinhao music process failed.")
 
+        submission_clicked = False
         try:
             driver = self.driver
             print("Starting the music publishing process on ShiPinHao...")
@@ -1517,15 +1585,15 @@ class ShiPinHaoMusicPublisher:
                 user_input = "yes"
 
             if user_input == "yes":
+                _wait_for_music_validation(driver)
                 form_state = _music_form_state(driver)
                 if form_state:
                     print(f"Shipinhao music form state before submit: {json.dumps(form_state, ensure_ascii=False)}")
                 state = _wait_for_button_ready(driver, text="发表音乐", duration=90)
                 print(f"Shipinhao music publish button ready: {state}")
+                submission_clicked = True
                 click_content_frame_css(driver, "button", duration=20, text="发表音乐", exact=True)
-                time.sleep(3)
-                _raise_on_visible_music_error(driver)
-                time.sleep(7)
+                _wait_for_music_submitted(driver)
                 print("Shipinhao music submitted.")
                 try:
                     management = save_shipinhao_music_management_snapshot(driver, "music_after_submit")
@@ -1549,6 +1617,11 @@ class ShiPinHaoMusicPublisher:
             print(f"Shipinhao music publish error: {exc}")
             traceback.print_exc()
             save_debug_snapshot(self.driver, f"music_publish_attempt_{self.retry_count + 1}")
+            if submission_clicked:
+                raise RuntimeError(
+                    "Shipinhao music submit was attempted. Inspect confirmation and music "
+                    "management before retrying; no automatic duplicate submission."
+                ) from exc
             self.retry_count += 1
             if self.retry_count >= 3:
                 raise RuntimeError("Maximum retry attempts reached. Shipinhao music process failed.") from exc

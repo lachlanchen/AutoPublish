@@ -71,6 +71,27 @@ not automatically assumed published. Keep it until its receipts are recovered.
 After cleanup, a deliberate republish re-uploads the canonical LazyEdit ZIP;
 `reuse_existing=true` alone cannot recover a removed staging archive.
 
+## Music Form Readiness
+
+An enabled submit button and completed proof upload do not prove the audio and
+album form are ready. On 2026-10-10, three immediate attempts returned the generic
+incomplete-form message; the same retained form later passed all four native
+validators and submitted successfully without replacing the song or lyrics.
+The exact field that failed during those earlier clicks was not captured.
+
+The publisher now waits for audio/cover upload completion and the site's own
+asynchronous form validators. It logs only readiness flags and form names, never
+signed upload URLs. Unknown form structure fails closed. After clicking submit,
+require the explicit `你的音乐已提交` confirmation; do not automatically retry an
+uncertain submission. Inspect the music management entry before any recovery.
+`test_shipinhao_music_readiness.py` covers pending uploads, asynchronous validation,
+missing cover/agreement, unknown forms and explicit confirmation.
+
+LazyEdit now includes `source_url` in the actual uploaded package, not only its
+tracking database. The publisher selects prior publication truthfully and fills
+the newly revealed external playback URL field. Do not strip corrected Japanese
+lyrics or translate them into Chinese to work around a form problem.
+
 ## Tests and Deployment
 
 Run `python -m unittest discover -s tests -p 'test_published_retention.py'` and
