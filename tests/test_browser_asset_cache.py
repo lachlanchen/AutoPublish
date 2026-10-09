@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from browser_asset_cache import load_assets
+from browser_asset_cache import load_assets, asset_url
 
 
 class BrowserAssetCacheTests(unittest.TestCase):
@@ -26,6 +26,11 @@ class BrowserAssetCacheTests(unittest.TestCase):
 
     def test_missing_manifest_is_noop(self):
         self.assertEqual(load_assets(Path('/not-installed/browser-assets.json')), {})
+
+    def test_only_observed_telemetry_query_keys_are_normalized(self):
+        url = 'https://aladin.wxqcloud.qq.com/aladin/ffmepeg/finder-helper-media/v1/vts.wasm'
+        self.assertEqual(asset_url(url+'?_rid=trace&_pageUrl=https%3A%2F%2Fchannels.weixin.qq.com'), url)
+        self.assertIsNone(asset_url(url+'?token=secret'))
 
 
 if __name__ == '__main__':

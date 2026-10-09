@@ -70,6 +70,7 @@ except Exception as e:
 is_publishing = False
 PUBLISH_QUEUE: "queue.Queue[str]" = queue.Queue()
 PUBLISH_JOBS: dict[str, dict] = {}
+PUBLISH_ACCEPTING: set[str] = set()
 PUBLISH_JOB_ORDER: list[str] = []
 PUBLISH_LOCK = threading.Lock()
 BROWSER_CONTROL_LOCK = threading.Lock()
@@ -1049,7 +1050,8 @@ def _publish_worker():
                     # Serialize with package acceptance so a queued retry can
                     # never lose its media while cleanup runs.
                     with PUBLISH_LOCK:
-                        cleaned = cleanup_published(list(PUBLISH_JOBS.values()), transcription_root, apply=True)
+                        cleaned = [] if PUBLISH_ACCEPTING else cleanup_published(
+                            list(PUBLISH_JOBS.values()), transcription_root, apply=True)
                     if cleaned:
                         print(f'Cleaned verified published staging packages: {[r["filename"] for r in cleaned]}')
                 except Exception as cleanup_error:
@@ -1255,6 +1257,8 @@ class PublishHandler(tornado.web.RequestHandler):
         os.makedirs(transcription_dir, exist_ok=True)
 
         # Do not let a body-less/multipart retry destroy an existing valid ZIP.
+        with PUBLISH_LOCK:
+            PUBLISH_ACCEPTING.add(job_id)
         try:
             if local_path:
                 await asyncio.to_thread(validate_archive, local_path)
@@ -1274,6 +1278,8 @@ class PublishHandler(tornado.web.RequestHandler):
                     reuse_existing=reuse_existing, allow_replace=not busy,
                 )
         except (ValueError, OSError) as exc:
+            with PUBLISH_LOCK:
+                PUBLISH_ACCEPTING.discard(job_id)
             self.set_status(409 if isinstance(exc, FileExistsError) else 400)
             self.write({'status': 'error', 'error': str(exc)})
             return
@@ -1323,7 +1329,11 @@ class PublishHandler(tornado.web.RequestHandler):
             "created_at": _job_timestamp(),
             "updated_at": _job_timestamp(),
         }
-        _enqueue_publish_job(job)
+        try:
+            _enqueue_publish_job(job)
+        finally:
+            with PUBLISH_LOCK:
+                PUBLISH_ACCEPTING.discard(job_id)
         self.write(json.dumps({
             "status": "queued",
             "job_id": job_id,

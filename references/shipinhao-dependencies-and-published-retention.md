@@ -33,6 +33,10 @@ form validation and publication verification remain mandatory. The connection
 and interception are closed after the publisher exits. Without a manifest the
 browser behaves as before.
 
+The live worker appends `_rid` and `_pageUrl` telemetry query parameters. The
+cache ignores only those observed keys when matching the pinned static binary;
+unknown query keys bypass the cache, and parameter values are not logged.
+
 ## Default Cleanup
 
 After a terminal job, `AUTOPUBLISH_CLEAN_PUBLISHED=1` (default) removes confirmed
@@ -43,6 +47,8 @@ runtime data root, preserving job hashes and results across restarts.
 - Require the current archive's recorded SHA-256 and a successful result for
   **every requested platform**, including targets from earlier partial batches.
 - A successful scoped retry can complete that same immutable archive's batch.
+- An acceptance guard blocks cleanup from the beginning of upload validation
+  through queue insertion, not merely while a job is already visible as queued.
 - Preserve any archive still queued/running, partially failed, ambiguous, in
   test mode, from shared canonical workspace storage, or lacking hash evidence.
 - Delete only exact archive-member media whose bytes still match. Keep manual

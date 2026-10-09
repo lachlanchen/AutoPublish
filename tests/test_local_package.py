@@ -82,16 +82,26 @@ class TestLocalPackageEndpoint(tornado.testing.AsyncHTTPTestCase):
         self.root = Path(self.storage.name)
         self.jobs = []
         self.registry = {}
+        self.accepting = set()
         self.environment = patch.dict(os.environ, {'AUTOPUBLISH_LOCAL_PACKAGE_ROOT': str(self.root / 'data')})
         self.environment.start()
         super().setUp()
 
     def tearDown(self):
+        self.assertEqual(self.accepting, set(), 'Acceptance guard must release on success and failure')
         super().tearDown()
         self.environment.stop()
         self.storage.cleanup()
 
     def get_app(self):
+        def enqueue(job):
+            self.assertIn(job['id'], self.accepting, 'Cleanup must stay blocked through queue insertion')
+            self.jobs.append(job)
+
+        def store(*args, **kwargs):
+            self.assertTrue(self.accepting, 'Cleanup must stay blocked while accepting upload bytes')
+            return store_publish_package(*args, **kwargs)
+
         source = ast.parse((Path(__file__).parents[1] / 'app.py').read_text())
         names = {'PublishHandler', '_parse_bool_arg', '_parse_restart_platforms',
                  '_normalize_platform_name'}
@@ -100,9 +110,10 @@ class TestLocalPackageEndpoint(tornado.testing.AsyncHTTPTestCase):
                    'datetime': datetime, 'json': json, 'time': __import__('time'),
                    're': __import__('re'), 'PLATFORM_ALIASES': {},
                    'resolve_package': resolve_package, '_new_job_id': lambda: 'job-1',
-                   'store_publish_package': store_publish_package, 'validate_archive': validate_archive,
+                   'store_publish_package': store, 'validate_archive': validate_archive,
                    'PUBLISH_LOCK': threading.Lock(), 'PUBLISH_JOBS': self.registry,
-                   '_enqueue_publish_job': self.jobs.append, 'PUBLISH_QUEUE': queue.Queue(),
+                   'PUBLISH_ACCEPTING': self.accepting,
+                   '_enqueue_publish_job': enqueue, 'PUBLISH_QUEUE': queue.Queue(),
                    '_job_timestamp': lambda: 'test'}
         exec(compile(ast.Module(body=nodes, type_ignores=[]), 'app.py', 'exec'), context)
         return tornado.web.Application([(r'/publish', context['PublishHandler'],

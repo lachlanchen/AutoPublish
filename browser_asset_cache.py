@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import threading
+from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import requests
 import websocket
@@ -20,6 +21,15 @@ PUBLIC_WASM = re.compile(
     r'https://aladin\.wxqcloud\.qq\.com/aladin/ffmepeg/'
     r'(?:rhino-media-suite/[\d.]+/rhino_video|finder-helper-media/v\d+/vts)\.wasm\Z'
 )
+
+
+def asset_url(request_url):
+    parts = urlsplit(request_url)
+    if parts.fragment or any(key not in {'_rid', '_pageUrl'} for key, _ in parse_qsl(parts.query)):
+        return None
+    # The site's telemetry appends these two parameters to the same static
+    # binary. Never normalize unknown/signature/auth parameters or log values.
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, '', ''))
 
 
 def load_assets(manifest):
@@ -47,7 +57,8 @@ class AssetCache:
         self.stop = threading.Event()
         self.serial = 0
         self.patterns = {'patterns': [
-            {'urlPattern': url, 'requestStage': 'Request'} for url in assets]}
+            {'urlPattern': pattern, 'requestStage': 'Request'}
+            for url in assets for pattern in (url, url + '?*')]}
         self.send('Fetch.enable', self.patterns)
         response = json.loads(self.socket.recv())
         if response.get('error'):
@@ -71,7 +82,7 @@ class AssetCache:
                 if message.get('method') != 'Fetch.requestPaused':
                     continue
                 event = message['params']
-                url = event['request']['url']
+                url = asset_url(event['request']['url'])
                 body = self.assets.get(url)
                 if body is None:
                     self.send('Fetch.continueRequest', {'requestId': event['requestId']})

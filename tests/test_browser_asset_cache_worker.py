@@ -32,7 +32,7 @@ class WorkerAssetCacheTests(unittest.TestCase):
                   const code = `fetch(${JSON.stringify(url)}).then(r=>r.arrayBuffer()).then(b=>postMessage([...new Uint8Array(b)])).catch(e=>postMessage({error:String(e)}));`;
                   const worker = new Worker(URL.createObjectURL(new Blob([code], {type:'text/javascript'})));
                   worker.onmessage = event => {clearTimeout(timeout);worker.terminate();resolve(event.data);};
-                })''', url)
+                })''', url + '?_rid=fixture&_pageUrl=https%3A%2F%2Fchannels.weixin.qq.com')
                 self.assertEqual(result, list(data))
             finally:
                 if cache:
